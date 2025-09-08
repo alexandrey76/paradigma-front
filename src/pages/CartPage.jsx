@@ -3,9 +3,7 @@ import { useState } from "react";
 import { useCart } from "../context/CartContext";
 
 // базовый URL бэка: возьмём из .env, иначе — ваш прод URL
-const API_BASE =
-  process.env.REACT_APP_API_BASE ||
-  "https://alexandrey76-paradigma-back-c956.twc1.net";
+const API_BASE = "https://alexandrey76-paradigma-back-c956.twc1.net";
 
 export default function CartPage() {
   const { cart, total, clearCart, remove } = useCart();
