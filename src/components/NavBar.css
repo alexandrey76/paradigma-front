@@ -1,0 +1,10 @@
+.navbar-link {
+  color: white; /* обычный цвет */
+  text-decoration: none;
+  margin-right: 15px;
+  transition: color 0.3s ease; /* плавный переход */
+}
+
+.navbar-link:hover {
+  color: lightgray; /* при наведении */
+}
