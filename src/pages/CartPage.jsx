@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useCart } from "../context/CartContext";
 
 // Базовый адрес бэка: возьмём из .env, иначе — локально
-const API_BASE = process.env.REACT_APP_API_BASE || "https://alexandrey76-paradigma-3d4c.twc1.net";
+const API_BASE = process.env.REACT_APP_API_BASE || "alexandrey76-paradigma-back-c956.twc1.net";
 
 // Берём initData для подписи Telegram Mini App
 function getTelegramInitData() {
