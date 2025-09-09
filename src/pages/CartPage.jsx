@@ -15,7 +15,7 @@ export default function CartPage() {
 
   const validPhone = /^\+?\d{7,15}$/.test(phone.replace(/\s/g, ""));
 
-  async function handleSubmit(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -72,6 +72,35 @@ export default function CartPage() {
     // Важный лог для диагностики
     console.log("Payload to send:", JSON.stringify(payload, null, 2));
 
+    // ОТПРАВКА ДАННЫХ В TELEGRAM WEBAPP
+    if (window.Telegram?.WebApp) {
+      try {
+        const webAppData = {
+          product: cart.map(i => i.name).join(", "),
+          phone: phone,
+          comment: comment,
+          total: total,
+          items: cart.map(i => ({
+            name: i.name,
+            price: i.price,
+            quantity: i.qty
+          }))
+        };
+        
+        console.log("Sending to WebApp:", webAppData);
+        window.Telegram.WebApp.sendData(JSON.stringify(webAppData));
+        
+        // Закрываем WebApp после отправки
+        setTimeout(() => {
+          window.Telegram.WebApp.close();
+        }, 1000);
+        
+      } catch (webAppError) {
+        console.error("WebApp send error:", webAppError);
+      }
+    }
+
+    // ОТПРАВКА НА БЭКЕНД (как раньше)
     try {
       setSending(true);
       const res = await fetch(`${API_BASE}/api/orders`, {
@@ -106,7 +135,7 @@ export default function CartPage() {
     } finally {
       setSending(false);
     }
-  }
+  };
 
   return (
     <div style={{ maxWidth: 560 }}>
@@ -154,6 +183,21 @@ export default function CartPage() {
         </button>
         {error && <div style={{ color: "crimson", marginTop: 8 }}>{error}</div>}
       </form>
+
+      {/* Информация о WebApp */}
+      {window.Telegram?.WebApp && (
+        <div style={{ 
+          marginTop: 20, 
+          padding: 10, 
+          background: "#f0f8ff", 
+          borderRadius: 5,
+          fontSize: "14px"
+        }}>
+          <strong>WebApp активен</strong>
+          <br />
+          User ID: {window.Telegram.WebApp.initDataUnsafe?.user?.id || "не доступен"}
+        </div>
+      )}
     </div>
   );
 }
