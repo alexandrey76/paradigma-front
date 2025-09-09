@@ -31,7 +31,7 @@ export default function CartPage() {
     // Telegram Mini App (без верификации)
     const tg = window.Telegram?.WebApp;
     const u = tg?.initDataUnsafe?.user;
-    const initDataRaw = tg?.initData || ""
+    const initData = tg?.initData || ""
 
     const payload = {
       items: cart.map((i) => ({
@@ -46,7 +46,7 @@ export default function CartPage() {
         tg_user_id: u?.id ?? null,
         tg_username: u?.username ?? null,    // без @
         tg_first_name: u?.first_name ?? null,
-        init_data: initDataRaw
+        init_data: initData
       },
     };
 
@@ -55,7 +55,7 @@ export default function CartPage() {
       const res = await fetch(`${API_BASE}/api/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json",
-          "X-Telegram-Init-Data": initDataRaw || ""
+          "X-Telegram-Init-Data": window.Telegram?.WebApp?.initData || ""
          },
         body: JSON.stringify(payload),
       });
