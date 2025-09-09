@@ -2,8 +2,9 @@
 import { useState } from "react";
 import { useCart } from "../context/CartContext";
 
-// базовый URL бэка: возьмём из .env, иначе — ваш прод URL
-const API_BASE = "https://alexandrey76-paradigma-back-c956.twc1.net";
+// если у тебя есть .env — он перекроет это значение
+const API_BASE =
+  process.env.REACT_APP_API_BASE || "https://alexandrey76-paradigma-back-c956.twc1.net";
 
 export default function CartPage() {
   const { cart, total, clearCart, remove } = useCart();
@@ -27,10 +28,9 @@ export default function CartPage() {
       return;
     }
 
-    // Telegram mini app
+    // Telegram Mini App (без верификации)
     const tg = window.Telegram?.WebApp;
-    const initData = tg?.initData || "";                // строка initData (мягко пробрасываем)
-    const u = tg?.initDataUnsafe?.user || null;         // объект user, если аппа открыта в Telegram
+    const u = tg?.initDataUnsafe?.user;
 
     const payload = {
       items: cart.map((i) => ({
@@ -43,30 +43,21 @@ export default function CartPage() {
         phone,
         comment,
         tg_user_id: u?.id ?? null,
-        tg_username: u?.username ?? null,     // без '@'
+        tg_username: u?.username ?? null,    // без @
         tg_first_name: u?.first_name ?? null,
       },
     };
 
     try {
       setSending(true);
-
       const res = await fetch(`${API_BASE}/api/orders`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Telegram-Init-Data": initData, // мягкая передача initData
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       const text = await res.text();
-      let data = null;
-      try {
-        data = text ? JSON.parse(text) : null;
-      } catch {
-        /* не JSON */
-      }
+      const data = text ? JSON.parse(text) : null;
 
       if (!res.ok) {
         throw new Error(
@@ -74,12 +65,11 @@ export default function CartPage() {
         );
       }
 
-      alert(`Заявка №${data.order_id} отправлена.`);
+      alert(`Заявка №${data.order_id} отправлена`);
       clearCart();
       setPhone("+79991234567");
       setComment("");
     } catch (err) {
-      console.error(err);
       setError(String(err.message || err));
       alert(`Ошибка отправки: ${err.message || err}`);
     } finally {
@@ -91,33 +81,31 @@ export default function CartPage() {
     <div style={{ maxWidth: 560 }}>
       <h1>Корзина</h1>
 
-      {(!cart || cart.length === 0) && <div>Корзина пуста</div>}
-
-      {cart?.length > 0 && (
+      {!cart?.length ? (
+        <div>Корзина пуста</div>
+      ) : (
         <>
           <ul>
             {cart.map((i) => (
               <li key={i.id} style={{ marginBottom: 8 }}>
                 {i.name} — {i.price} ₽ × {i.qty}{" "}
-                <button onClick={() => remove(i.id)} style={{ marginLeft: 8 }}>
-                  Удалить
-                </button>
+                <button onClick={() => remove(i.id)}>Удалить</button>
               </li>
             ))}
           </ul>
-          <div style={{ fontWeight: 700, marginTop: 6 }}>Итого: {total} ₽</div>
+          <div style={{ margin: "8px 0 16px" }}>
+            <b>Итого:</b> {total} ₽
+          </div>
         </>
       )}
 
-      <form onSubmit={handleSubmit} style={{ marginTop: 16 }}>
+      <form onSubmit={handleSubmit}>
         <div>
-          Телефон&nbsp;
+          Телефон{" "}
           <input
             type="tel"
             value={phone}
-            onChange={(e) =>
-              setPhone(e.target.value.replace(/[^\d+]/g, ""))
-            }
+            onChange={(e) => setPhone(e.target.value.replace(/[^\d+]/g, ""))}
             placeholder="+79991234567"
           />
         </div>
@@ -128,14 +116,11 @@ export default function CartPage() {
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             placeholder="Например, доставка завтра"
-            style={{ width: "100%" }}
           />
         </div>
-
         <button type="submit" style={{ marginTop: 10 }} disabled={sending}>
           {sending ? "Отправляем…" : "Отправить заявку"}
         </button>
-
         {error && <div style={{ color: "crimson", marginTop: 8 }}>{error}</div>}
       </form>
     </div>
