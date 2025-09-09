@@ -34,21 +34,32 @@ export default function CartPage() {
     const initData = tg?.initData || ""
 
     const payload = {
-      items: cart.map((i) => ({
-        id: i.id,
-        name: i.name,
-        price: i.price,
-        qty: i.qty,
-      })),
-      contact: {
-        phone,
-        comment,
-        tg_user_id: u?.id ?? null,
-        tg_username: u?.username ?? null,    // без @
-        tg_first_name: u?.first_name ?? null,
-        init_data: initData
-      },
-    };
+  items: cart.map((i) => ({
+    id: i.id,
+    name: i.name,
+    price: i.price,
+    qty: i.qty,
+  })),
+  contact: {
+    phone,
+    comment,
+    tg_user_id: u?.id ?? null,
+    tg_username: u?.username ?? null,
+    tg_first_name: u?.first_name ?? null,
+    init_data: initData,
+    // ДОБАВЬ ЭТО ДЛЯ ДЕБАГА:
+    _debug: {
+      has_telegram: !!window.Telegram,
+      has_webapp: !!window.Telegram?.WebApp,
+      has_user: !!u,
+      user_data: u ? {
+        id: u.id,
+        username: u.username,
+        first_name: u.first_name
+      } : null
+    }
+  },
+};
 
     try {
       setSending(true);
