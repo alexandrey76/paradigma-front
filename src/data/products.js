@@ -14,6 +14,20 @@ const products = [
     description: "Описание товара 2",
     price: 27_990,
     images: []
+},
+{
+    id: 3,
+    name: "Электронный кальян Paradigma Pro",
+    description: "Описание товара 2",
+    price: 27_990,
+    images: []
+},
+{
+    id: 4,
+    name: "Электронный кальян Paradigma Pro",
+    description: "Описание товара 2",
+    price: 27_990,
+    images: []
 }
 ];
 
