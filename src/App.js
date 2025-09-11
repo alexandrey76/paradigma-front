@@ -12,7 +12,6 @@ export default function App() {
   return (
     <CartProvider>
       <Router>
-        <NavBar />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/catalog" element={<CatalogPage />} />
