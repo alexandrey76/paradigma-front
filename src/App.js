@@ -18,9 +18,6 @@ export default function App() {
           <Route path="/product/:id" element={<ProductPage />} />
           <Route path="/cart" element={<CartPage />} />
         </Routes>
-
-        {/* глобальный поп-ап «Связаться» */}
-        <FloatingBubble />
       </Router>
     </CartProvider>
   );
