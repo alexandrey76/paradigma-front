@@ -1,12 +1,20 @@
-import styled from "styled-components";
+import styled, { createGlobalStyle } from "styled-components";
+
+const Global = createGlobalStyle`
+  html, body, #root { height: 100%; }
+  body { margin: 0; background:#0c0c0c; color:#fff; }
+`;
 
 const Box = styled.div`
-  background: #111;
-  color: #0f0;
   padding: 16px;
   min-height: 100vh;
 `;
 
 export default function HomePage() {
-  return <Box>Я виден. Это HomePage со styled-components.</Box>;
+  return (
+    <>
+      <Global />
+      <Box>Глобальные стили тоже ок</Box>
+    </>
+  );
 }
