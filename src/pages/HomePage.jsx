@@ -32,6 +32,21 @@ export default function HomePage() {
   const [params] = useSearchParams();
 
   // автоскролл к форме
+  useEffect(() => {
+    if (params.get("scroll") === "contact") {
+      const t = setTimeout(scrollToContact, 120);
+      return () => clearTimeout(t);
+    }
+  }, [params]);
+
+  // приличия для Telegram WebApp (если есть)
+  useEffect(() => {
+    const wa = window.Telegram?.WebApp;
+    if (wa) {
+      wa.expand?.();
+      wa.disableVerticalSwipes?.();
+    }
+  }, []);
 
   return (
     <>
@@ -41,6 +56,10 @@ export default function HomePage() {
         {/* HERO */}
         <FullBleed>
           <Hero>
+            <HeroBg
+              src={PUB + "/assets/images/background_homepage.svg"}
+              alt=""
+            />
             <HeroOverlay />
             <HeroContent>
               <Logo
