@@ -1,12 +1,8 @@
-import { HashRouter, Routes, Route } from "react-router-dom";
-import HomePage from "./pages/HomePage";
-
+// src/App.js
 export default function App() {
   return (
-    <HashRouter>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-      </Routes>
-    </HashRouter>
+    <div style={{ color: "#fff", padding: 16, fontSize: 18 }}>
+      Привет из минимального App — без роутера и без styled-components
+    </div>
   );
 }
