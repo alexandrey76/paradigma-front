@@ -1,34 +1,25 @@
-const products = [
-{
-    id: 1,
-    name: "Электронный кальян Paradigma One",
-    description: "Описание товара 1",
-    price: 17_990,
-    images: ["/products_images/product1_1.jpg","/products_images/product1_2.jpg", "/products_images/product1_3.jpg"],
-    videos: ["/videos/product1-1_new.mp4"]
+const PUB = process.env.PUBLIC_URL || "";
 
-},
-{
+const products = [
+  {
+    id: 1,
+    name: "Товар 1",
+    description: "Описание товара 1",
+    price: 1000,
+    images: [
+      PUB + "/images/product1_1.jpg",
+      PUB + "/images/product1_2.jpg",
+      PUB + "/images/product1_3.jpg"
+    ],
+    videos: [PUB + "/videos/product1-1_new.mp4"]
+  },
+  {
     id: 2,
-    name: "Электронный кальян Paradigma Pro",
+    name: "Товар 2",
     description: "Описание товара 2",
-    price: 27_990,
+    price: 1000,
     images: []
-},
-{
-    id: 3,
-    name: "Электронный кальян Paradigma Pro",
-    description: "Описание товара 2",
-    price: 27_990,
-    images: []
-},
-{
-    id: 4,
-    name: "Электронный кальян Paradigma Pro",
-    description: "Описание товара 2",
-    price: 27_990,
-    images: []
-}
+  }
 ];
 
-export default products
+export default products;

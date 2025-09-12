@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import styled, { createGlobalStyle } from "styled-components";
-import products from "../data/products"; // ⚡ путь подстрой под свой проект
+import products from "../data/products";
+
+const PUB = process.env.PUBLIC_URL || "";
 
 /* ───────── Global reset ───────── */
 const GlobalStyle = createGlobalStyle`
@@ -36,6 +38,7 @@ export default function HomePage() {
     }
   }, [params]);
 
+  // Telegram Mini App (опционально)
   useEffect(() => {
     const wa = window.Telegram?.WebApp;
     if (!wa) return;
@@ -50,11 +53,11 @@ export default function HomePage() {
         {/* ───── HERO ───── */}
         <FullBleed>
           <Hero>
-            <HeroBg src="/assets/images/background_homepage.svg" alt="" />
+            <HeroBg src={PUB + "/assets/images/background_homepage.svg"} alt="" />
             <HeroOverlay />
             <HeroContent>
               <Logo
-                src="/assets/images/paradigmaLogoo.svg"
+                src={PUB + "/assets/images/paradigmaLogoo.svg"}
                 alt="PARADIGMA"
                 draggable={false}
               />
@@ -66,15 +69,15 @@ export default function HomePage() {
         <FullBleed>
           <BenefitsBar>
             <Benefit>
-              <Icon><img src="/assets/images/noRisk.svg" alt="Без риска" /></Icon>
+              <Icon><img src={PUB + "/assets/images/noRisk.svg"} alt="Без риска" /></Icon>
               <BenefitText>Без риска</BenefitText>
             </Benefit>
             <Benefit>
-              <Icon><img src="/assets/images/noAsh.svg" alt="Без пепла" /></Icon>
+              <Icon><img src={PUB + "/assets/images/noAsh.svg"} alt="Без пепла" /></Icon>
               <BenefitText>Без пепла</BenefitText>
             </Benefit>
             <Benefit>
-              <Icon><img src="/assets/images/noCoal.svg" alt="Без угля" /></Icon>
+              <Icon><img src={PUB + "/assets/images/noCoal.svg"} alt="Без угля" /></Icon>
               <BenefitText>Без угля</BenefitText>
             </Benefit>
           </BenefitsBar>
@@ -126,7 +129,7 @@ export default function HomePage() {
 
         {/* ───── FOOTER ───── */}
         <Footer>
-          <SmallLogo src="/assets/images/paradigmaLogoo.svg" alt="Paradigma" />
+          <SmallLogo src={PUB + "/assets/images/paradigmaLogoo.svg"} alt="Paradigma" />
           <Copy>© Paradigma</Copy>
         </Footer>
       </Page>
@@ -262,25 +265,21 @@ const CardImage = styled.div`
   aspect-ratio: 1 / 1;
   width: 100%;
   border-radius: 12px;
-  border: 1px solid #f5b300;
+  border: 1px solid #f5b300;   /* жёлтая рамка */
   overflow: hidden;
   background: #171717;
 
   img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: cover;          /* квадратная обрезка */
   }
 `;
 
 const Placeholder = styled.div`
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #777;
-  font-size: 12px;
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  color: #777; font-size: 12px;
 `;
 
 const CardPriceRow = styled.div`
