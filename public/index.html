@@ -2,38 +2,15 @@
 <html lang="ru">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <title>Paradigma</title>
+    <!-- (опционально) <script src="https://telegram.org/js/telegram-web-app.js"></script> -->
   </head>
-
-
   <body>
     <noscript>Включите JavaScript для работы приложения.</noscript>
     <div id="root"></div>
-      <script>
-      (function () {
-        // Плашка поверх экрана — покажет первую ошибку/статусы
-        var box = document.createElement('div');
-        box.style.cssText = "position:fixed;left:8px;top:8px;z-index:999999;background:#111;color:#0f0;padding:6px 8px;font:12px/1.2 monospace;border-radius:6px;max-width:90vw;word-break:break-word";
-        box.textContent = 'diag: init...';
-        document.body.appendChild(box);
-
-        // Ловим любые падения JS
-        window.addEventListener('error', function (e) {
-          box.style.color = '#ff6';
-          box.textContent = 'JS error: ' + (e.message || e);
-        });
-        window.addEventListener('unhandledrejection', function (e) {
-          box.style.color = '#ff6';
-          box.textContent = 'Promise reject: ' + (e.reason && (e.reason.message || e.reason)) ;
-        });
-
-    // Через 1с посмотрим, какие скрипты подключились
-        setTimeout(function () {
-          var scripts = Array.from(document.scripts).map(s => s.src || s.getAttribute('src') || '(inline)');
-          box.textContent = 'scripts: ' + JSON.stringify(scripts);
-        }, 1000);
-  })();
-</script>
   </body>
 </html>

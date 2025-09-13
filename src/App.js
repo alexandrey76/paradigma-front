@@ -1,17 +1,22 @@
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
+import GlobalStyle from "./styles/GlobalStyle";
 import HomePage from "./pages/HomePage";
+import CatalogPage from "./pages/CatalogPage";
+import NavBar from "./components/NavBar";
 
 export default function App() {
   return (
     <HashRouter>
+      <GlobalStyle />   {/* ← глобальный фон и сбросы работают на всех страницах */}
+
       <Routes>
-        {/* отрисовать по пустому хэшу */}
         <Route index element={<HomePage />} />
-        {/* обычный / тоже на всякий */}
         <Route path="/" element={<HomePage />} />
-        {/* любой другой путь — редирект на / */}
+        <Route path="/catalog" element={<CatalogPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+
+      <NavBar />
     </HashRouter>
   );
 }

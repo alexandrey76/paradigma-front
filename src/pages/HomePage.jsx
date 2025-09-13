@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import styled, { createGlobalStyle } from "styled-components";
 import products from "../data/products";
+import { Link } from "react-router-dom";
 
 // базовый префикс для public/
 const PUB = process.env.PUBLIC_URL || "";
@@ -97,10 +98,15 @@ export default function HomePage() {
 
         {/* CATALOG */}
         <Section>
-          <SectionHeader>
-            <SectionTitle>Каталог товаров</SectionTitle>
-            <Chevron>›</Chevron>
-          </SectionHeader>
+          <Link
+            to="/catalog"
+            style={{ textDecoration: "none", color: "inherit" }}
+          >
+            <SectionHeader>
+              <SectionTitle>Каталог товаров</SectionTitle>
+              <Chevron>›</Chevron>
+            </SectionHeader>
+          </Link>
 
           <CardsScroller>
             {products.map((p) => (
@@ -165,10 +171,16 @@ const Page = styled.div`
   flex-direction: column;
   padding-left: var(--side-pad);
   padding-right: var(--side-pad);
-
+  padding-bottom: 84px; /* высота бара + отступы; подгони при желании */
+  
   @supports (padding: env(safe-area-inset-left)) {
     padding-left: max(var(--side-pad), env(safe-area-inset-left));
     padding-right: max(var(--side-pad), env(safe-area-inset-right));
+  }
+  
+  
+  @supports (padding: env(safe-area-inset-bottom)) {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
   }
 `;
 
