@@ -13,8 +13,7 @@ export default function App() {
     if (tg) {
       try {
         tg.ready();
-        tg.expand(); // разворачиваем на всю высоту
-        tg.disableVerticalSwipes?.(); // по желанию
+        tg.expand(); // разворачиваем на всю высот // по желанию
       } catch (e) {
         console.warn("Telegram WebApp init warning:", e);
       }
