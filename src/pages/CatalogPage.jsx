@@ -1,9 +1,24 @@
 // src/pages/CatalogPage.jsx
-import products from "../data/products";
-import { Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import styled from "styled-components";
+import products from "../data/products";
 
-// Стили
+// ⬅️ Стрелка назад
+const BackArrow = styled.button`
+  display: flex;
+  align-items: center;
+  margin-right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+
+  img {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
 const PageWrapper = styled.div`
   background: #000;
   min-height: 100vh;
@@ -14,18 +29,16 @@ const PageWrapper = styled.div`
 const Header = styled.div`
   display: flex;
   align-items: center;
-  justify-content: space-between;
   background: #fff;
   border-radius: 8px;
   padding: 10px 14px;
   margin-bottom: 16px;
 `;
 
-const SearchInput = styled.input`
-  flex: 1;
-  border: none;
-  outline: none;
+const Title = styled.span`
+  font-weight: bold;
   font-size: 16px;
+  color: black;
 `;
 
 const Grid = styled.div`
@@ -36,8 +49,8 @@ const Grid = styled.div`
 
 const Card = styled.div`
   background: transparent;
-  border: 2px solid #f5a300; /* желтая рамка */
-  border-radius: 8px;
+  border: 42x solid #f5a300;
+  border-radius: 10px;
   overflow: hidden;
   padding: 8px;
   display: flex;
@@ -47,7 +60,7 @@ const Card = styled.div`
 
 const ProductImage = styled.img`
   width: 100%;
-  aspect-ratio: 1/1; /* квадратная картинка */
+  aspect-ratio: 1/1;
   object-fit: cover;
 `;
 
@@ -70,25 +83,39 @@ const CartButton = styled.button`
   border: 2px solid #f5a300;
   border-radius: 6px;
   padding: 6px;
-  color: white;
   margin-top: 8px;
   cursor: pointer;
 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
   &:hover {
     background: #f5a300;
-    color: black;
+  }
+
+  img.cart-icon {
+    width: 24px;
+    height: 24px;
   }
 `;
 
 export default function CatalogPage() {
+  const navigate = useNavigate();
+
   return (
     <PageWrapper>
-      {/* 🔍 Заголовок с поиском */}
+      {/* 🔙 Заголовок с кнопкой "назад" */}
       <Header>
-        <span style={{ fontWeight: "bold", color: "black" }}>Каталог товаров</span>
+        <BackArrow onClick={() => navigate(-1)}>
+          <img
+            src={`${process.env.PUBLIC_URL}/assets/images/backArrow.svg`}
+            alt="Назад"
+          />
+        </BackArrow>
+        <Title>Каталог товаров</Title>
       </Header>
 
-      {/* 🔲 Сетка товаров */}
       <Grid>
         {products.map((p) => (
           <Card key={p.id}>
@@ -98,7 +125,13 @@ export default function CatalogPage() {
             <Info>
               <Price>{p.price.toLocaleString("ru-RU")} руб</Price>
               <Name>{p.name}</Name>
-              <CartButton>🛒</CartButton>
+              <CartButton>
+                <img
+                  src={`${process.env.PUBLIC_URL}/assets/images/productCart.svg`}
+                  alt="Добавить в корзину"
+                  className="cart-icon"
+                />
+              </CartButton>
             </Info>
           </Card>
         ))}

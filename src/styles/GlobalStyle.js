@@ -1,17 +1,22 @@
+// src/styles/GlobalStyle.js
 import { createGlobalStyle } from "styled-components";
 
 const GlobalStyle = createGlobalStyle`
-  html, body, #root { height: 100%; }
-  *, *::before, *::after { box-sizing: border-box; }
-  body {
+  * {
     margin: 0;
-    background: #000;           /* ← чёрный фон везде */
-    color: #fff;
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-    overscroll-behavior: none;
+    padding: 0;
+    box-sizing: border-box;
   }
-  img { display:block; max-width:100%; }
-  :root { --side-pad: clamp(12px, 3vw, 24px); }
+
+  body {
+    font-family: 'Montserrat', sans-serif;
+    background: #000;
+    color: #fff;
+  }
+
+  button, input, textarea {
+    font-family: inherit;
+  }
 `;
+
 export default GlobalStyle;

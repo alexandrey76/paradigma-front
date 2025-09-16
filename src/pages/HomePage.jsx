@@ -122,7 +122,11 @@ export default function HomePage() {
                 <CardPriceRow>
                   <Price>{(p.price ?? 0).toLocaleString()} ₽</Price>
                   <IconBtn type="button" aria-label="В корзину">
-                    🛒
+                    <img
+                    src={`${process.env.PUBLIC_URL}/assets/images/productCart.svg`}
+                    alt="Добавить в корзину"
+                    className="cart-icon"
+                    />
                   </IconBtn>
                 </CardPriceRow>
 
@@ -325,7 +329,7 @@ const CardImage = styled.div`
   aspect-ratio: 1 / 1;        /* квадрат */
   width: 100%;
   border-radius: 12px;
-  border: 1px solid #f5b300;  /* жёлтая рамка */
+  border: 2px solid #f5b300;  /* жёлтая рамка */
   overflow: hidden;
   background: #171717;
 
@@ -362,9 +366,9 @@ const IconBtn = styled.button`
   width: 36px;
   height: 36px;
   border-radius: 12px;
-  border: 1px solid #f5b300;
+  border: 1px solid #000000ff;
   background: transparent;
-  color: #f5b300;
+  color: #000000ff;
 `;
 
 const CardTitle = styled.div`
