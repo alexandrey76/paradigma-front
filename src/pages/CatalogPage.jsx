@@ -80,7 +80,7 @@ const Name = styled.div`
 
 const CartButton = styled.button`
   background: none;
-  border: 2px solid #f5a300;
+  border: 2px solid #000000ff;
   border-radius: 6px;
   padding: 6px;
   margin-top: 8px;
