@@ -11,7 +11,7 @@ export default function NavBar() {
           <LogoIcon />
         </IconLink>
 
-        <IconLink to="/catalog" $active={pathname.startsWith("/catalog")}>
+        <IconLink to="/cart" $active={pathname.startsWith("/cart")}>
           <CartIcon />
         </IconLink>
 
