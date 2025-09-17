@@ -100,6 +100,23 @@ const CartButton = styled.button`
   }
 `;
 
+const ImgWrap = styled.div`
+  border: 2px solid #f5b300;   /* жёлтая рамка */
+  border-radius: 10px;         /* закругления, как в корзине */
+  overflow: hidden;            /* чтобы картинка не вылезала за края */
+  aspect-ratio: 1 / 1;         /* квадрат */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+`;
+
+
 export default function CatalogPage() {
   const navigate = useNavigate();
 
@@ -120,7 +137,9 @@ export default function CatalogPage() {
         {products.map((p) => (
           <Card key={p.id}>
             <Link to={`/product/${p.id}`}>
-              <ProductImage src={p.images[0]} alt={p.name} />
+              <ImgWrap>
+                <ProductImage src={p.images[0]} alt={p.name} />
+              </ImgWrap>
             </Link>
             <Info>
               <Price>{p.price.toLocaleString("ru-RU")} руб</Price>
