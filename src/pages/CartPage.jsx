@@ -261,8 +261,8 @@ const DeleteBtn = styled.button`
   place-items: center;
 
   img {
-    width: 20px;
-    height: 20px;
+    width: 26px;
+    height: 26px;
   }
 `;
 
