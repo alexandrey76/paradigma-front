@@ -1,7 +1,9 @@
 // src/pages/CatalogPage.jsx
+import React, { useCallback } from "react";
 import products from "../data/products";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
+import { useCart } from "../context/CartContext";
 
 const PageWrapper = styled.div`
   background: #000;
@@ -101,6 +103,14 @@ const CartButton = styled.button`
 
 export default function CatalogPage() {
   const navigate = useNavigate();
+  const { addItem } = useCart();
+  const handleAddToCart = useCallback(
+      (e, product) => {
+        e.stopPropagation(); // чтобы не сработал переход на карточку
+        addItem(product, 1);
+      },
+      [addItem])
+  
 
   return (
     <PageWrapper>
@@ -124,7 +134,10 @@ export default function CatalogPage() {
                 <Price>{p.price.toLocaleString("ru-RU")} руб</Price>
                 <Name>{p.name}</Name>
               </PriceBlock>
-              <CartButton>
+              <CartButton type="button"
+                      onClick={(e) => handleAddToCart(e, p)}
+                      aria-label="В корзину"
+                      title="В корзину">
                 <img src="/assets/images/productCart.svg" className="cart-icon" alt="cart" />
               </CartButton>
             </InfoRow>

@@ -3,53 +3,57 @@ import React, { useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import useEmblaCarousel from "embla-carousel-react";
+
 import products from "../data/products";
+import { useCart } from "../context/CartContext";
 
 const PUB = process.env.PUBLIC_URL || "";
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { addItem } = useCart();
 
-  const [emblaRef, emblaApi] = useEmblaCarousel({
+  // embla — только для горизонтального скролла (тапы обрабатываем сами)
+  const [emblaRef] = useEmblaCarousel({
     align: "start",
     containScroll: "trimSnaps",
     dragFree: false,
     loop: false,
   });
 
+  // ВСЕГДА переходим на страницу товара
   const handleTap = useCallback(
     (id) => {
-      if (!emblaApi || emblaApi.clickAllowed()) {
-        navigate(`/product/${id}`);
-      }
+      navigate(`/product/${id}`);
     },
-    [emblaApi, navigate]
+    [navigate]
+  );
+
+  // Добавление в корзину
+  const handleAddToCart = useCallback(
+    (e, product) => {
+      e.stopPropagation(); // чтобы не сработал переход на карточку
+      addItem(product, 1);
+    },
+    [addItem]
   );
 
   return (
     <Page>
-      {/* HERO */}
-      <Hero>
+      {/* Герой */}
+      <HeroWrap>
         <HeroImg
           src={`${PUB}/assets/images/background_homepage.svg`}
           alt="Paradigma hookah"
         />
-        {/* БОЛЬШОЙ ЦЕНТРАЛЬНЫЙ ЛОГОТИП */}
-        <HeroCenterLogo>
-          {/* Если у тебя есть отдельный файл с большим логотипом — положи его сюда */}
-          <img
-            src={`${PUB}/assets/images/paradigmaLogoo.svg`}
-            onError={(e) => {
-              // Фолбэк: если brandHero.svg нет, используем topLogo.svg
-              e.currentTarget.src = `${PUB}/assets/images/paradigmaLogoo.svg`;
-            }}
-            alt="PARADIGMA"
-            draggable="false"
-          />
-        </HeroCenterLogo>
-      </Hero>
 
-      {/* ПРЕИМУЩЕСТВА */}
+      {/* ЛОГО поверх баннера */}
+        <LogoOverlay aria-hidden="true">
+        <img src={`${PUB}/assets/images/paradigmaLogoo.svg`} alt="Paradigma" />
+        </LogoOverlay>
+      </HeroWrap>
+
+      {/* Преимущества */}
       <BenefitsBar>
         <Benefit>
           <BenefitIcon src={`${PUB}/assets/images/noRisk.svg`} alt="" />
@@ -65,7 +69,7 @@ export default function HomePage() {
         </Benefit>
       </BenefitsBar>
 
-      {/* КАТАЛОГ */}
+      {/* Каталог */}
       <Section>
         <SectionHeaderRow>
           <Link to="/catalog" style={{ textDecoration: "none", color: "inherit" }}>
@@ -78,12 +82,19 @@ export default function HomePage() {
           <CatalogSlides>
             {products.map((p) => (
               <CatalogSlide key={p.id}>
-                <Card onClick={() => handleTap(p.id)}>
+                {/* ВЕСЬ блок кликабельный */}
+                <Card
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleTap(p.id)}
+                  onKeyDown={(e) => e.key === "Enter" && handleTap(p.id)}
+                >
                   <CardImage
                     src={p.images?.[0] || `${PUB}/assets/images/placeholder.png`}
                     alt={p.name}
                     loading="lazy"
                   />
+
                   <CardBottomRow>
                     <PriceBlock>
                       <Price>{(p.price ?? 0).toLocaleString("ru-RU")} руб</Price>
@@ -92,10 +103,7 @@ export default function HomePage() {
 
                     <CartBtn
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // тут можешь дернуть addItem(p)
-                      }}
+                      onClick={(e) => handleAddToCart(e, p)}
                       aria-label="В корзину"
                       title="В корзину"
                     >
@@ -122,13 +130,27 @@ const Page = styled.main`
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 `;
 
-/* --- HERO --- */
-const Hero = styled.div`
+const HeroWrap = styled.div`
   position: relative;
   width: 100%;
   overflow: hidden;
   border-bottom-left-radius: 12px;
   border-bottom-right-radius: 12px;
+`;
+
+const LogoOverlay = styled.div`
+  position: absolute;
+  inset: 0;                 /* занимает весь баннер */
+  display: grid;
+  place-items: center;      /* центрируем по X/Y */
+  pointer-events: none;     /* логотип не перехватывает клики */
+  z-index: 1;
+
+  img {
+    width: clamp(250px, 36vw, 320px); /* адаптивный размер */
+    height: auto;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,.6)); /* чтобы читалось на дыме */
+  }
 `;
 
 const HeroImg = styled.img`
@@ -137,30 +159,6 @@ const HeroImg = styled.img`
   height: auto;
 `;
 
-/* Центровка большого логотипа — прямо как на макете */
-const HeroCenterLogo = styled.div`
-  position: absolute;
-  left: 50%;
-  top: 45%;                 /* можно подкорректировать 40–50% по вкусу */
-  transform: translate(-50%, -50%);
-  z-index: 2;
-  pointer-events: none;     /* чтобы логотип не мешал свайпу */
-
-  img {
-    display: block;
-    width: min(70vw, 520px);  /* логотип масштабируется под экран */
-    height: auto;
-    filter: drop-shadow(0 2px 6px rgba(255, 255, 255, 0.45)); /* читаемость на дыме */
-    user-select: none;
-  }
-
-  @media (min-width: 480px) {
-    top: 42%;
-    img { width: min(54vw, 560px); }
-  }
-`;
-
-/* --- преимущества --- */
 const BenefitsBar = styled.div`
   background: #fff;
   color: #000;
@@ -184,7 +182,6 @@ const BenefitText = styled.div`
   font-size: 14px;
 `;
 
-/* --- каталог --- */
 const Section = styled.section`
   padding: 14px var(--side-pad, 16px) 6px;
 `;
@@ -205,6 +202,7 @@ const Chevron = styled.div`
   user-select: none;
 `;
 
+/* ——— свайп-карусель каталога ——— */
 const CatalogViewport = styled.div`
   overflow: hidden;
 `;
@@ -216,6 +214,7 @@ const CatalogSlides = styled.div`
   -webkit-user-select: none;
 `;
 const CatalogSlide = styled.div`
+  /* карточка почти на всю ширину экрана */
   flex: 0 0 86%;
   max-width: 520px;
 
@@ -228,8 +227,9 @@ const Card = styled.div`
   background: #0b0b0b;
   border-radius: 14px;
   padding: 14px;
-  box-shadow: 0 0 0 2px #000 inset;
+  box-shadow: 0 0 0 2px #000000ff inset;
   cursor: pointer;
+  outline: none;
 `;
 const CardImage = styled.img`
   width: 100%;
@@ -261,14 +261,16 @@ const Name = styled.div`
 `;
 const CartBtn = styled.button`
   background: none;
-  border: 2px solid #000;
+  border: 2px solid #000000ff;
   border-radius: 12px;
   padding: 8px;
   display: grid;
   place-items: center;
   cursor: pointer;
 
-  &:hover { background: #f5a30022; }
+  &:hover {
+    background: #f5a30022;
+  }
 
   img {
     width: 40px;
