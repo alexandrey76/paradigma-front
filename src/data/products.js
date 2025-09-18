@@ -4,7 +4,7 @@ const products = [
   {
     id: 1,
     name: "Товар 1",
-    description: `Набор:
+    description: `
 Новая модель                                 с защитными системами
 Прочный кейс
 Щипцы
@@ -17,7 +17,7 @@ const products = [
       PUB + "/products_images/product1_2.jpg",
       PUB + "/products_images/product1_3.jpg"
     ],
-    videos: [PUB + "/videos/product1-1_new.mp4"]
+    videos: [PUB + "/videos/product1_1.mp4"]
   },
   {
     id: 2,

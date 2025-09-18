@@ -1,7 +1,9 @@
 // src/pages/ProductPage.jsx
-import React, { useEffect, useMemo, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import styled from "styled-components";
+import useEmblaCarousel from "embla-carousel-react";
+
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
 
@@ -12,87 +14,161 @@ export default function ProductPage() {
   const navigate = useNavigate();
   const { addItem } = useCart();
 
-  // хуки — всегда сверху
   const product = useMemo(
     () => products.find((p) => p.id === Number(id)),
     [id]
   );
 
   const media = useMemo(() => {
-    const imgs = (product?.images || []).map((src) => ({ type: "image", src }));
-    const vids = (product?.videos || []).map((mp4) => ({ type: "video", mp4 }));
-    return [...imgs, ...vids];
+    if (!product) return [];
+    const vids = (product.videos || []).map((mp4) => ({ type: "video", mp4 }));
+    const imgs = (product.images || []).map((src) => ({ type: "image", src }));
+    return [...vids, ...imgs];
   }, [product]);
 
-  const [index, setIndex] = useState(0);
-  const curr = media[index];
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop: false,
+    dragFree: false,
+    align: "center",
+    containScroll: "trimSnaps",
+  });
 
-  // при смене товара — сбрасываем слайд
-  useEffect(() => setIndex(0), [product]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const prev = () => setIndex((i) => (i - 1 + media.length) % media.length);
-  const next = () => setIndex((i) => (i + 1) % media.length);
+  const pauseAllVideosExcept = useCallback(
+    (index) => {
+      if (!emblaApi) return;
+      const root = emblaApi.rootNode();
+      const videos = root.querySelectorAll("video");
+      videos.forEach((v, i) => {
+        if (i !== index && !v.paused) {
+          try {
+            v.pause();
+          } catch {}
+        }
+      });
+    },
+    [emblaApi]
+  );
 
-  // теперь ранний возврат ПОСЛЕ вызова хуков — это ок
-  if (!product) {
-    return <EmptyWrap>Товар не найден</EmptyWrap>;
-  }
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    const i = emblaApi.selectedScrollSnap();
+    setSelectedIndex(i);
+    pauseAllVideosExcept(i);
+  }, [emblaApi, pauseAllVideosExcept]);
 
-  const features = Array.isArray(product.features)
-    ? product.features
-    : (product.description || "")
-        .split(/\r?\n|•|- |—|\. /)
-        .map((s) => s.trim())
-        .filter(Boolean);
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on("select", onSelect);
+    emblaApi.on("reInit", onSelect);
+    return () => {
+      emblaApi.off("select", onSelect);
+      emblaApi.off("reInit", onSelect);
+    };
+  }, [emblaApi, onSelect]);
+
+  useEffect(() => {
+    setSelectedIndex(0);
+    if (emblaApi) emblaApi.scrollTo(0, true);
+  }, [id, emblaApi]);
+
+  if (!product) return <EmptyWrap>Товар не найден</EmptyWrap>;
+
+  const prev = () => emblaApi && emblaApi.scrollPrev();
+  const next = () => emblaApi && emblaApi.scrollNext();
 
   return (
     <FullBleed>
       <Page>
         <TopBar>
           <BackArrow aria-label="Назад" onClick={() => navigate(-1)}>
-            <img
-            src={`${process.env.PUBLIC_URL}/assets/images/backArrow.svg`}
-            alt="Назад"
-            />
+            <img src={`${PUB}/assets/images/backArrow.svg`} alt="Назад" width="14" height="14" />
           </BackArrow>
           <Brand>
-            <Logo src={PUB + "/assets/images/paradigmaLogoo.svg"} alt="Paradigma" />
+            <Logo src={`${PUB}/assets/images/topLogo.svg`} alt="Paradigma" />
           </Brand>
-          <TopCenter>
-            <img src = "/assets/images/topLogo.svg" alt ="top logo" width="120px"/>
-          </TopCenter>
         </TopBar>
 
         <Title>{product.name}</Title>
+
+        {/* MEDIA: свайп-карусель */}
         <Bleed>
           <MediaBox>
-            {media.length > 0 ? (
-              curr.type === "image" ? (
-                <Img src={curr.src} alt={product.name} />
-              ) : (
-                <Video key={curr.mp4} src={curr.mp4} controls playsInline preload="metadata" />
-              )
-            ) : (
-              <NoPic />
-            )}
+            <Viewport ref={emblaRef}>
+              <Slides>
+                {media.map((m, i) => {
+                  // источник для размытого фона:
+                  const blurSrc =
+                    m.type === "image"
+                      ? m.src
+                      : product.images?.[0] || `${PUB}/assets/images/placeholder.png`;
+                  return (
+                    <Slide key={i}>
+                      <BlurBg style={{ backgroundImage: `url(${blurSrc})` }} />
+                      {m.type === "image" ? (
+                        <Img src={m.src} alt={`${product.name} ${i + 1}`} />
+                      ) : (
+                        <Vid
+                          autoPlay
+                          controls
+                          muted
+                          loop
+                          playsInline
+                          preload="metadata"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
+                        >
+                          <source src={m.mp4} type="video/mp4" />
+                        </Vid>
+                      )}
+                    </Slide>
+                  );
+                })}
+              </Slides>
+            </Viewport>
 
             {media.length > 1 && (
               <>
-                <NavArrow left aria-label="Назад" onClick={prev}>‹</NavArrow>
-                <NavArrow aria-label="Вперёд" onClick={next}>›</NavArrow>
+                <NavArrow left aria-label="Назад" onClick={prev}>
+                  ‹
+                </NavArrow>
+                <NavArrow aria-label="Вперёд" onClick={next}>
+                  ›
+                </NavArrow>
+
+                <Dots>
+                  {media.map((_, i) => (
+                    <Dot
+                      key={i}
+                      aria-label={`Слайд ${i + 1}`}
+                      $active={i === selectedIndex}
+                      onClick={() => emblaApi && emblaApi.scrollTo(i)}
+                    />
+                  ))}
+                </Dots>
               </>
             )}
           </MediaBox>
-        </Bleed> 
+        </Bleed>
+
         <PriceRow>
           <Price>{(product.price ?? 0).toLocaleString("ru-RU")} ₽</Price>
           <AddBtn onClick={() => addItem(product)}>Добавить в корзину</AddBtn>
         </PriceRow>
 
-        {features.length > 0 && (
+        {product.description && (
           <SpecBlock>
+            <SpecTitle>Набор:</SpecTitle>
             <SpecList>
-              {features.map((f, i) => <li key={i}>{f}</li>)}
+              {product.description
+                .split(/\r?\n|•|- |—/)
+                .map((s) => s.trim())
+                .filter(Boolean)
+                .map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
             </SpecList>
           </SpecBlock>
         )}
@@ -101,45 +177,66 @@ export default function ProductPage() {
   );
 }
 
-/* ===== styled (без изменений) ===== */
-
+/* =============== styled =============== */
 const FullBleed = styled.div`
   width: 100vw;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
   background: #000;
 `;
+
 const Page = styled.main`
   padding: 12px var(--side-pad) calc(110px + env(safe-area-inset-bottom));
-  min-height: 100dvh; color:#fff;
+  min-height: 100dvh;
+  color: #fff;
+  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 `;
+
 const EmptyWrap = styled.div`
-  min-height: 60vh; display:grid; place-items:center; color:#fff; background:#000;
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: #000;
 `;
 
 const TopBar = styled.header`
-  background:#fff; color:#000; border-radius:10px; height:44px;
-  display:grid; grid-template-columns:40px 1fr auto; align-items:center; gap:8px; padding:0 8px;
+  background: #fff;
+  color: #000;
+  border-radius: 10px;
+  height: 44px;
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  margin-bottom: 10px;
 `;
 const BackArrow = styled.button`
   display: flex;
   align-items: center;
-  margin-right: 12px;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0;
-
-  img {
-    width: 14px;
-    height: 14px;
-  }
+  padding: 0 4px;
+`;
+const Brand = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end; /* прижали вправо */
+  padding-right: 8px;        /* небольшой отступ справа */
 `;
 
-const Brand = styled.div`display:flex;align-items:center;gap:8px;`;
-const Logo = styled.img`height:18px;width:auto;`;
-const TopCenter = styled.div`display:flex;align-items:left;gap:0px;`;
-const TopLink = styled(Link)`color:inherit;text-decoration:none;font-size:18px;`;
+const Logo = styled.img`
+  height: 18px;
+  width: auto;
+`;
+
+const Title = styled.h1`
+  margin: 8px 0 10px;
+  font-size: 18px;
+  font-weight: 800;
+`;
 
 const Bleed = styled.div`
   width: 100vw;
@@ -147,40 +244,140 @@ const Bleed = styled.div`
   margin-right: calc(50% - 50vw);
 `;
 
-const Title = styled.h1`margin:14px 0 10px;font-size:18px;font-weight:800;`;
-
 const MediaBox = styled.div`
   position: relative;
-  width: 100vw;                /* ← весь viewport */
+  width: 100vw;
   max-width: 100vw;
-  aspect-ratio: 1 / 1;         /* идеальный квадрат */
+  aspect-ratio: 1 / 1;
   border: 4px solid #f5b300;
   border-radius: 12px;
   overflow: hidden;
   background: #111;
-  margin: 10px 0 22px;         /* отступы сверху/снизу, без боковых */
+  margin: 8px 0 18px;
+`;
+
+const Viewport = styled.div`
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+`;
+const Slides = styled.div`
+  display: flex;
+  height: 100%;
+  touch-action: pan-y pinch-zoom;
+`;
+const Slide = styled.div`
+  position: relative;
+  flex: 0 0 100%;
+  height: 100%;
+  overflow: hidden;            /* ничего не «выползает» за рамку */
+`;
+
+/* Размытый фон за медиа */
+const BlurBg = styled.div`
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-size: cover;
+  filter: blur(24px) brightness(0.6);
+  transform: scale(1.08); /* чуть больше, чтобы блюр не «съедал» края */
+  z-index: 0;
+`;
+
+/* Слой медиа поверх блюра */
+const Img = styled.img`
+  position: absolute;          /* прикалываем к краям слайда */
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;         /* вписывание без обрезки */
 `;
 
 
-const Img = styled.img`width:100%;height:100%;object-fit:cover;`;
-const Video = styled.video`width:100%;height:100%;object-fit:cover;background:#000;`;
-const NoPic = styled.div`width:100%;height:100%;background:#0f0f0f;`;
+const Vid = styled.video`
+  position: absolute;          /* тоже прикалываем */
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;         /* ограничение по высоте/ширине блока */
+  background: transparent;
+`;
+
 const NavArrow = styled.button`
-  position:absolute; top:50%; transform:translateY(-50%);
-  ${(p)=>p.left ? "left:-6px;" : "right:-6px;"}
-  width:44px;height:44px;border-radius:50%;border:2px solid #fff;
-  background:rgba(0,0,0,.5);color:#fff;font-size:26px;line-height:1;
+  position: absolute;
+  top: 50%;
+  ${(p) => (p.left ? "left: 6px;" : "right: 6px;")}
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+`;
+
+const Dots = styled.div`
+  position: absolute;
+  bottom: 6px;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  z-index: 2;
+`;
+const Dot = styled.button`
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: none;
+  background: ${(p) => (p.$active ? "#f5b300" : "rgba(255,255,255,.5)")};
 `;
 
 const PriceRow = styled.div`
-  display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; margin:6px 0 14px;
-  @media (max-width:360px){ grid-template-columns:1fr; }
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  margin: 6px 0 10px;
+
+  @media (max-width: 360px) {
+    grid-template-columns: 1fr;
+  }
 `;
-const Price = styled.div`font-weight:900;font-size:24px;`;
+const Price = styled.div`
+  font-weight: 900;
+  font-size: 24px;
+`;
 const AddBtn = styled.button`
-  border:2px solid #f5b300; background:transparent; color:#fff; border-radius:10px;
-  padding:10px 14px; font-weight:700;
+  border: 2px solid #f5b300;
+  background: transparent;
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 700;
 `;
-const SpecBlock = styled.section`margin-top:6px;`;
-const SpecTitle = styled.div`margin-bottom:6px;font-weight:700;`;
-const SpecList = styled.ul`margin:0;padding-left:18px;display:grid;gap:4px;li{color:#d6d6d6;}`;
+
+const SpecBlock = styled.section`
+  margin-top: 8px;
+`;
+const SpecTitle = styled.div`
+  margin-bottom: 6px;
+  font-weight: 700;
+`;
+const SpecList = styled.ul`
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  li {
+    color: #d6d6d6;
+  }
+`;
