@@ -25,7 +25,23 @@ const products = [
     description: "Описание товара 2",
     price: 1000,
     images: []
-  }
+  },
+  {
+    id: 2,
+    name: "Товар 2",
+    description: "Описание товара 2",
+    price: 1000,
+    images: []
+  },
+  {
+    id: 2,
+    name: "Товар 2",
+    description: "Описание товара 2",
+    price: 1000,
+    images: []
+  },
+
+  
 ];
 
 export default products;

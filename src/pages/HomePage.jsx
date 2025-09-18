@@ -1,455 +1,278 @@
-import { useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import styled, { createGlobalStyle } from "styled-components";
+// src/pages/HomePage.jsx
+import React, { useCallback } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import styled from "styled-components";
+import useEmblaCarousel from "embla-carousel-react";
 import products from "../data/products";
-import { Link } from "react-router-dom";
 
-// базовый префикс для public/
 const PUB = process.env.PUBLIC_URL || "";
 
-/** Скролл к форме */
-export function scrollToContact() {
-  const el = document.getElementById("contact-form");
-  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-/** Глобальные стили (минимум, безопасно для WebView) */
-const GlobalStyle = createGlobalStyle`
-  html, body, #root { height: 100%; }
-  *, *::before, *::after { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: #0c0c0c;
-    color: #fff;
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-  }
-  img { display:block; max-width:100%; }
-  :root { --side-pad: clamp(12px, 3vw, 24px); }
-`;
-
-/** Страница */
 export default function HomePage() {
-  const [params] = useSearchParams();
+  const navigate = useNavigate();
 
-  // автоскролл к форме
-  useEffect(() => {
-    if (params.get("scroll") === "contact") {
-      const t = setTimeout(scrollToContact, 120);
-      return () => clearTimeout(t);
-    }
-  }, [params]);
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    align: "start",
+    containScroll: "trimSnaps",
+    dragFree: false,
+    loop: false,
+  });
 
-  // приличия для Telegram WebApp (если есть)
-  useEffect(() => {
-    const wa = window.Telegram?.WebApp;
-    if (wa) {
-      wa.expand?.();
-      wa.disableVerticalSwipes?.();
-    }
-  }, []);
+  const handleTap = useCallback(
+    (id) => {
+      if (!emblaApi || emblaApi.clickAllowed()) {
+        navigate(`/product/${id}`);
+      }
+    },
+    [emblaApi, navigate]
+  );
 
   return (
-    <>
-      <GlobalStyle />
-
-      <Page>
-        {/* HERO */}
-        <FullBleed>
-          <Hero>
-            <HeroBg
-              src={PUB + "/assets/images/background_homepage.svg"}
-              alt=""
-            />
-            <HeroOverlay />
-            <HeroContent>
-              <Logo
-                src={PUB + "/assets/images/paradigmaLogoo.svg"}
-                alt="PARADIGMA"
-                draggable={false}
-              />
-            </HeroContent>
-          </Hero>
-        </FullBleed>
-
-        {/* BENEFITS */}
-        <FullBleed>
-          <BenefitsBar>
-            <Benefit>
-              <Icon>
-                <img src={PUB + "/assets/images/noRisk.svg"} alt="Без риска" />
-              </Icon>
-              <BenefitText>Без риска</BenefitText>
-            </Benefit>
-            <Benefit>
-              <Icon>
-                <img src={PUB + "/assets/images/noAsh.svg"} alt="Без пепла" />
-              </Icon>
-              <BenefitText>Без пепла</BenefitText>
-            </Benefit>
-            <Benefit>
-              <Icon>
-                <img src={PUB + "/assets/images/noCoal.svg"} alt="Без угля" />
-              </Icon>
-              <BenefitText>Без угля</BenefitText>
-            </Benefit>
-          </BenefitsBar>
-        </FullBleed>
-
-        {/* CATALOG */}
-        <Section>
-          <Link
-            to="/catalog"
-            style={{ textDecoration: "none", color: "inherit" }}
-          >
-            <SectionHeader>
-              <SectionTitle>Каталог товаров</SectionTitle>
-              <Chevron>›</Chevron>
-            </SectionHeader>
-          </Link>
-
-          <CardsScroller>
-            {products.map((p) => (
-              <Card key={p.id}>
-                <CardImage>
-                  {p.images && p.images.length > 0 ? (
-                    <img src={p.images[0]} alt={p.name} />
-                  ) : (
-                    <Placeholder>Нет фото</Placeholder>
-                  )}
-                </CardImage>
-
-                <CardPriceRow>
-                  <Price>{(p.price ?? 0).toLocaleString()} ₽</Price>
-                  <IconBtn type="button" aria-label="В корзину">
-                    <img
-                    src={`${process.env.PUBLIC_URL}/assets/images/productCart.svg`}
-                    alt="Добавить в корзину"
-                    className="cart-icon"
-                    />
-                  </IconBtn>
-                </CardPriceRow>
-
-                <CardTitle>{p.name}</CardTitle>
-              </Card>
-            ))}
-          </CardsScroller>
-        </Section>
-
-        {/* CONTACT FORM */}
-        <ContactSection id="contact-form">
-          <FormHeader>
-            <FormIcon>💬</FormIcon>
-            <FormTitle>Ответим на ваши вопросы</FormTitle>
-          </FormHeader>
-
-          <Form onSubmit={(e) => e.preventDefault()}>
-            <Input type="text" placeholder="Введите ваше имя" />
-            <Input type="text" placeholder="Контактные данные" />
-            <Textarea placeholder="Комментарий и вопрос" rows={4} />
-            <SendBtn type="submit">Отправить</SendBtn>
-          </Form>
-        </ContactSection>
-
-        {/* FOOTER */}
-        <Footer>
-          <SmallLogo
-            src={PUB + "/assets/images/paradigmaLogoo.svg"}
-            alt="Paradigma"
+    <Page>
+      {/* HERO */}
+      <Hero>
+        <HeroImg
+          src={`${PUB}/assets/images/background_homepage.svg`}
+          alt="Paradigma hookah"
+        />
+        {/* БОЛЬШОЙ ЦЕНТРАЛЬНЫЙ ЛОГОТИП */}
+        <HeroCenterLogo>
+          {/* Если у тебя есть отдельный файл с большим логотипом — положи его сюда */}
+          <img
+            src={`${PUB}/assets/images/paradigmaLogoo.svg`}
+            onError={(e) => {
+              // Фолбэк: если brandHero.svg нет, используем topLogo.svg
+              e.currentTarget.src = `${PUB}/assets/images/paradigmaLogoo.svg`;
+            }}
+            alt="PARADIGMA"
+            draggable="false"
           />
-          <Copy>© Paradigma</Copy>
-        </Footer>
-      </Page>
-    </>
+        </HeroCenterLogo>
+      </Hero>
+
+      {/* ПРЕИМУЩЕСТВА */}
+      <BenefitsBar>
+        <Benefit>
+          <BenefitIcon src={`${PUB}/assets/images/noRisk.svg`} alt="" />
+          <BenefitText>Без риска</BenefitText>
+        </Benefit>
+        <Benefit>
+          <BenefitIcon src={`${PUB}/assets/images/noAsh.svg`} alt="" />
+          <BenefitText>Без пепла</BenefitText>
+        </Benefit>
+        <Benefit>
+          <BenefitIcon src={`${PUB}/assets/images/noCoal.svg`} alt="" />
+          <BenefitText>Без угля</BenefitText>
+        </Benefit>
+      </BenefitsBar>
+
+      {/* КАТАЛОГ */}
+      <Section>
+        <SectionHeaderRow>
+          <Link to="/catalog" style={{ textDecoration: "none", color: "inherit" }}>
+            <SectionTitle>Каталог товаров</SectionTitle>
+          </Link>
+          <Chevron>›</Chevron>
+        </SectionHeaderRow>
+
+        <CatalogViewport ref={emblaRef}>
+          <CatalogSlides>
+            {products.map((p) => (
+              <CatalogSlide key={p.id}>
+                <Card onClick={() => handleTap(p.id)}>
+                  <CardImage
+                    src={p.images?.[0] || `${PUB}/assets/images/placeholder.png`}
+                    alt={p.name}
+                    loading="lazy"
+                  />
+                  <CardBottomRow>
+                    <PriceBlock>
+                      <Price>{(p.price ?? 0).toLocaleString("ru-RU")} руб</Price>
+                      <Name>{p.name}</Name>
+                    </PriceBlock>
+
+                    <CartBtn
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // тут можешь дернуть addItem(p)
+                      }}
+                      aria-label="В корзину"
+                      title="В корзину"
+                    >
+                      <img src={`${PUB}/assets/images/productCart.svg`} alt="" />
+                    </CartBtn>
+                  </CardBottomRow>
+                </Card>
+              </CatalogSlide>
+            ))}
+          </CatalogSlides>
+        </CatalogViewport>
+      </Section>
+    </Page>
   );
 }
 
-/* ================== styled-components ================== */
+/* ===================== styled ===================== */
 
-const Page = styled.div`
-  width: 100%;
-  max-width: 100vw;
+const Page = styled.main`
+  background: #000;
+  color: #fff;
   min-height: 100dvh;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  padding-left: var(--side-pad);
-  padding-right: var(--side-pad);
-  padding-bottom: 84px; /* высота бара + отступы; подгони при желании */
-  
-  @supports (padding: env(safe-area-inset-left)) {
-    padding-left: max(var(--side-pad), env(safe-area-inset-left));
-    padding-right: max(var(--side-pad), env(safe-area-inset-right));
-  }
-  
-  
-  @supports (padding: env(safe-area-inset-bottom)) {
-    padding-bottom: calc(84px + env(safe-area-inset-bottom));
-  }
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 `;
 
-/** Растяжка во всю ширину экрана */
-const FullBleed = styled.div`
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
-  margin-right: calc(50% - 50vw);
-`;
-
-/* HERO */
-const Hero = styled.section`
+/* --- HERO --- */
+const Hero = styled.div`
   position: relative;
   width: 100%;
-  aspect-ratio: 390 / 470; /* мобильный макет */
-  min-height: 360px;
-  border-radius: 0 0 16px 16px;
   overflow: hidden;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
 `;
 
-const HeroBg = styled.img`
-  position: absolute;
-  inset: 0;
+const HeroImg = styled.img`
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-`;
-
-const HeroOverlay = styled.div`
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(transparent 30%, rgba(0, 0, 0, 0.6) 85%);
-`;
-
-const HeroContent = styled.div`
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-  display: grid;
-  place-items: center;
-`;
-
-const Logo = styled.img`
-  width: min(70%, 520px);
+  display: block;
   height: auto;
-  transform: translateY(-4%);
 `;
 
-/* BENEFITS */
+/* Центровка большого логотипа — прямо как на макете */
+const HeroCenterLogo = styled.div`
+  position: absolute;
+  left: 50%;
+  top: 45%;                 /* можно подкорректировать 40–50% по вкусу */
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  pointer-events: none;     /* чтобы логотип не мешал свайпу */
+
+  img {
+    display: block;
+    width: min(70vw, 520px);  /* логотип масштабируется под экран */
+    height: auto;
+    filter: drop-shadow(0 2px 6px rgba(255, 255, 255, 0.45)); /* читаемость на дыме */
+    user-select: none;
+  }
+
+  @media (min-width: 480px) {
+    top: 42%;
+    img { width: min(54vw, 560px); }
+  }
+`;
+
+/* --- преимущества --- */
 const BenefitsBar = styled.div`
   background: #fff;
+  color: #000;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  padding: 18px var(--side-pad);
-  align-items: center;
-  text-align: center;
+  padding: 14px 10px;
+  gap: 10px;
 `;
-
 const Benefit = styled.div`
   display: grid;
   justify-items: center;
   gap: 6px;
 `;
-
-const Icon = styled.div`
+const BenefitIcon = styled.img`
   width: 40px;
   height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-  }
+  display: block;
 `;
-
 const BenefitText = styled.div`
-  font-size: 13px;
   font-weight: 600;
-  color: #111;
+  font-size: 14px;
 `;
 
-/* CATALOG */
+/* --- каталог --- */
 const Section = styled.section`
-  width: 100%;
-  padding: 16px 0 8px;
+  padding: 14px var(--side-pad, 16px) 6px;
 `;
-
-const SectionHeader = styled.div`
+const SectionHeaderRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin: 6px 0 10px;
+`;
+const SectionTitle = styled.h2`
+  margin: 0;
+  font-weight: 800;
+  font-size: 20px;
+`;
+const Chevron = styled.div`
+  font-size: 22px;
+  line-height: 1;
+  user-select: none;
 `;
 
-const SectionTitle = styled.h2`
+const CatalogViewport = styled.div`
+  overflow: hidden;
+`;
+const CatalogSlides = styled.div`
+  display: flex;
+  gap: 16px;
+  padding-bottom: 6px;
+  user-select: none;
+  -webkit-user-select: none;
+`;
+const CatalogSlide = styled.div`
+  flex: 0 0 86%;
+  max-width: 520px;
+
+  @media (min-width: 480px) {
+    flex-basis: 360px;
+  }
+`;
+
+const Card = styled.div`
+  background: #0b0b0b;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 0 0 2px #000 inset;
+  cursor: pointer;
+`;
+const CardImage = styled.img`
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border: 2px solid #f5a300;
+  border-radius: 10px;
+  display: block;
+`;
+const CardBottomRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  gap: 10px;
+`;
+const PriceBlock = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+const Price = styled.div`
   font-size: 18px;
   font-weight: 800;
-  margin: 0;
 `;
-
-const Chevron = styled.span`
-  font-size: 26px;
-  color: #f5b300;
-  line-height: 1;
+const Name = styled.div`
+  font-size: 14px;
+  color: #cfcfcf;
 `;
-
-/** Горизонтальный скролл без Embla (безопасно для WebView) */
-const CardsScroller = styled.div`
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 82%;
-  gap: 12px;
-  overflow-x: auto;
-  padding: 8px 0 14px;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  &::-webkit-scrollbar {
-    display: none;
-  }
-
-  @media (min-width: 600px) {
-    grid-auto-columns: 46%;
-  }
-  @media (min-width: 900px) {
-    grid-auto-columns: 32%;
-  }
-`;
-
-const Card = styled.article`
-  background: #0f0f0f;
-  border-radius: 16px;
-  padding: 10px;
-  scroll-snap-align: start;
-  position: relative;
-`;
-
-const CardImage = styled.div`
-  aspect-ratio: 1 / 1;        /* квадрат */
-  width: 100%;
+const CartBtn = styled.button`
+  background: none;
+  border: 2px solid #000;
   border-radius: 12px;
-  border: 2px solid #f5b300;  /* жёлтая рамка */
-  overflow: hidden;
-  background: #171717;
+  padding: 8px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+
+  &:hover { background: #f5a30022; }
 
   img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;        /* заполняем квадрат */
+    width: 40px;
+    height: 40px;
+    display: block;
   }
-`;
-
-const Placeholder = styled.div`
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #777;
-  font-size: 12px;
-`;
-
-const CardPriceRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 10px 2px 4px;
-`;
-
-const Price = styled.div`
-  font-weight: 800;
-  font-size: 16px;
-`;
-
-const IconBtn = styled.button`
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  border: 1px solid #000000ff;
-  background: transparent;
-  color: #000000ff;
-`;
-
-const CardTitle = styled.div`
-  font-size: 12px;
-  opacity: 0.9;
-  line-height: 1.3;
-`;
-
-/* CONTACT */
-const ContactSection = styled.section`
-  width: 100%;
-  margin-top: 8px;
-  padding: 16px 0 24px;
-  background: #0c0c0c;
-`;
-
-const FormHeader = styled.div`
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  margin-bottom: 10px;
-`;
-
-const FormIcon = styled.div`
-  font-size: 22px;
-`;
-
-const FormTitle = styled.h3`
-  margin: 0;
-  font-size: 13px;
-  font-weight: 800;
-  text-transform: uppercase;
-`;
-
-const Form = styled.form`
-  display: grid;
-  gap: 8px;
-`;
-
-const field = `
-  width: 100%;
-  border-radius: 12px;
-  border: 1px solid #2a2a2a;
-  background: #121212;
-  color: #fff;
-  padding: 12px 12px;
-  font-size: 14px;
-  outline: none;
-  &::placeholder { color: #8b8b8b; }
-  &:focus { border-color: #f5b300; box-shadow: 0 0 0 3px rgba(245,179,0,.15); }
-`;
-
-const Input = styled.input`${field}`;
-const Textarea = styled.textarea`${field}; resize: none;`;
-
-const SendBtn = styled.button`
-  border: 0;
-  border-radius: 12px;
-  background: #f5b300;
-  color: #111;
-  font-weight: 800;
-  padding: 12px 18px;
-  margin-top: 10px;
-`;
-
-/* FOOTER */
-const Footer = styled.footer`
-  width: 100%;
-  border-top: 1px solid #1f1f1f;
-  padding: 14px 0 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-`;
-
-const SmallLogo = styled.img`
-  height: 20px;
-  opacity: 0.9;
-`;
-
-const Copy = styled.div`
-  font-size: 12px;
-  color: #777;
 `;
