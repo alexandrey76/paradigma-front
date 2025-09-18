@@ -20,8 +20,8 @@ function useTelegramGuard() {
     try {
       tg.ready();
       tg.expand();
-      tg.disableVerticalSwipes?.();     // запрет сворачивания свайпом вниз
-      tg.enableClosingConfirmation?.();  // запрос подтверждения при закрытии
+      tg.disableVerticalSwipes();     // запрет сворачивания свайпом вниз
+      tg.enableClosingConfirmation();  // запрос подтверждения при закрытии
 
       const onViewport = () => {
         if (!tg.isExpanded) tg.expand();
