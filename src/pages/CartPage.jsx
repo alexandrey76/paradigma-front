@@ -1,5 +1,5 @@
 // src/pages/CartPage.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
@@ -13,6 +13,14 @@ export default function CartPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+
+  // ✅ важно для Telegram Mini Apps — сообщаем, что веб-приложение готово
+  useEffect(() => {
+    const tg = window?.Telegram?.WebApp;
+    tg?.ready();
+    // (опционально) разворачивать на весь экран:
+    // tg?.expand?.();
+  }, []);
 
   const handleSubmit = async () => {
     setError("");
