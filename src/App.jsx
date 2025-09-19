@@ -1,5 +1,8 @@
+// src/App.jsx
 import React, { useEffect } from "react";
 import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { SDKProvider, useWebApp } from "@telegram-apps/sdk-react";
+
 import { CartProvider } from "./context/CartContext";
 import GlobalStyle from "./styles/GlobalStyle";
 
@@ -9,33 +12,36 @@ import ProductPage from "./pages/ProductPage";
 import CartPage from "./pages/CartPage";
 import NavBar from "./components/NavBar";
 
-/** Повторно применяем настройки TG WebApp (expand/disable swipes) */
-function useTelegramGuard() {
+/** Повторно применяем настройки TG WebApp (expand/disable swipes) — через SDK */
+function useTelegramGuardSDK() {
   const { pathname } = useLocation();
+  const webApp = useWebApp();
 
   useEffect(() => {
-    const tg = window.Telegram?.WebApp;
-    if (!tg) return;
+    if (!webApp) return;
 
     try {
-      tg.ready();
-      tg.expand();
-      tg.disableVerticalSwipes();     // запрет сворачивания свайпом вниз
-      tg.enableClosingConfirmation();  // запрос подтверждения при закрытии
+      // Сообщаем, что приложение готово, разворачиваем и запрещаем сворачивание свайпом
+      webApp.ready();
+      webApp.expand();
+      webApp.disableVerticalSwipes?.();
+      webApp.enableClosingConfirmation?.();
 
-      const onViewport = () => {
-        if (!tg.isExpanded) tg.expand();
+      // Если по какой-то причине свернулось — разворачиваем обратно
+      const onViewportChanged = () => {
+        if (!webApp.isExpanded) webApp.expand();
       };
-      tg.onEvent?.("viewportChanged", onViewport);
-      return () => tg.offEvent?.("viewportChanged", onViewport);
+
+      webApp.onEvent?.("viewportChanged", onViewportChanged);
+      return () => webApp.offEvent?.("viewportChanged", onViewportChanged);
     } catch (e) {
-      console.warn("Telegram WebApp init error:", e);
+      console.warn("Telegram WebApp init error (SDK):", e);
     }
-  }, [pathname]); // 👈 повторяем на каждом роуте
+  }, [webApp, pathname]);
 }
 
 function AppShell() {
-  useTelegramGuard();
+  useTelegramGuardSDK();
 
   return (
     <>
@@ -55,10 +61,12 @@ function AppShell() {
 
 export default function App() {
   return (
-    <CartProvider>
-      <HashRouter>
-        <AppShell />
-      </HashRouter>
-    </CartProvider>
+    <SDKProvider acceptCustomStyles debug>
+      <CartProvider>
+        <HashRouter>
+          <AppShell />
+        </HashRouter>
+      </CartProvider>
+    </SDKProvider>
   );
 }
