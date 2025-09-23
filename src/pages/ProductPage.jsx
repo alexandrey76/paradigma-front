@@ -246,10 +246,10 @@ const Bleed = styled.div`
 
 const MediaBox = styled.div`
   position: relative;
-  width: 100vw;
+  width: 100w;
   max-width: 100vw;
   aspect-ratio: 1 / 1;
-  border: 4px solid #f5b300;
+  border: 2px solid #ffffffff;
   border-radius: 12px;
   overflow: hidden;
   background: #111;

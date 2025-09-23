@@ -8,6 +8,7 @@ import CatalogPage from "./pages/CatalogPage";
 import ProductPage from "./pages/ProductPage";
 import CartPage from "./pages/CartPage";
 import NavBar from "./components/NavBar";
+import SupportPage from "./pages/SupportPage";
 
 /** Повторно применяем настройки TG WebApp (expand/disable swipes) */
 function useTelegramGuard() {
@@ -46,6 +47,7 @@ function AppShell() {
         <Route path="/catalog" element={<CatalogPage />} />
         <Route path="/product/:id" element={<ProductPage />} />
         <Route path="/cart" element={<CartPage />} />
+        <Route path="/support" element={<SupportPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <NavBar />

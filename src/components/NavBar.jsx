@@ -19,7 +19,7 @@ export default function NavBar() {
           <UserIcon />
         </IconLink>
 
-        <IconLink to="/chat" $active={pathname.startsWith("/chat")}>
+        <IconLink to="/support" $active={pathname.startsWith("/suppoort")}>
           <ChatIcon />
         </IconLink>
       </Bar>

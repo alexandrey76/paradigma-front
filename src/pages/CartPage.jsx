@@ -6,14 +6,14 @@ import { useNavigate } from "react-router-dom";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
-  "https://alexandrey76-paradigma-back-c956.twc1.net";
+  "https://alexandrey76-paradigma-back-c956.twc1.net" || "http://localhost:8000";
 
 export default function CartPage() {
   const { cart, total, clearCart, removeItem, setQty } = useCart();
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
-
+  const PUB = process.env.PUBLIC_URL || "";
   // ✅ важно для Telegram Mini Apps — сообщаем, что веб-приложение готово
   useEffect(() => {
     const tg = window?.Telegram?.WebApp;
@@ -82,14 +82,12 @@ export default function CartPage() {
   return (
     <Page>
       <TopBar>
-        <BackArrow onClick={() => navigate(-1)}>
-          <img
-            src={`${process.env.PUBLIC_URL}/assets/images/backArrow.svg`}
-            alt="Назад"
-          />
-        </BackArrow>
-        <TitleTop>Корзина</TitleTop>
-      </TopBar>
+          <BackArrow aria-label="Назад" onClick={() => navigate(-1)}>
+            <img src={`${PUB}/assets/images/backArrow.svg`} alt="Назад" width="14" height="14" />
+          </BackArrow>
+          <TitleTop> Корзина </TitleTop>
+        </TopBar>
+
 
       {!cart?.length ? (
         <EmptyWrap>Корзина пуста</EmptyWrap>
@@ -189,11 +187,12 @@ const TopBar = styled.header`
   color: #000;
   border-radius: 10px;
   height: 44px;
-  display: flex;
+  display: grid;
+  grid-template-columns: 40px 1fr;
   align-items: center;
   gap: 8px;
   padding: 0 8px;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 `;
 
 const BackArrow = styled.button`
@@ -202,17 +201,13 @@ const BackArrow = styled.button`
   background: none;
   border: none;
   cursor: pointer;
-
-  img {
-    width: 14px;
-    height: 14px;
-  }
+  padding: 0 4px;
 `;
 
 const TitleTop = styled.h1`
   font-size: 16px;
   font-weight: 700;
-  margin: 0;
+  margin: -20px;
 `;
 
 const EmptyWrap = styled.div`
