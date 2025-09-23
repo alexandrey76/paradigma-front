@@ -133,7 +133,7 @@ export default function SupportPage() {
                 onChange={(e) => {
                 let v = e.target.value.replace(/\D/g, ""); // только цифры
                 if (v.startsWith("7")) {
-                    v = v; // оставляем как есть
+                    v = v
                 } else if (v.startsWith("8")) {
                     v = "7" + v.slice(1); // заменяем 8 на 7
                 } else if (!v.startsWith("7")) {
@@ -174,7 +174,6 @@ export default function SupportPage() {
                 onChange={() => setPref("write")}
                 />
                 <RadioMark aria-hidden="true" />
-                <span>Напишите мне</span>
             </RadioLabel>
 
             <RadioLabel>
@@ -421,21 +420,6 @@ const RadioMark = styled.span`
     background: #ffffff;
   }
 `;
-const Radio = styled.input``;
-
-
-const Agree = styled.div`
-  margin: 8px 0;
-  label {
-    display: grid;
-    grid-template-columns: 18px 1fr;
-    gap: 10px;
-    align-items: start;
-    color: #d6d6d6;
-    font-size: 13px;
-  }
-`;
-const Checkbox = styled.input``;
 
 const ErrorText = styled.div`
   color: #ff6b6b;
