@@ -174,6 +174,7 @@ export default function SupportPage() {
                 onChange={() => setPref("write")}
                 />
                 <RadioMark aria-hidden="true" />
+                <span>Напишите мне</span>
             </RadioLabel>
 
             <RadioLabel>
