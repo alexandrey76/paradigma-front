@@ -132,10 +132,12 @@ export default function ProductPage() {
             {media.length > 1 && (
               <>
                 <NavArrow left aria-label="Назад" onClick={prev}>
-                  ‹
+                  <img src={`${PUB}/assets/images/leftArrow.svg`}
+                  alt = "Назад"/>
                 </NavArrow>
                 <NavArrow aria-label="Вперёд" onClick={next}>
-                  ›
+                  <img src={`${PUB}/assets/images/rightArrow.svg`}
+                  alt = "Вперед"/>
                 </NavArrow>
 
                 <Dots>
@@ -305,22 +307,26 @@ const Vid = styled.video`
   background: transparent;
 `;
 
+
 const NavArrow = styled.button`
   position: absolute;
   top: 50%;
   ${(p) => (p.left ? "left: 6px;" : "right: 6px;")}
   transform: translateY(-50%);
-  width: 44px;
-  height: 44px;
   border-radius: 50%;
   border: 2px solid #fff;
   background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  font-size: 26px;
-  line-height: 1;
-  display: grid;
-  place-items: center;
-  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+
+  img {
+    width: 35px;
+    height: 35px;
+    display: block;
+  }
 `;
 
 const Dots = styled.div`
