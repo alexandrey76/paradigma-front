@@ -247,9 +247,9 @@ const NoPic = styled.div`
 const Controls = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 6px;
-  margin-left: 12px;
+  gap: 12px;
+  margin-top: 8px;
+  margin-left: 4px;
 `;
 
 const DeleteBtn = styled.button`
@@ -258,39 +258,52 @@ const DeleteBtn = styled.button`
   cursor: pointer;
   display: grid;
   place-items: center;
+  flex: 0 0 auto;                /* не сжимается */
 
   img {
-    width: clamp(32px, 10vw, 38px);
-    height: clamp(32px, 10vw, 38px);
+    width: clamp(26px, 6.2vw, 34px);
+    height: clamp(26px, 6.2vw, 34px);
   }
+
+  /* для лучшего тач-хита на iOS */
+  padding: 4px;                   /* не влияет на визуальный размер, но даёт хит-эрею */
 `;
 
 const QtyBox = styled.div`
-  height: var(--control-h);
-  border-radius: var(--radius);
+  height: clamp(34px, 8vw, 40px);
+  border-radius: 10px;
   border: 2px solid #fff;
+
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: min-content 1fr min-content;
+  grid-template-columns:
+    clamp(28px, 7vw, 34px)
+    1fr
+    clamp(28px, 7vw, 34px);
   align-items: center;
-  padding: 0 8px;
-  gap: 8px;
+
+  column-gap: 6px;
+  padding: 0 6px;
+
+  /* 👇 теперь ширина подстраивается */
+  width: 100%;
+  max-width: 120px;   /* не шире картинки */
+  box-sizing: border-box;
 
   button {
     background: none;
     border: none;
     color: #fff;
-    font-size: var(--control-font);
-    line-height: 1;
+    font-size: clamp(16px, 4vw, 20px);
     cursor: pointer;
-    min-width: 1.8em;     /* фикс на разных плотностях */
+    display: grid;
+    place-items: center;
   }
 
   span {
-    font-size: clamp(15px, 3.6vw, 18px);
+    font-size: clamp(14px, 3.5vw, 18px);
     font-weight: 700;
-    min-width: 2ch;
     text-align: center;
+    min-width: 1.5em;
   }
 `;
 
