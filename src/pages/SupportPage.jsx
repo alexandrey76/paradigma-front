@@ -7,12 +7,16 @@ const API_BASE =
   process.env.REACT_APP_API_BASE ||
   "https://alexandrey76-paradigma-back-c956.twc1.net";
 
+const PUB = process.env.PUBLIC_URL || "";
+const CHECK_ON = `${PUB}/assets/images/check_on.svg`;
+const CHECK_OFF = `${PUB}/assets/images/check_off.svg`;
+
 export default function SupportPage() {
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("+7");
-  const [tg, setTg] = useState(""); // @username
+  const [question, setQuestion] = useState(""); // большое поле для вопроса
   const [pref, setPref] = useState("write"); // write | call
   const [agree1, setAgree1] = useState(false); // обязательное согласие
   const [agree2, setAgree2] = useState(false); // необязательное
@@ -20,13 +24,15 @@ export default function SupportPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
-  // простая проверка телефона: + и 10–14 цифр
+  // простая проверка телефона: + и 7..15 цифр (очищаем спецсимволы)
   const phoneOk = useMemo(
-    () => /^\+?\d{7,15}$/.test(phone.replace(/\s|\(|\)|-/g, "")),
+    () => /^\+?\d{7,15}$/.test(phone.replace(/\s|\(|\)|-|_/g, "")),
     [phone]
   );
 
-  const canSend = name.trim() && phoneOk && agree1;
+  // теперь требуем вопрос (непустой) для отправки
+  const canSend =
+    name.trim().length > 0 && phoneOk && agree1 && question.trim().length > 0;
 
   async function onSubmit(e) {
     e?.preventDefault?.();
@@ -40,12 +46,12 @@ export default function SupportPage() {
       const initData = tgwa?.initData || "";
       const u = tgwa?.initDataUnsafe?.user;
 
-      // Отправляем на бэк
+      // payload — отправляем вопрос как question
       const payload = {
         type: "support_request",
         name: name.trim(),
         phone,
-        tg: tg?.trim() || null,
+        question: question.trim(),
         preferred_contact: pref, // write | call
         agreements: { privacy: agree1, promo: agree2 },
         tg_context: {
@@ -76,13 +82,14 @@ export default function SupportPage() {
         throw new Error(msg);
       }
 
+      // Попытка отправить данные также в Telegram WebApp (если активен)
       try {
         tgwa?.sendData?.(
           JSON.stringify({
             type: "support_request",
             name,
             phone,
-            tg,
+            question,
             preferred_contact: pref,
           })
         );
@@ -98,21 +105,58 @@ export default function SupportPage() {
     }
   }
 
+  // Форматтер телефона: принимает строку (пользователь вводит цифры/символы) и возвращает формат
+  function formatPhoneFromDigits(raw) {
+    // оставляем только цифры
+    let digits = raw.replace(/\D/g, "");
+    // если пользователь набирает без кода — подставляем 7 (Россия)
+    if (!digits.startsWith("7")) {
+      if (digits.startsWith("8")) digits = "7" + digits.slice(1);
+      else digits = "7" + digits;
+    }
+    // digits теперь начинается с 7...
+    // Формируем: +7 (xxx) xxx-xx-xx
+    const d = digits; // alias
+    let out = "+7";
+    if (d.length >= 2) {
+      const a = d.slice(1, 4); // первые 3
+      out += " (" + a;
+    }
+    if (d.length >= 5) {
+      const b = d.slice(4, 7);
+      out += ") " + b;
+    } else if (d.length > 4) {
+      out += ") " + d.slice(4);
+    }
+    if (d.length >= 8) {
+      out += "-" + d.slice(7, 9);
+    }
+    if (d.length >= 10) {
+      out += "-" + d.slice(9, 11);
+    }
+    return out;
+  }
+
   return (
     <Page>
       <TopBar>
-          <BackArrow aria-label="Назад" onClick={() => navigate(-1)}>
-            <img src={`${PUB}/assets/images/backArrow.svg`} alt="Назад" width="14" height="14" />
-          </BackArrow>
-          <Brand>
-            <Logo src={`${PUB}/assets/images/topLogo.svg`} alt="Paradigma" />
-          </Brand>
-        </TopBar>
+        <BackArrow aria-label="Назад" onClick={() => navigate(-1)}>
+          <img
+            src={`${PUB}/assets/images/backArrow.svg`}
+            alt="Назад"
+            width="14"
+            height="14"
+          />
+        </BackArrow>
+        <Brand>
+          <Logo src={`${PUB}/assets/images/topLogo.svg`} alt="Paradigma" />
+        </Brand>
+      </TopBar>
 
       <Card as="form" onSubmit={onSubmit}>
         <Head>
           <IconImg
-            src={`${process.env.PUBLIC_URL}/assets/images/feedback.svg`}
+            src={`${PUB}/assets/images/feedback.svg`}
             alt="Поддержка"
           />
         </Head>
@@ -128,91 +172,79 @@ export default function SupportPage() {
         </Field>
 
         <Field>
-            <Input
-                value={phone}
-                onChange={(e) => {
-                let v = e.target.value.replace(/\D/g, ""); // только цифры
-                if (v.startsWith("7")) {
-                    v = v
-                } else if (v.startsWith("8")) {
-                    v = "7" + v.slice(1); // заменяем 8 на 7
-                } else if (!v.startsWith("7")) {
-                    v = "7" + v; // по умолчанию добавляем 7
-                }
-
-                let formatted = "+7";
-                if (v.length > 1) formatted += " (" + v.slice(1, 4);
-                if (v.length >= 5) formatted += ") " + v.slice(4, 7);
-                if (v.length >= 8) formatted += "-" + v.slice(7, 9);
-                if (v.length >= 10) formatted += "-" + v.slice(9, 11);
-
-                setPhone(formatted);
-                }}
-                placeholder="+7 (___) ___-__-__"
-                inputMode="tel"
-                required
-            />
-            {!phoneOk && phone.length > 2 && (
-                <Hint>Введите телефон в формате +7 (999) 123-45-67</Hint>
-            )}
+          <Input
+            value={phone}
+            onChange={(e) => {
+              // принимаем ввод, форматируем
+              const raw = e.target.value;
+              const formatted = formatPhoneFromDigits(raw);
+              setPhone(formatted);
+            }}
+            placeholder="+7 (___) ___-__-__"
+            inputMode="tel"
+            required
+          />
+          {!phoneOk && phone.length > 2 && (
+            <Hint>Введите телефон в формате +7 (999) 123-45-67</Hint>
+          )}
         </Field>
 
         <Field>
-          <Input
-            value={tg}
-            onChange={(e) => setTg(e.target.value.replace(/\s/g, ""))}
-            placeholder="tg @"
+          <InputQuestion
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Опишите вашу проблему или вопрос"
+            required
           />
         </Field>
 
-            <RowRadio>
-            <RadioLabel>
-                <RadioHidden
-                type="radio"
-                name="pref"
-                checked={pref === "write"}
-                onChange={() => setPref("write")}
-                />
-                <RadioMark aria-hidden="true" />
-                <span>Напишите мне</span>
-            </RadioLabel>
+        <RowRadio>
+          <RadioLabel>
+            <RadioHidden
+              type="radio"
+              name="pref"
+              checked={pref === "write"}
+              onChange={() => setPref("write")}
+            />
+            <RadioMark aria-hidden="true" />
+            <span>Напишите мне</span>
+          </RadioLabel>
 
-            <RadioLabel>
-                <RadioHidden
-                type="radio"
-                name="pref"
-                checked={pref === "call"}
-                onChange={() => setPref("call")}
-                />
-                <RadioMark aria-hidden="true" />
-                <span>Позвоните мне</span>
-            </RadioLabel>
-            </RowRadio>
+          <RadioLabel>
+            <RadioHidden
+              type="radio"
+              name="pref"
+              checked={pref === "call"}
+              onChange={() => setPref("call")}
+            />
+            <RadioMark aria-hidden="true" />
+            <span>Позвоните мне</span>
+          </RadioLabel>
+        </RowRadio>
 
         <CheckItem>
-            <input
-                type="checkbox"
-                checked={agree1}
-                onChange={(e) => setAgree1(e.target.checked)}
-            />
-            <span className="mark" />
-            <span className="text">
-                Я даю согласие на обработку своих персональных данных в соответствии с
-                политикой конфиденциальности
-            </span>
+          <input
+            type="checkbox"
+            checked={agree1}
+            onChange={(e) => setAgree1(e.target.checked)}
+          />
+          <span className="mark" />
+          <span className="text">
+            Я даю согласие на обработку своих персональных данных в соответствии с
+            политикой конфиденциальности
+          </span>
         </CheckItem>
 
-            {/* Согласие №2 (дополнительное) */}
         <CheckItem>
-            <input
-                type="checkbox"
-                checked={agree2}
-                onChange={(e) => setAgree2(e.target.checked)}
-            />
-            <span className="mark" />
-            <span className="text">
-                Я даю согласие на получение рекламной и информационной рассылки
-            </span>
+          <input
+            type="checkbox"
+            checked={agree2}
+            onChange={(e) => setAgree2(e.target.checked)}
+          />
+          <span className="mark" />
+          <span className="text">
+            Я даю согласие на получение рекламной и информационной рассылки
+          </span>
         </CheckItem>
 
         {error && <ErrorText>{error}</ErrorText>}
@@ -233,10 +265,6 @@ const Page = styled.main`
   padding: 12px var(--side-pad, 16px) calc(110px + env(safe-area-inset-bottom));
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 `;
-
-const PUB = process.env.PUBLIC_URL || "";
-const CHECK_ON  = `${PUB}/assets/images/check_on.svg`; 
-const CHECK_OFF = `${PUB}/assets/images/check_off.svg`;
 
 const TopBar = styled.header`
   background: #fff;
@@ -262,7 +290,7 @@ const Brand = styled.div`
   display: flex;
   align-items: center;
   justify-content: flex-end; /* прижали вправо */
-  padding-right: 8px;        /* небольшой отступ справа */
+  padding-right: 8px; /* небольшой отступ справа */
 `;
 
 const Logo = styled.img`
@@ -271,7 +299,7 @@ const Logo = styled.img`
 `;
 
 const Card = styled.section`
-  border: 1px solid #ffffffff;
+  border: 1px solid #2c2c2c;
   border-radius: 14px;
   padding: 18px;
   background: #0b0b0b;
@@ -291,6 +319,112 @@ const Head = styled.div`
   }
 `;
 
+const IconImg = styled.img`
+  width: 250px;
+  height: auto;
+  margin-bottom: 8px;
+`;
+
+const Field = styled.div`
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+
+  label {
+    font-size: 13px;
+    color: #eedfdfff;
+  }
+`;
+const Input = styled.input`
+  height: 42px;
+  border-radius: 10px;
+  border: 2px solid #222;
+  background: #2c2c2c;
+  color: #fff;
+  padding: 0 12px;
+
+  &:focus {
+    outline: none;
+    border-color: #f5b300;
+  }
+`;
+
+const InputQuestion = styled.textarea`
+  min-height: 120px;
+  border-radius: 10px;
+  border: 2px solid #222;
+  background: #2c2c2c;
+  color: #fff;
+  padding: 12px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+
+  &:focus {
+    outline: none;
+    border-color: #f5b300;
+  }
+`;
+
+const Hint = styled.div`
+  color: #ffcb66;
+  font-size: 12px;
+`;
+
+const RowRadio = styled.div`
+  display: flex;
+  gap: 28px;
+  margin: 10px 0 12px;
+`;
+
+const RadioHidden = styled.input`
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+`;
+
+const RadioLabel = styled.label`
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+
+  span {
+    font-size: 13px;
+    color: #9e9e9e;
+    transition: color 0.15s ease;
+  }
+
+  /* если соседний скрытый инпут checked — красим текст (срабатывает потому что input размещён внутри того же label) */
+  ${RadioHidden}:checked + span {
+    color: #ffffff;
+    font-weight: 500;
+  }
+`;
+
+const RadioMark = styled.span`
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1.5px solid #9e9e9e; /* серый контур */
+  display: inline-block;
+  box-sizing: border-box;
+  position: relative;
+  transition: all 0.15s ease;
+
+  /* Когда инпут внутри label отмечен — сам RadioMark должен быть белым.
+     Селектор ниже основан на том, что RadioHidden идёт перед RadioMark в DOM:
+     <label><RadioHidden/><RadioMark/><span/></label>
+  */
+  ${RadioHidden}:checked + & {
+    border-color: #ffffff;
+    background: #ffffff;
+  }
+`;
 
 const CheckItem = styled.label`
   display: grid;
@@ -314,16 +448,16 @@ const CheckItem = styled.label`
     width: 18px;
     height: 18px;
     background: url(${CHECK_OFF}) center/contain no-repeat;
-    margin-top: 2px;          /* чуть ниже, чтобы выровнять по тексту */
-    transition: filter .15s ease;
+    margin-top: 2px; /* чуть ниже, чтобы выровнять по тексту */
+    transition: filter 0.15s ease;
   }
 
   /* текст */
   .text {
     font-size: 14px;
     line-height: 1.35;
-    color: #bdbdbd;           /* серый для неактивного */
-    transition: color .15s ease, font-weight .15s ease;
+    color: #bdbdbd; /* серый для неактивного */
+    transition: color 0.15s ease, font-weight 0.15s ease;
   }
 
   /* когда чекбокс отмечен — меняем иконку и текст */
@@ -331,94 +465,8 @@ const CheckItem = styled.label`
     background-image: url(${CHECK_ON});
   }
   input:checked ~ .text {
-    color: #ffffff;           /* белый */
-    font-weight: 600;         /* как на рефе */
-  }
-`;
-
-const IconImg = styled.img`
-  width: 250px;   
-  height: auto;
-  margin-bottom: 5px;
-`;
-
-const Field = styled.div`
-  display: grid;
-  gap: 6px;
-  margin-bottom: 12px;
-
-  label {
-    font-size: 13px;
-    color: #eedfdfff;
-  }
-`;
-const Input = styled.input`
-  height: 42px;
-  border-radius: 10px;
-  border: 2px solid #0f0b01ff;
-  background: #454545B8;
-  color: #ffffffff;
-  padding: 0 12px;
-
-  &:focus {
-    outline: none;
-    border-color: #f5b300;
-  }
-`;
-const Hint = styled.div`
-  color: #ffcb66;
-  font-size: 12px;
-`;
-
-const RowRadio = styled.div`
-  display: flex;
-  gap: 28px;  
-  margin: 10px 0 12px;
-`;
-
-const RadioHidden = styled.input`
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-`;
-
-const RadioLabel = styled.label`
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  user-select: none;
-  position: relative;
-
-
-  span {
-    font-size: 13px;
-    color: #9e9e9e;          
-    transition: color .15s ease;
-  }
-
-  ${RadioHidden}:checked ~ span {
-    color: #ffffff;
-    font-weight: 500;
-  }
-`;
-
-
-const RadioMark = styled.span`
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  border: 1.5px solid #9e9e9e; /* серый контур */
-  display: inline-block;
-  box-sizing: border-box;
-  position: relative;
-  transition: all .15s ease;
-
-  /* Активное состояние: белая заливка + белый контур */
-  ${RadioHidden}:checked + & {
-    border-color: #ffffff;
-    background: #ffffff;
+    color: #ffffff; /* белый */
+    font-weight: 600; /* как на рефе */
   }
 `;
 
