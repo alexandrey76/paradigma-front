@@ -260,8 +260,8 @@ const DeleteBtn = styled.button`
   place-items: center;
 
   img {
-    width: clamp(28px, 7vw, 34px);
-    height: clamp(28px, 7vw, 34px);
+    width: clamp(32px, 10vw, 38px);
+    height: clamp(32px, 10vw, 38px);
   }
 `;
 
