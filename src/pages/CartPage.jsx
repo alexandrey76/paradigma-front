@@ -260,8 +260,8 @@ const DeleteBtn = styled.button`
   place-items: center;
 
   img {
-    width: var(--icon-size);
-    height: var(--icon-size);
+    width: clamp(22px, 5vw, 26px);
+    height: clamp(22px, 5vw, 26px);
   }
 `;
 
@@ -273,8 +273,8 @@ const QtyBox = styled.div`
   grid-auto-flow: column;
   grid-auto-columns: min-content 1fr min-content;
   align-items: center;
-  padding: 0 10px;
-  gap: 12px;
+  padding: 0 8px;
+  gap: 8px;
 
   button {
     background: none;
