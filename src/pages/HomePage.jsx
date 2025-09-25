@@ -11,9 +11,9 @@ const PUB = process.env.PUBLIC_URL || "";
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { addItem } = useCart();
+  const { cart, addItem } = useCart();
 
-  // embla — только для горизонтального скролла (тапы обрабатываем сами)
+  // embla — только для горизонтального скролла
   const [emblaRef] = useEmblaCarousel({
     align: "start",
     containScroll: "trimSnaps",
@@ -21,22 +21,18 @@ export default function HomePage() {
     loop: false,
   });
 
-  // ВСЕГДА переходим на страницу товара
+  // Всегда переходим на страницу товара
   const handleTap = useCallback(
-    (id) => {
-      navigate(`/product/${id}`);
-    },
+    (id) => navigate(`/product/${id}`),
     [navigate]
   );
 
-  // Добавление в корзину
-  const handleAddToCart = useCallback(
-    (e, product) => {
-      e.stopPropagation(); // чтобы не сработал переход на карточку
-      addItem(product, 1);
-    },
-    [addItem]
-  );
+  // Вспомогалки
+  const getQty = (id) => cart.find((x) => x.id === id)?.qty || 0;
+  const getIcon = (qty) =>
+    qty > 0
+      ? `${PUB}/assets/images/productCartActive.svg`
+      : `${PUB}/assets/images/productCart.svg`;
 
   return (
     <Page>
@@ -46,10 +42,9 @@ export default function HomePage() {
           src={`${PUB}/assets/images/background_homepage.svg`}
           alt="Paradigma hookah"
         />
-
-      {/* ЛОГО поверх баннера */}
+        {/* Лого поверх баннера */}
         <LogoOverlay aria-hidden="true">
-        <img src={`${PUB}/assets/images/paradigmaLogoo.svg`} alt="Paradigma" />
+          <img src={`${PUB}/assets/images/paradigmaLogoo.svg`} alt="Paradigma" />
         </LogoOverlay>
       </HeroWrap>
 
@@ -80,39 +75,45 @@ export default function HomePage() {
 
         <CatalogViewport ref={emblaRef}>
           <CatalogSlides>
-            {products.map((p) => (
-              <CatalogSlide key={p.id}>
-                {/* ВЕСЬ блок кликабельный */}
-                <Card
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleTap(p.id)}
-                  onKeyDown={(e) => e.key === "Enter" && handleTap(p.id)}
-                >
-                  <CardImage
-                    src={p.images?.[0] || `${PUB}/assets/images/placeholder.png`}
-                    alt={p.name}
-                    loading="lazy"
-                  />
+            {products.map((p) => {
+              const qty = getQty(p.id);
+              const icon = getIcon(qty);
+              return (
+                <CatalogSlide key={p.id}>
+                  {/* ВЕСЬ блок кликабельный */}
+                  <Card
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleTap(p.id)}
+                    onKeyDown={(e) => e.key === "Enter" && handleTap(p.id)}
+                  >
+                    <CardImage
+                      src={p.images?.[0] || `${PUB}/assets/images/placeholder.png`}
+                      alt={p.name}
+                      loading="lazy"
+                    />
 
-                  <CardBottomRow>
-                    <PriceBlock>
-                      <Price>{(p.price ?? 0).toLocaleString("ru-RU")} руб</Price>
-                      <Name>{p.name}</Name>
-                    </PriceBlock>
+                    <CardBottomRow>
+                      <PriceBlock>
+                        <Price>{(p.price ?? 0).toLocaleString("ru-RU")} руб</Price>
+                        <Name>{p.name}</Name>
+                      </PriceBlock>
 
-                    <CartBtn
-                      type="button"
-                      onClick={(e) => handleAddToCart(e, p)}
-                      aria-label="В корзину"
-                      title="В корзину"
-                    >
-                      <img src={`${PUB}/assets/images/productCart.svg`} alt="" />
-                    </CartBtn>
-                  </CardBottomRow>
-                </Card>
-              </CatalogSlide>
-            ))}
+                      <CartBtnWrap
+                        onClick={(e) => {
+                          e.stopPropagation(); // не переходить в карточку
+                          addItem(p, 1);
+                        }}
+                        aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
+                      >
+                        <img src={icon} alt="" />
+                        {qty > 0 && <CartCount>{qty > 9 ? "9+": qty}</CartCount>}
+                      </CartBtnWrap>
+                    </CardBottomRow>
+                  </Card>
+                </CatalogSlide>
+              );
+            })}
           </CatalogSlides>
         </CatalogViewport>
       </Section>
@@ -121,6 +122,43 @@ export default function HomePage() {
 }
 
 /* ===================== styled ===================== */
+
+const CartBtnWrap = styled.button`
+  --icon-size: 40px;
+  position: relative;
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform .12s ease;
+  &:active { transform: scale(.95); }
+
+  img {
+    width: var(--icon-size);
+    height: var(--icon-size);
+    display: block;
+  }
+`;
+
+/* Счётчик поверх жёлтого кружка в SVG */
+const CartCount = styled.span`
+  position: absolute;
+  top: 0px;      /* подгони под свой кружок */
+  right: 6px;    /* подгони под свой кружок */
+  width: 2px;   /* диаметр твоего жёлтого круга в SVG */
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 8px;
+  font-weight: 800;
+  color: #000;   /* чёрный, чтобы читалось на жёлтом */
+  line-height: 1;
+  pointer-events: none;
+`;
 
 const Page = styled.main`
   background: #000;
@@ -140,16 +178,16 @@ const HeroWrap = styled.div`
 
 const LogoOverlay = styled.div`
   position: absolute;
-  inset: 0;                 /* занимает весь баннер */
+  inset: 0;
   display: grid;
-  place-items: center;      /* центрируем по X/Y */
-  pointer-events: none;     /* логотип не перехватывает клики */
+  place-items: center;
+  pointer-events: none;
   z-index: 1;
 
   img {
-    width: clamp(250px, 36vw, 320px); /* адаптивный размер */
+    width: clamp(250px, 36vw, 320px);
     height: auto;
-    filter: drop-shadow(0 2px 8px rgba(0,0,0,.6)); /* чтобы читалось на дыме */
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,.6));
   }
 `;
 
@@ -258,23 +296,4 @@ const Price = styled.div`
 const Name = styled.div`
   font-size: 14px;
   color: #cfcfcf;
-`;
-const CartBtn = styled.button`
-  background: none;
-  border: 2px solid #000000ff;
-  border-radius: 12px;
-  padding: 8px;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-
-  &:hover {
-    background: #f5a30022;
-  }
-
-  img {
-    width: 40px;
-    height: 40px;
-    display: block;
-  }
 `;

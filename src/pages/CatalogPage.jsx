@@ -1,16 +1,88 @@
 // src/pages/CatalogPage.jsx
 import React, { useCallback } from "react";
-import products from "../data/products";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
+
+import products from "../data/products";
 import { useCart } from "../context/CartContext";
+
+const PUB = process.env.PUBLIC_URL || "";
+
+/* ===================== page ===================== */
+
+export default function CatalogPage() {
+  const navigate = useNavigate();
+  const { cart, addItem } = useCart();
+
+  const getQty = useCallback(
+    (id) => cart.find((x) => x.id === id)?.qty || 0,
+    [cart]
+  );
+
+  const getIcon = (qty) =>
+    qty > 0
+      ? `${PUB}/assets/images/productCartActive.svg`
+      : `${PUB}/assets/images/productCart.svg`;
+
+  return (
+    <PageWrapper>
+      {/* 🔙 Заголовок с кнопкой назад */}
+      <Header>
+        <BackArrow onClick={() => navigate(-1)}>
+          <img src={`${PUB}/assets/images/backArrow.svg`} alt="Назад" />
+        </BackArrow>
+        <span style={{ fontWeight: 800, color: "#000" }}>Каталог товаров</span>
+      </Header>
+
+      {/* 🔲 Сетка товаров */}
+      <Grid>
+        {products.map((p) => {
+          const qty = getQty(p.id);
+          const icon = getIcon(qty);
+
+          return (
+            <Card key={p.id}>
+              <Link to={`/product/${p.id}`}>
+                <ProductImage
+                  src={p.images?.[0] || `${PUB}/assets/images/placeholder.png`}
+                  alt={p.name}
+                  loading="lazy"
+                />
+              </Link>
+
+              <InfoRow>
+                <PriceBlock>
+                  <Price>{(p.price ?? 0).toLocaleString("ru-RU")} руб</Price>
+                  <Name>{p.name}</Name>
+                </PriceBlock>
+
+                <CartBtnWrap
+                  onClick={(e) => {
+                    e.stopPropagation(); // не переходить в карточку
+                    addItem(p, 1);
+                  }}
+                  aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
+                >
+                  <img src={icon} alt="" />
+                  {qty > 0 && <CartCount>{qty > 9 ? "9+" : qty}</CartCount>}
+                </CartBtnWrap>
+              </InfoRow>
+            </Card>
+          );
+        })}
+      </Grid>
+    </PageWrapper>
+  );
+}
+
+/* ===================== styled ===================== */
 
 const PageWrapper = styled.div`
   background: #000;
   min-height: 100vh;
-  color: white;
+  color: #fff;
   padding: 16px;
-  font-family: "Montserrat", sans-serif;
+  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 `;
 
 const Header = styled.div`
@@ -45,7 +117,7 @@ const Grid = styled.div`
 
 const Card = styled.div`
   background: transparent;
-  border: 2px solid #000000ff; /* желтая рамка */
+  border: 2px solid #000; /* внутренняя тень мы не рисуем, оставим чисто */
   border-radius: 8px;
   overflow: hidden;
   padding: 8px;
@@ -56,10 +128,11 @@ const Card = styled.div`
 
 const ProductImage = styled.img`
   width: 100%;
-  aspect-ratio: 1/1;
+  aspect-ratio: 1 / 1;
   object-fit: cover;
-  border: 2px solid #f5a300; 
+  border: 2px solid #f5a300;
   border-radius: 6px;
+  display: block;
 `;
 
 const InfoRow = styled.div`
@@ -67,15 +140,17 @@ const InfoRow = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-top: 8px;
+  gap: 8px;
 `;
 
 const PriceBlock = styled.div`
   display: flex;
   flex-direction: column;
+  gap: 2px;
 `;
 
 const Price = styled.div`
-  font-weight: bold;
+  font-weight: 800;
   font-size: 16px;
 `;
 
@@ -84,66 +159,42 @@ const Name = styled.div`
   color: #ccc;
 `;
 
-const CartButton = styled.button`
-  background: none;
-  border: 2px solid #000000ff;
-  border-radius: 8px;
-  padding: 6px;
+const CartBtnWrap = styled.button`
+  --icon-size: 40px;
+  position: relative;
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
   cursor: pointer;
+  transition: transform 0.12s ease;
 
+  &:active {
+    transform: scale(0.95);
+  }
+
+  img {
+    width: var(--icon-size);
+    height: var(--icon-size);
+    display: block;
+  }
+`;
+
+/* Счётчик поверх жёлтого кружка в SVG */
+const CartCount = styled.span`
+  position: absolute;
+  top: 0px;      /* подгони под свой кружок */
+  right: 6px;    /* подгони под свой кружок */
+  width: 2px;   /* диаметр твоего жёлтого круга в SVG */
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
 
-  img.cart-icon {
-    width: 32px;
-    height: 32px;
-  }
+  font-size: 8px;
+  font-weight: 800;
+  color: #000;   /* чёрный, чтобы читалось на жёлтом */
+  line-height: 1;
+  pointer-events: none;
 `;
-
-export default function CatalogPage() {
-  const navigate = useNavigate();
-  const { addItem } = useCart();
-  const handleAddToCart = useCallback(
-      (e, product) => {
-        e.stopPropagation(); // чтобы не сработал переход на карточку
-        addItem(product, 1);
-      },
-      [addItem])
-  
-
-  return (
-    <PageWrapper>
-      {/* 🔙 Заголовок с кнопкой назад */}
-      <Header>
-        <BackArrow onClick={() => navigate(-1)}>
-          <img src={`${process.env.PUBLIC_URL}/assets/images/backArrow.svg`} alt="Назад" />
-        </BackArrow>
-        <span style={{ fontWeight: "bold", color: "black" }}>Каталог товаров</span>
-      </Header>
-
-      {/* 🔲 Сетка товаров */}
-      <Grid>
-        {products.map((p) => (
-          <Card key={p.id}>
-            <Link to={`/product/${p.id}`}>
-              <ProductImage src={p.images[0]} alt={p.name} />
-            </Link>
-            <InfoRow>
-              <PriceBlock>
-                <Price>{p.price.toLocaleString("ru-RU")} руб</Price>
-                <Name>{p.name}</Name>
-              </PriceBlock>
-              <CartButton type="button"
-                      onClick={(e) => handleAddToCart(e, p)}
-                      aria-label="В корзину"
-                      title="В корзину">
-                <img src="/assets/images/productCart.svg" className="cart-icon" alt="cart" />
-              </CartButton>
-            </InfoRow>
-          </Card>
-        ))}
-      </Grid>
-    </PageWrapper>
-  );
-}

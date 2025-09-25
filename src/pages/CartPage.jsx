@@ -6,7 +6,8 @@ import { useNavigate } from "react-router-dom";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
-  "https://alexandrey76-paradigma-back-c956.twc1.net" || "http://localhost:8000";
+  "https://alexandrey76-paradigma-back-c956.twc1.net" ||
+  "http://localhost:8000";
 
 export default function CartPage() {
   const { cart, total, clearCart, removeItem, setQty } = useCart();
@@ -14,12 +15,10 @@ export default function CartPage() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const PUB = process.env.PUBLIC_URL || "";
-  // ✅ важно для Telegram Mini Apps — сообщаем, что веб-приложение готово
+
   useEffect(() => {
     const tg = window?.Telegram?.WebApp;
     tg?.ready();
-    // (опционально) разворачивать на весь экран:
-    // tg?.expand?.();
   }, []);
 
   const handleSubmit = async () => {
@@ -82,12 +81,11 @@ export default function CartPage() {
   return (
     <Page>
       <TopBar>
-          <BackArrow aria-label="Назад" onClick={() => navigate(-1)}>
-            <img src={`${PUB}/assets/images/backArrow.svg`} alt="Назад" width="14" height="14" />
-          </BackArrow>
-          <TitleTop> Корзина </TitleTop>
-        </TopBar>
-
+        <BackArrow aria-label="Назад" onClick={() => navigate(-1)}>
+          <img src={`${PUB}/assets/images/backArrow.svg`} alt="Назад" width="14" height="14" />
+        </BackArrow>
+        <TitleTop>Корзина</TitleTop>
+      </TopBar>
 
       {!cart?.length ? (
         <EmptyWrap>Корзина пуста</EmptyWrap>
@@ -95,22 +93,14 @@ export default function CartPage() {
         <>
           {cart.map((i) => (
             <Item key={i.id}>
-              {/* Левая колонка: изображение + кнопки под ним */}
               <LeftCol>
                 <ImgWrap>
-                  {i.images?.[0] ? (
-                    <img src={i.images[0]} alt={i.name} />
-                  ) : (
-                    <NoPic />
-                  )}
+                  {i.images?.[0] ? <img src={i.images[0]} alt={i.name} /> : <NoPic />}
                 </ImgWrap>
 
                 <Controls>
                   <DeleteBtn onClick={() => removeItem(i.id)} aria-label="Удалить">
-                    <img
-                      src={`${process.env.PUBLIC_URL}/assets/images/trashBin.svg`}
-                      alt=""
-                    />
+                    <img src={`${PUB}/assets/images/trashBin.svg`} alt="" />
                   </DeleteBtn>
 
                   <QtyBox>
@@ -133,7 +123,6 @@ export default function CartPage() {
                 </Controls>
               </LeftCol>
 
-              {/* Правая колонка: инфо */}
               <ItemInfo>
                 <Price>{i.price.toLocaleString("ru-RU")} руб</Price>
                 <Name>{i.name}</Name>
@@ -152,7 +141,6 @@ export default function CartPage() {
             </Item>
           ))}
 
-          {/* Плашка Итого — теперь в потоке, чуть ниже последнего товара */}
           <BottomBar>
             <Total>
               Итого: <b>{total.toLocaleString("ru-RU")} ₽</b>
@@ -171,21 +159,29 @@ export default function CartPage() {
 
 /* ===== styled-components ===== */
 
-const NAVBAR_HEIGHT = 64; // если твой NavBar другой высоты — поправь тут
+const NAVBAR_HEIGHT = 64;
 
 const Page = styled.main`
+  /* 👉 единые адаптивные переменные для размеров контролов */
+  --control-h: clamp(40px, 9vw, 52px);
+  --control-font: clamp(16px, 3.8vw, 20px);
+  --icon-size: clamp(22px, 5.2vw, 28px);
+  --radius: clamp(8px, 2.2vw, 12px);
+
   min-height: 100dvh;
   background: #000;
   color: #fff;
-  padding: 12px var(--side-pad) 24px; /* снизу стало меньше, т.к. плашка теперь в потоке */
+  padding: 12px var(--side-pad, 16px) 24px;
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   overflow-x: hidden;
+  -webkit-text-size-adjust: 100%; /* отключаем авто-скейл шрифта в Safari */
+  touch-action: manipulation;      /* уменьшает странности тач-обработки на iOS */
 `;
 
 const TopBar = styled.header`
   background: #fff;
   color: #000;
-  border-radius: 10px;
+  border-radius: var(--radius);
   height: 44px;
   display: grid;
   grid-template-columns: 40px 1fr;
@@ -207,14 +203,14 @@ const BackArrow = styled.button`
 const TitleTop = styled.h1`
   font-size: 16px;
   font-weight: 700;
-  margin: -20px;
+  margin: 0;          /* убрал отрицательный отступ */
+  line-height: 1;
 `;
 
 const EmptyWrap = styled.div`
   min-height: 60vh;
   display: grid;
   place-items: center;
-  color: #fff;
 `;
 
 const Item = styled.div`
@@ -252,8 +248,8 @@ const Controls = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 6px;   /* ближе к картинке */
-  margin-left: 12px; /* отступ от левой стороны */
+  margin-top: 6px;
+  margin-left: 12px;
 `;
 
 const DeleteBtn = styled.button`
@@ -264,34 +260,36 @@ const DeleteBtn = styled.button`
   place-items: center;
 
   img {
-    width: 26px;
-    height: 26px;
+    width: var(--icon-size);
+    height: var(--icon-size);
   }
 `;
 
 const QtyBox = styled.div`
-  height: 44px;
-  border-radius: 10px;
-  border: 2px solid #fff; /* белая рамка */
+  height: var(--control-h);
+  border-radius: var(--radius);
+  border: 2px solid #fff;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: min-content 1fr min-content;
   align-items: center;
-  padding: 0 8px;
-  gap: 10px;
+  padding: 0 10px;
+  gap: 12px;
 
   button {
     background: none;
     border: none;
     color: #fff;
-    font-size: 20px;
+    font-size: var(--control-font);
+    line-height: 1;
     cursor: pointer;
+    min-width: 1.8em;     /* фикс на разных плотностях */
   }
 
   span {
-    font-size: 16px;
+    font-size: clamp(15px, 3.6vw, 18px);
     font-weight: 700;
-    min-width: 1.6em;
+    min-width: 2ch;
     text-align: center;
   }
 `;
@@ -304,11 +302,11 @@ const ItemInfo = styled.div`
 
 const Price = styled.div`
   font-weight: 900;
-  font-size: 16px;
+  font-size: clamp(16px, 4.2vw, 20px);
 `;
 
 const Name = styled.div`
-  font-size: 14px;
+  font-size: clamp(14px, 3.6vw, 16px);
   font-weight: 600;
 `;
 
@@ -320,39 +318,38 @@ const SpecList = styled.ul`
 
   li {
     color: #d6d6d6;
-    font-size: 14px;
+    font-size: clamp(13px, 3.4vw, 15px);
   }
 `;
 
-/* Плашка Итого — в потоке, с отступом сверху и запасом под NavBar */
 const BottomBar = styled.div`
   margin-top: 12px;
-  margin-bottom: ${NAVBAR_HEIGHT + 12}px; /* чтобы не залезало на навбар */
-  padding: 12px var(--side-pad);
+  margin-bottom: ${NAVBAR_HEIGHT + 12}px;
+  padding: 12px var(--side-pad, 16px);
   border-top: 2px solid #f5b300;
   background: #000;
 
   display: flex;
-  flex-direction: column;   /* 👈 теперь вертикально */
-  align-items: flex-end;    /* кнопка будет справа */
-  gap: 10px;                /* отступ между "Итого" и кнопкой */
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
 `;
 
 const Total = styled.div`
-  align-self: flex-start;   /* "Итого" слева */
-  font-size: 16px;
+  align-self: flex-start;
+  font-size: clamp(16px, 4vw, 18px);
 `;
 
 const SendBtn = styled.button`
-  height: 44px;
+  height: var(--control-h);
   padding: 0 16px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   border: 2px solid #f5b300;
   background: #f5b300;
   color: #000;
   font-weight: 700;
+  font-size: clamp(14px, 3.8vw, 16px);
   cursor: pointer;
-  margin-top: -25px;   /* 👉 сдвинет кнопку вниз */
 
   &:disabled {
     opacity: 0.6;

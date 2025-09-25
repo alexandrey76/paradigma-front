@@ -364,12 +364,25 @@ const Price = styled.div`
 `;
 const AddBtn = styled.button`
   border: 2px solid #f5b300;
-  background: transparent;
-  color: #fff;
+  background: #f5b300;
+  color: #000000ff;
   border-radius: 10px;
   padding: 10px 14px;
   font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    background: #f5b300; /* лёгкая подсветка */
+  }
+
+  &:active {
+    transform: scale(0.95); /* кнопка слегка уменьшается */
+    background: #f5b300;
+    color: #000;
+  }
 `;
+
 
 const SpecBlock = styled.section`
   margin-top: 8px;
