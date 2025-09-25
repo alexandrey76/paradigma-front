@@ -56,16 +56,20 @@ export default function CatalogPage() {
                   <Name>{p.name}</Name>
                 </PriceBlock>
 
-                <CartBtnWrap
-                  onClick={(e) => {
-                    e.stopPropagation(); // не переходить в карточку
-                    addItem(p, 1);
-                  }}
-                  aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
-                >
-                  <img src={icon} alt="" />
-                  {qty > 0 && <CartCount>{qty > 9 ? "9+" : qty}</CartCount>}
-                </CartBtnWrap>
+              <CartBtnWrap
+                onClick={(e) => { e.stopPropagation(); addItem(p, 1); }}
+                aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
+              >
+                {/* сама корзина */}
+                <img src={icon} alt="" />
+
+                {/* кружок + количество (только если есть товар) */}
+                {qty > 0 && (
+                  <CartBadge>
+                    {qty > 9 ? "9+" : qty}
+                  </CartBadge>
+                )}
+              </CartBtnWrap>
               </InfoRow>
             </Card>
           );
@@ -168,17 +172,32 @@ const CartBtnWrap = styled.button`
   display: inline-grid;
   place-items: center;
   cursor: pointer;
-  transition: transform 0.12s ease;
-
-  &:active {
-    transform: scale(0.95);
-  }
 
   img {
     width: var(--icon-size);
     height: var(--icon-size);
     display: block;
+    object-fit: contain;
   }
+`;
+
+const CartBadge = styled.span`
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #f5b300;
+  border: 2px solid #fff;
+  font-size: 9px;
+  font-weight: 800;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
 `;
 
 /* Счётчик поверх жёлтого кружка в SVG */

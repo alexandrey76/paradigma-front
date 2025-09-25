@@ -66,12 +66,20 @@ export default function HomePage() {
 
       {/* Каталог */}
       <Section>
-        <SectionHeaderRow>
-          <Link to="/catalog" style={{ textDecoration: "none", color: "inherit" }}>
-            <SectionTitle>Каталог товаров</SectionTitle>
-          </Link>
-          <Chevron>›</Chevron>
-        </SectionHeaderRow>
+      <SectionHeaderRow>
+        <Link
+          to="/catalog"
+          style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center" }}
+        >
+          <SectionTitle>
+            Каталог товаров
+            <ChevronIcon
+              src={`${process.env.PUBLIC_URL}/assets/images/catalogArrow.svg`}
+              alt=">"
+            />
+          </SectionTitle>
+        </Link>
+      </SectionHeaderRow>
 
         <CatalogViewport ref={emblaRef}>
           <CatalogSlides>
@@ -99,16 +107,20 @@ export default function HomePage() {
                         <Name>{p.name}</Name>
                       </PriceBlock>
 
-                      <CartBtnWrap
-                        onClick={(e) => {
-                          e.stopPropagation(); // не переходить в карточку
-                          addItem(p, 1);
-                        }}
-                        aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
-                      >
-                        <img src={icon} alt="" />
-                        {qty > 0 && <CartCount>{qty > 9 ? "9+": qty}</CartCount>}
-                      </CartBtnWrap>
+                    <CartBtnWrap
+                      onClick={(e) => { e.stopPropagation(); addItem(p, 1); }}
+                      aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
+                    >
+                      {/* сама корзина */}
+                      <img src={icon} alt="" />
+
+                      {/* кружок + количество (только если есть товар) */}
+                      {qty > 0 && (
+                        <CartBadge>
+                          {qty > 9 ? "9+" : qty}
+                        </CartBadge>
+                      )}
+                    </CartBtnWrap>
                     </CardBottomRow>
                   </Card>
                 </CatalogSlide>
@@ -132,30 +144,30 @@ const CartBtnWrap = styled.button`
   display: inline-grid;
   place-items: center;
   cursor: pointer;
-  transition: transform .12s ease;
-  &:active { transform: scale(.95); }
 
   img {
     width: var(--icon-size);
     height: var(--icon-size);
     display: block;
+    object-fit: contain;
   }
 `;
 
-/* Счётчик поверх жёлтого кружка в SVG */
-const CartCount = styled.span`
+const CartBadge = styled.span`
   position: absolute;
-  top: 0px;      /* подгони под свой кружок */
-  right: 6px;    /* подгони под свой кружок */
-  width: 2px;   /* диаметр твоего жёлтого круга в SVG */
-  height: 18px;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #f5b300;
+  border: 2px solid #fff;
+  font-size: 9px;
+  font-weight: 800;
+  color: #000;
   display: flex;
   align-items: center;
   justify-content: center;
-
-  font-size: 8px;
-  font-weight: 800;
-  color: #000;   /* чёрный, чтобы читалось на жёлтом */
   line-height: 1;
   pointer-events: none;
 `;
@@ -220,24 +232,31 @@ const BenefitText = styled.div`
   font-size: 14px;
 `;
 
+
 const Section = styled.section`
   padding: 14px var(--side-pad, 16px) 6px;
 `;
 const SectionHeaderRow = styled.div`
   display: flex;
   align-items: center;
-  justify-content: space-between;
   margin: 6px 0 10px;
 `;
+
 const SectionTitle = styled.h2`
   margin: 0;
   font-weight: 800;
   font-size: 20px;
+  display: inline-flex;     /* вместо flex — inline-flex */
+  align-items: center;      /* центрируем по вертикали */
+  gap: 6px;                 /* расстояние между текстом и стрелкой */
+  line-height: 1;           /* убираем лишние отступы */
 `;
-const Chevron = styled.div`
-  font-size: 22px;
-  line-height: 1;
-  user-select: none;
+
+const ChevronIcon = styled.img`
+  width: 15px;
+  height: 15px;
+  display: block;           /* чтобы убрать влияние baseline */
+  margin-top: 6px;          /* можно чуть подогнать вручную */
 `;
 
 /* ——— свайп-карусель каталога ——— */
