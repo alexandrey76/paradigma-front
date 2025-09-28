@@ -7,20 +7,49 @@ export default function NavBar() {
   return (
     <Wrap>
       <Bar role="navigation" aria-label="Нижняя навигация">
-        <IconLink to="/" $active={pathname === "/"}>
-          <LogoIcon />
+        <IconLink to="/" >
+          <img
+            src={pathname === "/" 
+              ? "/assets/images/barLogoActive.svg" 
+              : "/assets/images/barLogo.svg"}
+            alt="logo"
+          />
         </IconLink>
 
-        <IconLink to="/cart" $active={pathname.startsWith("/cart")}>
-          <CartIcon />
+        <IconLink to="/catalog">
+          <img
+            src={pathname.startsWith("/catalog") 
+              ? "/assets/images/barCatalogActive.svg" 
+              : "/assets/images/barCatalog.svg"}
+            alt="catalog"
+          />
         </IconLink>
 
-        <IconLink to="/profile" $active={pathname.startsWith("/profile")}>
-          <UserIcon />
+        <IconLink to="/cart">
+          <img
+            src={pathname.startsWith("/cart") 
+              ? "/assets/images/barCartActive.svg" 
+              : "/assets/images/barCart.svg"}
+            alt="cart"
+          />
         </IconLink>
 
-        <IconLink to="/support" $active={pathname.startsWith("/suppoort")}>
-          <ChatIcon />
+        <IconLink to="/profile">
+          <img
+            src={pathname.startsWith("/profile") 
+              ? "/assets/images/barProfileActive.svg" 
+              : "/assets/images/barProfile.svg"}
+            alt="profile"
+          />
+        </IconLink>
+
+        <IconLink to="/support">
+          <img
+            src={pathname.startsWith("/support") 
+              ? "/assets/images/barSupportActive.svg" 
+              : "/assets/images/barSupport.svg"}
+            alt="support"
+          />
         </IconLink>
       </Bar>
     </Wrap>
@@ -36,66 +65,41 @@ const Wrap = styled.div`
   width: 100%;
   z-index: 50;
 
-  /* отступ снизу с учётом выреза */
-  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  /* убираем все паддинги */
+  padding: 0;
+  margin: 0;
 
   display: flex;
   justify-content: center;
-  pointer-events: none; /* чтобы клики шли только на кнопки */
+
+  /* если нужно учитывать вырезы на iOS */
+  background: black; /* временно, чтобы проверить */
 `;
 
 const Bar = styled.div`
-  pointer-events: auto;
   width: 100%;
   max-width: 560px;
-  background: #f5b300;
-  border-radius: 14px;
-  height: 56px;
+  height: calc(56px + env(safe-area-inset-bottom)); /* бар растягивается */
+  padding-bottom: env(safe-area-inset-bottom);      /* иконки не упираются в вырез */
 
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  align-items: center;
-  justify-items: center;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  grid-template-columns: repeat(5, 1fr);
+  align-items: stretch;
+  justify-items: stretch;
 `;
+
+
 
 const IconLink = styled(Link)`
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  border-radius: 12px;
-  text-decoration: none;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-  /* белые иконки, слегка приглушённые у неактивных */
-  svg {
-    width: 26px;
-    height: 26px;
-    fill: #fff;
-    opacity: ${(p) => (p.$active ? 1 : 0.9)};
-    transition: transform 120ms ease, opacity 120ms ease;
-  }
-
-  &:active svg {
-    transform: scale(0.94);
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* сохраняем пропорции SVG */
   }
 `;
-
-/* ---------- SVG иконки ---------- */
-/* максимально простые, чтобы не дёргать ассеты */
-
-function LogoIcon() {
-  return  <img src="/assets/images/barLogo.svg" alt="logo" width={26} height={26} />;
-}
-
-function CartIcon() {
-  return  <img src="/assets/images/barCart.svg" alt="cart" width={26} height={26} />;
-}
-
-function UserIcon() {
-  return  <img src="/assets/images/barProfile.svg" alt="profile" width={26} height={26} />;
-}
-
-function ChatIcon() {
-  return  <img src="/assets/images/barChat.svg" alt="chat" width={26} height={26} />;
-}

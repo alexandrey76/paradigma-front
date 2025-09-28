@@ -258,15 +258,14 @@ const DeleteBtn = styled.button`
   cursor: pointer;
   display: grid;
   place-items: center;
-  flex: 0 0 auto;                /* не сжимается */
+  flex: 0 0 auto; 
 
   img {
     width: clamp(26px, 6.2vw, 34px);
     height: clamp(26px, 6.2vw, 34px);
   }
 
-  /* для лучшего тач-хита на iOS */
-  padding: 4px;                   /* не влияет на визуальный размер, но даёт хит-эрею */
+  padding: 4px;    
 `;
 
 const QtyBox = styled.div`
@@ -284,9 +283,8 @@ const QtyBox = styled.div`
   column-gap: 6px;
   padding: 0 6px;
 
-  /* 👇 теперь ширина подстраивается */
   width: 100%;
-  max-width: 120px;   /* не шире картинки */
+  max-width: 120px;
   box-sizing: border-box;
 
   button {

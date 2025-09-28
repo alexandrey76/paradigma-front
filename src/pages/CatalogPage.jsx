@@ -27,12 +27,12 @@ export default function CatalogPage() {
   return (
     <PageWrapper>
       {/* 🔙 Заголовок с кнопкой назад */}
-      <Header>
+      <TopBar>
         <BackArrow onClick={() => navigate(-1)}>
           <img src={`${PUB}/assets/images/backArrow.svg`} alt="Назад" />
         </BackArrow>
         <span style={{ fontWeight: 800, color: "#000" }}>Каталог товаров</span>
-      </Header>
+      </TopBar>
 
       {/* 🔲 Сетка товаров */}
       <Grid>
@@ -89,13 +89,17 @@ const PageWrapper = styled.div`
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 `;
 
-const Header = styled.div`
-  display: flex;
-  align-items: center;
+const TopBar = styled.header`
   background: #fff;
-  border-radius: 8px;
-  padding: 10px 14px;
-  margin-bottom: 16px;
+  color: #000;
+  border-radius: 10px;
+  height: 44px;
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  margin-bottom: 10px;
 `;
 
 const BackArrow = styled.button`
