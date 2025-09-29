@@ -10,41 +10,33 @@ import CartPage from "./pages/CartPage";
 import NavBar from "./components/NavBar";
 import SupportPage from "./pages/SupportPage";
 
-/** ================= Прелоадер ================= */
-function Preloader() {
+/** -------- Preloader компонент -------- */
+function Preloader({ videoSrc }) {
   return (
-    <div style={styles.wrap}>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "#000",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 9999,
+      }}
+    >
       <video
+        src={videoSrc}
         autoPlay
         loop
         muted
         playsInline
-        style={styles.video}
-      >
-        <source src="/assets/video/Preloader.mp4" type="video/mp4" />
-      </video>
+        style={{ width: "100%", height: "100%", objectFit: "contain" }}
+      />
     </div>
   );
 }
 
-const styles = {
-  wrap: {
-    position: "fixed",
-    inset: 0,
-    zIndex: 9999,
-    background: "#000",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  video: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-  },
-};
-
-/** Повторно применяем настройки TG WebApp (expand/disable swipes) */
+/** -------- Telegram guard -------- */
 function useTelegramGuard() {
   const { pathname } = useLocation();
 
@@ -56,7 +48,7 @@ function useTelegramGuard() {
       tg.ready();
       tg.expand();
       tg.disableVerticalSwipes();     // запрет сворачивания свайпом вниз
-      tg.enableClosingConfirmation();  // запрос подтверждения при закрытии
+      tg.enableClosingConfirmation(); // запрос подтверждения при закрытии
 
       const onViewport = () => {
         if (!tg.isExpanded) tg.expand();
@@ -66,7 +58,7 @@ function useTelegramGuard() {
     } catch (e) {
       console.warn("Telegram WebApp init error:", e);
     }
-  }, [pathname]); // 👈 повторяем на каждом роуте
+  }, [pathname]);
 }
 
 function AppShell() {
@@ -93,15 +85,18 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // имитация загрузки: убираем прелоадер через 2 сек
-    const timer = setTimeout(() => setLoading(false), 2000);
+    const timer = setTimeout(() => setLoading(false), 2000); // имитация загрузки
     return () => clearTimeout(timer);
   }, []);
 
   return (
     <CartProvider>
       <HashRouter>
-        {loading ? <Preloader /> : <AppShell />}
+        {loading ? (
+          <Preloader videoSrc="/assets/video/Preloader.mp4" />
+        ) : (
+          <AppShell />
+        )}
       </HashRouter>
     </CartProvider>
   );
