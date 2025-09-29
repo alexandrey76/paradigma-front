@@ -12,25 +12,14 @@ import NavBar from "./components/NavBar";
 import SupportPage from "./pages/SupportPage";
 
 /* ====== Настройки прелоадера ====== */
-const PRELOADER_VIDEO = "/assets/video/Preloader.mp4"; // положи файл в public/assets/video/
-const SAFETY_TIMEOUT = 10000; // 10s запасной таймаут
-const FADE_MS = 300; // длительность fade-out (мс)
-const EXTRA_MS = 500; // небольшой запас перед fade (чтобы "чуть больше нужного")
+const PRELOADER_VIDEO = "/assets/video/Preloader.mp4";
+const SAFETY_TIMEOUT = 10000;
+const FADE_MS = 500;
+const MINIMUM_DISPLAY_TIME = 1500;
+const EXTRA_DELAY = 800;
 
-/* ====== Компонент прелоадера (простой) ====== */
-function Preloader({ videoSrc, onHidden }) {
-  const [visible, setVisible] = useState(true);
-
-  useEffect(() => {
-    if (!visible) {
-      // запустим коллбек после окончания fade
-      const t = setTimeout(() => {
-        onHidden && onHidden();
-      }, FADE_MS);
-      return () => clearTimeout(t);
-    }
-  }, [visible, onHidden]);
-
+/* ====== Компонент прелоадера ====== */
+function Preloader({ videoSrc, onFadeComplete, fadeOut }) {
   return (
     <div
       aria-hidden="true"
@@ -38,16 +27,15 @@ function Preloader({ videoSrc, onHidden }) {
         position: "fixed",
         inset: 0,
         zIndex: 99999,
-        background: "#000", // можно поменять под тон видео
+        background: "#000",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        transition: `opacity ${FADE_MS}ms ease`,
-        opacity: visible ? 1 : 0,
-        pointerEvents: "none",
+        transition: `opacity ${FADE_MS}ms ease-out`,
+        opacity: fadeOut ? 0 : 1,
+        pointerEvents: fadeOut ? "none" : "auto",
       }}
-      // дать доступ к изменению видимости извне через window (необязательно)
-      data-preloader="true"
+      onTransitionEnd={onFadeComplete}
     >
       <video
         src={videoSrc}
@@ -67,7 +55,7 @@ function Preloader({ videoSrc, onHidden }) {
   );
 }
 
-/* ====== Telegram guard (как было) ====== */
+/* ====== Telegram guard ====== */
 function useTelegramGuard() {
   const { pathname } = useLocation();
 
@@ -112,10 +100,11 @@ function AppShell() {
   );
 }
 
-/* ====== Основной App: показываем прелоадер, ждём загрузки, делаем fade-out ====== */
 export default function App() {
   const [showPreloader, setShowPreloader] = useState(true);
-  const [preloaderVisible, setPreloaderVisible] = useState(true);
+  const [fadeOut, setFadeOut] = useState(false);
+  const [contentLoaded, setContentLoaded] = useState(false);
+  const [startTime] = useState(Date.now());
 
   useEffect(() => {
     let mounted = true;
@@ -132,7 +121,7 @@ export default function App() {
       window.addEventListener("load", loadHandler, { passive: true });
     });
 
-    // Promise: шрифты (если поддерживается)
+    // Promise: шрифты
     const fontsReady = document.fonts ? document.fonts.ready : Promise.resolve();
 
     // safety timeout
@@ -140,22 +129,30 @@ export default function App() {
       timeoutId = setTimeout(resolve, SAFETY_TIMEOUT);
     });
 
-    // ждём либо (load + fonts), либо safety
+    // Ждём загрузки контента
     Promise.race([
       Promise.all([waitLoad, fontsReady]),
       safety,
     ]).then(() => {
       if (!mounted) return;
-      // дополнительный небольшой запас, как ты просил "чуть больше нужного"
+      setContentLoaded(true);
+
+      // Вычисляем, сколько времени уже прошло
+      const elapsedTime = Date.now() - startTime;
+      
+      // Если прошло меньше минимального времени, ждём остаток
+      const remainingTime = Math.max(0, MINIMUM_DISPLAY_TIME - elapsedTime);
+      
+      // Добавляем дополнительную задержку
+      const totalDelay = remainingTime + EXTRA_DELAY;
+
+      console.log(`Preloader timing: elapsed ${elapsedTime}ms, waiting ${totalDelay}ms more`);
+
       setTimeout(() => {
-        // trigger fade-out
-        setPreloaderVisible(false);
-        // через FADE_MS скрываем совсем (unmount)
-        setTimeout(() => {
-          if (!mounted) return;
-          setShowPreloader(false);
-        }, FADE_MS);
-      }, EXTRA_MS);
+        if (!mounted) return;
+        // Запускаем fade-out
+        setFadeOut(true);
+      }, totalDelay);
     });
 
     return () => {
@@ -163,21 +160,34 @@ export default function App() {
       if (loadHandler) window.removeEventListener("load", loadHandler);
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, []);
+  }, [startTime]);
+
+  const handleFadeComplete = () => {
+    if (fadeOut) {
+      setShowPreloader(false);
+    }
+  };
 
   return (
     <CartProvider>
       <HashRouter>
-        {showPreloader ? (
+        {/* AppShell показывается всегда, но может быть под прелоадером */}
+        <div style={{
+          position: 'relative',
+          zIndex: 1,
+          opacity: contentLoaded ? 1 : 0,
+          transition: contentLoaded ? `opacity ${FADE_MS}ms ease-out` : 'none'
+        }}>
+          <AppShell />
+        </div>
+        
+        {/* Прелоадер поверх контента */}
+        {showPreloader && (
           <Preloader
             videoSrc={PRELOADER_VIDEO}
-            onHidden={() => {
-              /* onHidden вызывается после fade — но мы уже управляем hide в эффекте выше,
-                 оставляем этот коллбек пустым (на случай, если нужен в будущем) */
-            }}
+            fadeOut={fadeOut}
+            onFadeComplete={handleFadeComplete}
           />
-        ) : (
-          <AppShell />
         )}
       </HashRouter>
     </CartProvider>
