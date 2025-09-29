@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
 import GlobalStyle from "./styles/GlobalStyle";
@@ -9,6 +9,40 @@ import ProductPage from "./pages/ProductPage";
 import CartPage from "./pages/CartPage";
 import NavBar from "./components/NavBar";
 import SupportPage from "./pages/SupportPage";
+
+/** ================= Прелоадер ================= */
+function Preloader() {
+  return (
+    <div style={styles.wrap}>
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        style={styles.video}
+      >
+        <source src="/assets/video/Preloader.mp4" type="video/mp4" />
+      </video>
+    </div>
+  );
+}
+
+const styles = {
+  wrap: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 9999,
+    background: "#000",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  video: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+  },
+};
 
 /** Повторно применяем настройки TG WebApp (expand/disable swipes) */
 function useTelegramGuard() {
@@ -56,10 +90,18 @@ function AppShell() {
 }
 
 export default function App() {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // имитация загрузки: убираем прелоадер через 2 сек
+    const timer = setTimeout(() => setLoading(false), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <CartProvider>
       <HashRouter>
-        <AppShell />
+        {loading ? <Preloader /> : <AppShell />}
       </HashRouter>
     </CartProvider>
   );
