@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useEffect, useState } from "react";
 import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
@@ -10,19 +11,43 @@ import CartPage from "./pages/CartPage";
 import NavBar from "./components/NavBar";
 import SupportPage from "./pages/SupportPage";
 
-/** -------- Preloader компонент -------- */
-function Preloader({ videoSrc }) {
+/* ====== Настройки прелоадера ====== */
+const PRELOADER_VIDEO = "/assets/video/Preloader.mp4"; // положи файл в public/assets/video/
+const SAFETY_TIMEOUT = 10000; // 10s запасной таймаут
+const FADE_MS = 300; // длительность fade-out (мс)
+const EXTRA_MS = 500; // небольшой запас перед fade (чтобы "чуть больше нужного")
+
+/* ====== Компонент прелоадера (простой) ====== */
+function Preloader({ videoSrc, onHidden }) {
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (!visible) {
+      // запустим коллбек после окончания fade
+      const t = setTimeout(() => {
+        onHidden && onHidden();
+      }, FADE_MS);
+      return () => clearTimeout(t);
+    }
+  }, [visible, onHidden]);
+
   return (
     <div
+      aria-hidden="true"
       style={{
         position: "fixed",
         inset: 0,
-        background: "#000",
+        zIndex: 99999,
+        background: "#000", // можно поменять под тон видео
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        zIndex: 9999,
+        transition: `opacity ${FADE_MS}ms ease`,
+        opacity: visible ? 1 : 0,
+        pointerEvents: "none",
       }}
+      // дать доступ к изменению видимости извне через window (необязательно)
+      data-preloader="true"
     >
       <video
         src={videoSrc}
@@ -30,13 +55,19 @@ function Preloader({ videoSrc }) {
         loop
         muted
         playsInline
-        style={{ width: "100%", height: "100%", objectFit: "contain" }}
+        preload="auto"
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          background: "transparent",
+        }}
       />
     </div>
   );
 }
 
-/** -------- Telegram guard -------- */
+/* ====== Telegram guard (как было) ====== */
 function useTelegramGuard() {
   const { pathname } = useLocation();
 
@@ -45,13 +76,13 @@ function useTelegramGuard() {
     if (!tg) return;
 
     try {
-      tg.ready();
-      tg.expand();
-      tg.disableVerticalSwipes();     // запрет сворачивания свайпом вниз
-      tg.enableClosingConfirmation(); // запрос подтверждения при закрытии
+      tg.ready?.();
+      tg.expand?.();
+      tg.disableVerticalSwipes?.();
+      tg.enableClosingConfirmation?.();
 
       const onViewport = () => {
-        if (!tg.isExpanded) tg.expand();
+        if (!tg.isExpanded) tg.expand?.();
       };
       tg.onEvent?.("viewportChanged", onViewport);
       return () => tg.offEvent?.("viewportChanged", onViewport);
@@ -81,19 +112,70 @@ function AppShell() {
   );
 }
 
+/* ====== Основной App: показываем прелоадер, ждём загрузки, делаем fade-out ====== */
 export default function App() {
-  const [loading, setLoading] = useState(true);
+  const [showPreloader, setShowPreloader] = useState(true);
+  const [preloaderVisible, setPreloaderVisible] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 2000); // имитация загрузки
-    return () => clearTimeout(timer);
+    let mounted = true;
+    let loadHandler = null;
+    let timeoutId = null;
+
+    // Promise: ждём window.load
+    const waitLoad = new Promise((resolve) => {
+      if (document.readyState === "complete") {
+        resolve();
+        return;
+      }
+      loadHandler = () => resolve();
+      window.addEventListener("load", loadHandler, { passive: true });
+    });
+
+    // Promise: шрифты (если поддерживается)
+    const fontsReady = document.fonts ? document.fonts.ready : Promise.resolve();
+
+    // safety timeout
+    const safety = new Promise((resolve) => {
+      timeoutId = setTimeout(resolve, SAFETY_TIMEOUT);
+    });
+
+    // ждём либо (load + fonts), либо safety
+    Promise.race([
+      Promise.all([waitLoad, fontsReady]),
+      safety,
+    ]).then(() => {
+      if (!mounted) return;
+      // дополнительный небольшой запас, как ты просил "чуть больше нужного"
+      setTimeout(() => {
+        // trigger fade-out
+        setPreloaderVisible(false);
+        // через FADE_MS скрываем совсем (unmount)
+        setTimeout(() => {
+          if (!mounted) return;
+          setShowPreloader(false);
+        }, FADE_MS);
+      }, EXTRA_MS);
+    });
+
+    return () => {
+      mounted = false;
+      if (loadHandler) window.removeEventListener("load", loadHandler);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, []);
 
   return (
     <CartProvider>
       <HashRouter>
-        {loading ? (
-          <Preloader videoSrc="/assets/video/Preloader.mp4" />
+        {showPreloader ? (
+          <Preloader
+            videoSrc={PRELOADER_VIDEO}
+            onHidden={() => {
+              /* onHidden вызывается после fade — но мы уже управляем hide в эффекте выше,
+                 оставляем этот коллбек пустым (на случай, если нужен в будущем) */
+            }}
+          />
         ) : (
           <AppShell />
         )}
