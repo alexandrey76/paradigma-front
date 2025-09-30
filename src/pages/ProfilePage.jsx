@@ -296,7 +296,7 @@ export default function ProfilePage() {
           <FieldRow>
             <RowLeft>
               <RowLabel>Отправленные заявки</RowLabel>
-              <RowValueSmall>{sentCount} заявка</RowValueSmall>
+              <RowValueSmall>0 заявок</RowValueSmall>
             </RowLeft>
             <Arrow>›</Arrow>
           </FieldRow>
