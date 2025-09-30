@@ -5,6 +5,7 @@ import styled from "styled-components";
 
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
+import TopBar from "../components/TopBar";
 
 const PUB = process.env.PUBLIC_URL || "";
 
@@ -27,12 +28,8 @@ export default function CatalogPage() {
   return (
     <PageWrapper>
       {/* 🔙 Заголовок с кнопкой назад */}
-      <TopBar>
-        <BackArrow onClick={() => navigate(-1)}>
-          <img src={`${PUB}/assets/images/backArrow.svg`} alt="Назад" />
-        </BackArrow>
-        <span style={{ fontWeight: 800, color: "#000" }}>Каталог товаров</span>
-      </TopBar>
+      <TopBar title ="Каталог товаров"/>
+
 
       {/* 🔲 Сетка товаров */}
       <Grid>
@@ -87,34 +84,6 @@ const PageWrapper = styled.div`
   color: #fff;
   padding: 16px;
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-`;
-
-const TopBar = styled.header`
-  background: #fff;
-  color: #000;
-  border-radius: var(--radius);
-  height: 44px;
-  display: grid;
-  grid-template-columns: 40px 1fr;
-  align-items: center;
-  gap: 8px;
-  padding: 0 8px;
-  margin-bottom: 10px;
-`;
-
-const BackArrow = styled.button`
-  display: flex;
-  align-items: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  margin-right: 12px;
-
-  img {
-    width: 16px;
-    height: 16px;
-  }
 `;
 
 const Grid = styled.div`

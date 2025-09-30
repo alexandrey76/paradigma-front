@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
+import TopBar from "../components/TopBar";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
@@ -183,30 +184,7 @@ export default function ProfilePage() {
   // если пользователь кликнул на аватар — ничего не меняем (не просили менять)
   return (
     <Page>
-      <TopBar>
-        <TopBarInner>
-          <Back onClick={() => navigate(-1)} aria-label="Назад">
-            <img
-              src={`${process.env.PUBLIC_URL}/assets/images/backArrow.svg`}
-              alt="Назад"
-              width="14"
-              height="14"
-            />
-          </Back>
-
-          <TitlePill>
-            <PillText>Личный кабинет</PillText>
-          </TitlePill>
-
-          <Brand>
-            <img
-              src={`${process.env.PUBLIC_URL}/assets/images/paradigmaLogoo.svg`}
-              alt="Paradigma"
-              height="18"
-            />
-          </Brand>
-        </TopBarInner>
-      </TopBar>
+      <TopBar title="Личный кабинет"/>
 
       <Container>
         <Card as="form" onSubmit={handleSave}>
@@ -322,33 +300,6 @@ const Page = styled.main`
   color: #fff;
   padding: 12px var(--side-pad, 16px) calc(110px + env(safe-area-inset-bottom));
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-`;
-
-const TopBar = styled.header`
-  background: #fff;
-  color: #000;
-  border-radius: var(--radius);
-  height: 44px;
-  display: grid;
-  grid-template-columns: 40px 1fr;
-  align-items: center;
-  gap: 8px;
-  padding: 0 8px;
-  margin-bottom: 10px;
-`;
-
-const TopBarInner = styled.div`
-  width: 100%;
-  max-width: 560px;
-  background: #fff;
-  color: #000;
-  border-radius: 12px;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 10px;
-  box-sizing: border-box;
 `;
 
 const Back = styled.button`

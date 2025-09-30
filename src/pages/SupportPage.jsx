@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
+import TopBar from "../components/TopBar";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
@@ -139,18 +140,7 @@ export default function SupportPage() {
 
   return (
     <Page>
-      <TopBar>
-        <BackArrow aria-label="Назад" onClick={() => navigate(-1)}>
-          <img
-            src={`${PUB}/assets/images/backArrow.svg`}
-            alt="Назад"
-            width="14"
-            height="14"
-          />
-        </BackArrow>
-        <Brand>
-          <Logo src={`${PUB}/assets/images/topLogo.svg`} alt="Paradigma" />
-        </Brand>
+      <TopBar title="Поддержка">
       </TopBar>
 
       <Card as="form" onSubmit={onSubmit}>
@@ -266,18 +256,7 @@ const Page = styled.main`
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 `;
 
-const TopBar = styled.header`
-  background: #fff;
-  color: #000;
-  border-radius: var(--radius);
-  height: 44px;
-  display: grid;
-  grid-template-columns: 40px 1fr;
-  align-items: center;
-  gap: 8px;
-  padding: 0 8px;
-  margin-bottom: 10px;
-`;
+
 const BackArrow = styled.button`
   display: flex;
   align-items: center;

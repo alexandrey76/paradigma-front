@@ -6,6 +6,7 @@ import useEmblaCarousel from "embla-carousel-react";
 
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
+import TopBar from "../components/TopBar";
 
 const PUB = process.env.PUBLIC_URL || "";
 
@@ -82,14 +83,7 @@ export default function ProductPage() {
   return (
     <FullBleed>
       <Page>
-        <TopBar>
-          <BackArrow aria-label="Назад" onClick={() => navigate(-1)}>
-            <img src={`${PUB}/assets/images/backArrow.svg`} alt="Назад" width="14" height="14" />
-          </BackArrow>
-          <Brand>
-            <Logo src={`${PUB}/assets/images/topLogo.svg`} alt="Paradigma" />
-          </Brand>
-        </TopBar>
+        <TopBar svgSrc="./assets/images/topLogo.svg"/>
 
         <Title>{product.name}</Title>
 
@@ -202,18 +196,6 @@ const EmptyWrap = styled.div`
   background: #000;
 `;
 
-const TopBar = styled.header`
-  background: #fff;
-  color: #000;
-  border-radius: var(--radius);
-  height: 44px;
-  display: grid;
-  grid-template-columns: 40px 1fr;
-  align-items: center;
-  gap: 8px;
-  padding: 0 8px;
-  margin-bottom: 10px;
-`;
 const BackArrow = styled.button`
   display: flex;
   align-items: center;
