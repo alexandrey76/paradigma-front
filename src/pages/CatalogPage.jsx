@@ -107,7 +107,7 @@ const ProductImage = styled.img`
   width: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
-  border: 2px solid #f5a300;
+  border: 2px solid #ffffffff;
   border-radius: 6px;
   display: block;
 `;

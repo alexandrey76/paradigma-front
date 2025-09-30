@@ -292,7 +292,7 @@ const CardImage = styled.img`
   width: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
-  border: 2px solid #f5a300;
+  border: 2px solid #f1efeaff;
   border-radius: 10px;
   display: block;
 `;
