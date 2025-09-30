@@ -171,14 +171,14 @@ export default function HomePage() {
               <SocialLabel>Социальные сети:</SocialLabel>
               <SocialRow>
                 <a
-                  href="https://t.me/yourlink"
+                  href="https://t.me/+FUNSyKGQhfQzZmY6"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   <img src={`${PUB}/assets/images/tgLogo.svg`} alt="Telegram" />
                 </a>
                 <a
-                  href="https://instagram.com/yourlink"
+                  href="https://www.instagram.com/paradigma_hookah?igsh=M2s2bzJ4cGxyZ3Q5&utm_source=qr"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
