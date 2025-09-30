@@ -195,15 +195,7 @@ export default function ProfilePage() {
           </Back>
 
           <TitlePill>
-            <PillIcon>
-              <img
-                src={`${process.env.PUBLIC_URL}/assets/images/profileIcon.svg`}
-                alt="icon"
-                width="18"
-                height="18"
-              />
-            </PillIcon>
-            <PillText>Имя</PillText>
+            <PillText>Личный кабинет</PillText>
           </TitlePill>
 
           <Brand>
@@ -310,6 +302,12 @@ export default function ProfilePage() {
           </FieldRow>
 
           {error && <ErrorText>{error}</ErrorText>}
+
+          <SaveRow>
+            <SaveBtn type="submit" disabled={!canSave || sending}>
+              {sending ? "Сохраняем…" : "Сохранить"}
+            </SaveBtn>
+          </SaveRow>
         </Card>
       </Container>
     </Page>
