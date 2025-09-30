@@ -302,42 +302,6 @@ const Page = styled.main`
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 `;
 
-const Back = styled.button`
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-`;
-
-const TitlePill = styled.div`
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
-const PillIcon = styled.div`
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-`;
-
-const PillText = styled.div`
-  font-weight: 800;
-  font-size: 16px;
-`;
-
-const Brand = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  width: 96px;
-`;
 
 const Container = styled.div`
   width: 100%;

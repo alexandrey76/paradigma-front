@@ -192,7 +192,7 @@ const LeftCol = styled.div`
 `;
 
 const ImgWrap = styled.div`
-  border: 3px solid #f5b300;
+  border: 3px solid #f8f8f8ff;
   border-radius: 10px;
   overflow: hidden;
   aspect-ratio: 1 / 1;

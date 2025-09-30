@@ -13,7 +13,6 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { cart, addItem } = useCart();
 
-  // embla — только для горизонтального скролла
   const [emblaRef] = useEmblaCarousel({
     align: "start",
     containScroll: "trimSnaps",
@@ -21,13 +20,11 @@ export default function HomePage() {
     loop: false,
   });
 
-  // Всегда переходим на страницу товара
   const handleTap = useCallback(
     (id) => navigate(`/product/${id}`),
     [navigate]
   );
 
-  // Вспомогалки
   const getQty = (id) => cart.find((x) => x.id === id)?.qty || 0;
   const getIcon = (qty) =>
     qty > 0
@@ -42,9 +39,11 @@ export default function HomePage() {
           src={`${PUB}/assets/images/background_homepage.svg`}
           alt="Paradigma hookah"
         />
-        {/* Лого поверх баннера */}
         <LogoOverlay aria-hidden="true">
-          <img src={`${PUB}/assets/images/paradigmaLogoo.svg`} alt="Paradigma" />
+          <img
+            src={`${PUB}/assets/images/paradigmaLogoo.svg`}
+            alt="Paradigma"
+          />
         </LogoOverlay>
       </HeroWrap>
 
@@ -66,20 +65,25 @@ export default function HomePage() {
 
       {/* Каталог */}
       <Section>
-      <SectionHeaderRow>
-        <Link
-          to="/catalog"
-          style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center" }}
-        >
-          <SectionTitle>
-            Каталог товаров
-            <ChevronIcon
-              src={`${process.env.PUBLIC_URL}/assets/images/catalogArrow.svg`}
-              alt=">"
-            />
-          </SectionTitle>
-        </Link>
-      </SectionHeaderRow>
+        <SectionHeaderRow>
+          <Link
+            to="/catalog"
+            style={{
+              textDecoration: "none",
+              color: "inherit",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <SectionTitle>
+              Каталог товаров
+              <ChevronIcon
+                src={`${process.env.PUBLIC_URL}/assets/images/catalogArrow.svg`}
+                alt=">"
+              />
+            </SectionTitle>
+          </Link>
+        </SectionHeaderRow>
 
         <CatalogViewport ref={emblaRef}>
           <CatalogSlides>
@@ -88,7 +92,6 @@ export default function HomePage() {
               const icon = getIcon(qty);
               return (
                 <CatalogSlide key={p.id}>
-                  {/* ВЕСЬ блок кликабельный */}
                   <Card
                     role="button"
                     tabIndex={0}
@@ -96,31 +99,35 @@ export default function HomePage() {
                     onKeyDown={(e) => e.key === "Enter" && handleTap(p.id)}
                   >
                     <CardImage
-                      src={p.images?.[0] || `${PUB}/assets/images/placeholder.png`}
+                      src={
+                        p.images?.[0] || `${PUB}/assets/images/placeholder.png`
+                      }
                       alt={p.name}
                       loading="lazy"
                     />
 
                     <CardBottomRow>
                       <PriceBlock>
-                        <Price>{(p.price ?? 0).toLocaleString("ru-RU")} руб</Price>
+                        <Price>
+                          {(p.price ?? 0).toLocaleString("ru-RU")} руб
+                        </Price>
                         <Name>{p.name}</Name>
                       </PriceBlock>
 
-                    <CartBtnWrap
-                      onClick={(e) => { e.stopPropagation(); addItem(p, 1); }}
-                      aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
-                    >
-                      {/* сама корзина */}
-                      <img src={icon} alt="" />
-
-                      {/* кружок + количество (только если есть товар) */}
-                      {qty > 0 && (
-                        <CartBadge>
-                          {qty > 9 ? "9+" : qty}
-                        </CartBadge>
-                      )}
-                    </CartBtnWrap>
+                      <CartBtnWrap
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addItem(p, 1);
+                        }}
+                        aria-label={
+                          qty > 0 ? `В корзине: ${qty}` : "В корзину"
+                        }
+                      >
+                        <img src={icon} alt="" />
+                        {qty > 0 && (
+                          <CartBadge>{qty > 9 ? "9+" : qty}</CartBadge>
+                        )}
+                      </CartBtnWrap>
                     </CardBottomRow>
                   </Card>
                 </CatalogSlide>
@@ -129,6 +136,79 @@ export default function HomePage() {
           </CatalogSlides>
         </CatalogViewport>
       </Section>
+
+      {/* Футер */}
+      <FooterWrap>
+        <FooterLogoBlock>
+          <img src={`${PUB}/assets/images/footerLogo.svg`} alt="Paradigma" />
+          <FooterTagline>Электронные кальяны без угля</FooterTagline>
+        </FooterLogoBlock>
+
+        <FooterMain>
+          <FooterLeft>
+            <PolicyBlock>
+              <PolicyLine>
+                <Link to="/privacy-policy">Политика конфиденциальности</Link>
+              </PolicyLine>
+              <PolicyLine>Согласие на обработку персональных данных</PolicyLine>
+              <PolicyLine>ИНН: 771588377502</PolicyLine>
+              <PolicyLine>ОГРИП: 32577460063823</PolicyLine>
+              <PolicyLine>
+                Информация в приложении носит ознакомительный характер и не
+                является публичной офертой.
+              </PolicyLine>
+            </PolicyBlock>
+          </FooterLeft>
+
+          <FooterRight>
+            <PhoneBlock>
+              <PhoneLabel>Телефон:</PhoneLabel>
+              <PhoneNumber href="tel:+79911851101">
+                +7 (991) 185-11-01
+              </PhoneNumber>
+            </PhoneBlock>
+            <SocialBlock>
+              <SocialLabel>Социальные сети:</SocialLabel>
+              <SocialRow>
+                <a
+                  href="https://t.me/yourlink"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img src={`${PUB}/assets/images/tgLogo.svg`} alt="Telegram" />
+                </a>
+                <a
+                  href="https://instagram.com/yourlink"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img
+                    src={`${PUB}/assets/images/instLogo.svg`}
+                    alt="Instagram"
+                  />
+                </a>
+              </SocialRow>
+            </SocialBlock>
+          </FooterRight>
+        </FooterMain>
+
+        <FooterBottom>
+          <WarningTitle>КУРЕНИЕ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ! 18+</WarningTitle>
+          <WarningText>
+            Дистанционная продажа товаров подпадающих под запрет ФЗ 15 не
+            осуществляется. Товары можно приобрести только в нашем магазине или
+            у дилеров. Резерв товара, оформленного через приложение не является
+            заключённым договором о намерениях приобрести товар. Сделка по
+            приобретению товара осуществляется только при предъявлении паспорта.
+            Ограничения ФЗ 15 не действуют для оптовых заказов. Приложение не
+            является рекламой, это каталог для совершеннолетних потребителей
+            табачной продукции (граждан России старше 18 лет) для предоставления
+            им достоверной информации об основных потребительских свойствах и
+            качественных характеристик товаров (п.1 и п.2 ст. 10 Закона «О
+            защите прав Потребителя»).
+          </WarningText>
+        </FooterBottom>
+      </FooterWrap>
     </Page>
   );
 }
@@ -177,9 +257,11 @@ const Page = styled.main`
   color: #fff;
   min-height: 100dvh;
   padding-bottom: calc(80px + env(safe-area-inset-bottom));
-  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial,
+    sans-serif;
 `;
 
+/* ——— Герой ——— */
 const HeroWrap = styled.div`
   position: relative;
   width: 100%;
@@ -199,7 +281,7 @@ const LogoOverlay = styled.div`
   img {
     width: clamp(250px, 36vw, 320px);
     height: auto;
-    filter: drop-shadow(0 2px 8px rgba(0,0,0,.6));
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
   }
 `;
 
@@ -209,6 +291,7 @@ const HeroImg = styled.img`
   height: auto;
 `;
 
+/* ——— Преимущества ——— */
 const BenefitsBar = styled.div`
   background: #fff;
   color: #000;
@@ -232,7 +315,7 @@ const BenefitText = styled.div`
   font-size: 14px;
 `;
 
-
+/* ——— Каталог ——— */
 const Section = styled.section`
   padding: 14px var(--side-pad, 16px) 6px;
 `;
@@ -241,25 +324,21 @@ const SectionHeaderRow = styled.div`
   align-items: center;
   margin: 6px 0 10px;
 `;
-
 const SectionTitle = styled.h2`
   margin: 0;
   font-weight: 800;
   font-size: 20px;
-  display: inline-flex;     /* вместо flex — inline-flex */
-  align-items: center;      /* центрируем по вертикали */
-  gap: 6px;                 /* расстояние между текстом и стрелкой */
-  line-height: 1;           /* убираем лишние отступы */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
 `;
-
 const ChevronIcon = styled.img`
   width: 15px;
   height: 15px;
-  display: block;           /* чтобы убрать влияние baseline */
-  margin-top: 6px;          /* можно чуть подогнать вручную */
+  display: block;
+  margin-top: 6px;
 `;
-
-/* ——— свайп-карусель каталога ——— */
 const CatalogViewport = styled.div`
   overflow: hidden;
 `;
@@ -271,15 +350,12 @@ const CatalogSlides = styled.div`
   -webkit-user-select: none;
 `;
 const CatalogSlide = styled.div`
-  /* карточка почти на всю ширину экрана */
   flex: 0 0 86%;
   max-width: 520px;
-
   @media (min-width: 480px) {
     flex-basis: 360px;
   }
 `;
-
 const Card = styled.div`
   background: #0b0b0b;
   border-radius: 14px;
@@ -315,4 +391,145 @@ const Price = styled.div`
 const Name = styled.div`
   font-size: 14px;
   color: #cfcfcf;
+`;
+
+/* ——— Футер ——— */
+const FooterWrap = styled.footer`
+  background: #f6b201;
+  color: #000;
+  border: 2px solid #000;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+`;
+
+const FooterLogoBlock = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+
+  img {
+    width: 130px;
+    height: auto;
+  }
+`;
+
+const FooterTagline = styled.div`
+  font-weight: 600;
+  font-size: 14px;
+  text-align: center;
+`;
+
+const FooterMain = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+`;
+
+const FooterLeft = styled.div`
+  flex: 1;
+  min-width: 220px;
+  text-align: left;
+`;
+
+const FooterRight = styled.div`
+  flex: 1;
+  min-width: 200px;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  @media (max-width: 600px) {
+    text-align: left;
+    align-items: flex-start;
+  }
+`;
+
+const PolicyBlock = styled.div`
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 500;
+
+  a {
+    color: #000;
+    text-decoration: underline;
+    font-weight: 600;
+  }
+`;
+
+const PolicyLine = styled.div`
+  margin-bottom: 6px;
+`;
+
+const PhoneBlock = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+const PhoneLabel = styled.div`
+  font-size: 12px;
+`;
+const PhoneNumber = styled.a`
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  color: #000;
+  display: block;
+  margin-top: 2px;
+`;
+const SocialBlock = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+`;
+const SocialLabel = styled.div``;
+const SocialRow = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+
+  @media (max-width: 600px) {
+    justify-content: flex-start;
+  }
+
+  img {
+    width: 22px;
+    height: 22px;
+  }
+`;
+
+const FooterBottom = styled.div`
+  background: #000;
+  color: #fff;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+`;
+
+const WarningTitle = styled.div`
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+`;
+const WarningText = styled.div`
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 400;
 `;
