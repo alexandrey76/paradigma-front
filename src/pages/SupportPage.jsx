@@ -26,14 +26,21 @@ export default function SupportPage() {
   const [error, setError] = useState("");
 
   // простая проверка телефона: + и 7..15 цифр (очищаем спецсимволы)
-  const phoneOk = useMemo(
-    () => /^\+?\d{7,15}$/.test(phone.replace(/\s|\(|\)|-|_/g, "")),
-    [phone]
-  );
+  const phoneOk = useMemo(() => {
+    const digits = phone.replace(/\D/g, ""); // только цифры
+    return digits.length === 11; // строго 11 цифр
+  }, [phone]);
 
-  // теперь требуем вопрос (непустой) для отправки
+  // теперь правила отправки:
+  // - имя обязательно
+  // - вопрос обязателен
+  // - согласие1 обязательно
+  // - телефон обязателен ТОЛЬКО если выбрано "call"
   const canSend =
-    name.trim().length > 0 && phoneOk && agree1 && question.trim().length > 0;
+    name.trim().length > 0 &&
+    question.trim().length > 0 &&
+    agree1 &&
+    (pref === "write" || (pref === "call" && phoneOk));
 
   async function onSubmit(e) {
     e?.preventDefault?.();
@@ -140,8 +147,7 @@ export default function SupportPage() {
 
   return (
     <Page>
-      <TopBar title="Поддержка">
-      </TopBar>
+      <TopBar title="Поддержка" />
 
       <Card as="form" onSubmit={onSubmit}>
         <Head>
@@ -172,9 +178,8 @@ export default function SupportPage() {
             }}
             placeholder="+7 (___) ___-__-__"
             inputMode="tel"
-            required
           />
-          {!phoneOk && phone.length > 2 && (
+          {pref === "call" && !phoneOk && phone.length > 2 && (
             <Hint>Введите телефон в формате +7 (999) 123-45-67</Hint>
           )}
         </Field>
@@ -254,27 +259,6 @@ const Page = styled.main`
   color: #fff;
   padding: 12px var(--side-pad, 16px) calc(110px + env(safe-area-inset-bottom));
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-`;
-
-
-const BackArrow = styled.button`
-  display: flex;
-  align-items: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0 4px;
-`;
-const Brand = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end; /* прижали вправо */
-  padding-right: 8px; /* небольшой отступ справа */
-`;
-
-const Logo = styled.img`
-  height: 18px;
-  width: auto;
 `;
 
 const Card = styled.section`
@@ -378,7 +362,6 @@ const RadioLabel = styled.label`
     transition: color 0.15s ease;
   }
 
-  /* если соседний скрытый инпут checked — красим текст (срабатывает потому что input размещён внутри того же label) */
   ${RadioHidden}:checked + span {
     color: #ffffff;
     font-weight: 500;
@@ -389,16 +372,12 @@ const RadioMark = styled.span`
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  border: 1.5px solid #9e9e9e; /* серый контур */
+  border: 1.5px solid #9e9e9e;
   display: inline-block;
   box-sizing: border-box;
   position: relative;
   transition: all 0.15s ease;
 
-  /* Когда инпут внутри label отмечен — сам RadioMark должен быть белым.
-     Селектор ниже основан на том, что RadioHidden идёт перед RadioMark в DOM:
-     <label><RadioHidden/><RadioMark/><span/></label>
-  */
   ${RadioHidden}:checked + & {
     border-color: #ffffff;
     background: #ffffff;
@@ -414,7 +393,6 @@ const CheckItem = styled.label`
   user-select: none;
   margin: 10px 0;
 
-  /* скрываем нативный checkbox */
   input {
     position: absolute;
     opacity: 0;
@@ -422,30 +400,27 @@ const CheckItem = styled.label`
     height: 0;
   }
 
-  /* иконка */
   .mark {
     width: 18px;
     height: 18px;
     background: url(${CHECK_OFF}) center/contain no-repeat;
-    margin-top: 2px; /* чуть ниже, чтобы выровнять по тексту */
+    margin-top: 2px;
     transition: filter 0.15s ease;
   }
 
-  /* текст */
   .text {
     font-size: 14px;
     line-height: 1.35;
-    color: #bdbdbd; /* серый для неактивного */
+    color: #bdbdbd;
     transition: color 0.15s ease, font-weight 0.15s ease;
   }
 
-  /* когда чекбокс отмечен — меняем иконку и текст */
   input:checked + .mark {
     background-image: url(${CHECK_ON});
   }
   input:checked ~ .text {
-    color: #ffffff; /* белый */
-    font-weight: 600; /* как на рефе */
+    color: #ffffff;
+    font-weight: 600;
   }
 `;
 

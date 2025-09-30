@@ -266,7 +266,6 @@ export default function ProfilePage() {
                 </RadioLabel>
               </GenderInline>
             </RowLeft>
-            <Arrow>›</Arrow>
           </FieldRow>
 
           <Divider />
