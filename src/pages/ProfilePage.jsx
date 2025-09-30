@@ -325,9 +325,16 @@ const Page = styled.main`
 `;
 
 const TopBar = styled.header`
-  margin-bottom: 14px;
-  display: flex;
-  justify-content: center;
+  background: #fff;
+  color: #000;
+  border-radius: var(--radius);
+  height: 44px;
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  margin-bottom: 10px;
 `;
 
 const TopBarInner = styled.div`

@@ -92,7 +92,7 @@ const PageWrapper = styled.div`
 const TopBar = styled.header`
   background: #fff;
   color: #000;
-  border-radius: 10px;
+  border-radius: var(--radius);
   height: 44px;
   display: grid;
   grid-template-columns: 40px 1fr;
