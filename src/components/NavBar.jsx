@@ -42,7 +42,7 @@ const Wrap = styled.div`
   z-index: 50;
 
   /* отступ снизу с учётом выреза */
-  padding: 20px 10px calc(20px + env(safe-area-inset-bottom));
+  padding: 20px 10px calc(12px + env(safe-area-inset-bottom));
 
   display: flex;
   justify-content: center;
