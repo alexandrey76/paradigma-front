@@ -75,7 +75,10 @@ export default function ProfilePage() {
 
   // Простая валидация номера (цифры 7..15)
   const phoneDigits = phone.replace(/\D/g, "");
-  const phoneOk = /^\d{7,15}$/.test(phoneDigits);
+  const phoneOk = useMemo(() => {
+      const digits = phone.replace(/\D/g, ""); // только цифры
+      return digits.length === 11; // строго 11 цифр
+    }, [phone]);
 
   const canSave = phoneOk;
 

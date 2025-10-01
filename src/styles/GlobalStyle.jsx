@@ -2,7 +2,10 @@ import { createGlobalStyle } from "styled-components";
 
 export default createGlobalStyle`
   *, *::before, *::after { box-sizing: border-box; }
-  html, body, #root { height: 100%; }
+  html, body, #root {
+  min-height: 100dvh;
+  background: #000;
+  }
   html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   body {
     margin: 0; background:#000; color:#fff;

@@ -1,0 +1,70 @@
+// src/pages/PrivacyPage.jsx
+import React, { useEffect, useState } from "react";
+import styled from "styled-components";
+import TopBar from "../components/TopBar";
+
+export default function PrivacyPage() {
+  const [html, setHtml] = useState("");
+
+  useEffect(() => {
+    fetch("/privacy.html")
+      .then(res => res.text())
+      .then(setHtml)
+      .catch(err => console.error("Ошибка загрузки политики:", err));
+  }, []);
+
+  return (
+    <Page>
+      <TopBar title="Политика конфиденциальности" />
+      <Card>
+        <Content dangerouslySetInnerHTML={{ __html: html }} />
+      </Card>
+    </Page>
+  );
+}
+
+/* ===================== styled ===================== */
+
+const Page = styled.main`
+  min-height: 100vh;
+  background: #000;             /* черный фон на всю страницу */
+  color: #fff;
+  padding: 12px var(--side-pad, 16px) calc(100px + env(safe-area-inset-bottom));
+  font-family: "Montserrat", system-ui, sans-serif;
+`;
+
+const Card = styled.div`
+  background: #000;             /* тоже черный, без карточки */
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 10px;
+`;
+
+const Content = styled.div`
+  color: #fff;
+
+  h1, h2, h3 {
+    font-weight: 800;
+    margin: 20px 0 10px;
+  }
+
+  p {
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+
+  strong, b {
+    font-weight: 700; /* жирный */
+  }
+
+  ul, ol {
+    padding-left: 20px;
+    margin-bottom: 12px;
+  }
+
+  li {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+`;

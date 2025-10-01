@@ -11,6 +11,7 @@ import CartPage from "./pages/CartPage";
 import NavBar from "./components/NavBar";
 import SupportPage from "./pages/SupportPage";
 import ProfilePage from "./pages/ProfilePage";
+import PrivacyPage from "./pages/PrivacPage";
 
 /* ====== Настройки прелоадера ====== */
 const PRELOADER_VIDEO = "/assets/video/Preloader.mp4";
@@ -95,6 +96,7 @@ function AppShell() {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/support" element={<SupportPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/privacy-policy" element={<PrivacyPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <NavBar />
