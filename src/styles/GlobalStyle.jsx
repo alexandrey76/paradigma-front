@@ -4,13 +4,17 @@ import { createGlobalStyle } from "styled-components";
 export default createGlobalStyle`
   *, *::before, *::after { 
     box-sizing: border-box; 
+    margin: 0;
+    padding: 0;
   }
 
   html, body, #root {
-    height: 100%;        /* фиксируем высоту корня */
+    height: 100%;
     margin: 0;
+    padding: 0; /* Убедитесь, что нет padding */
     background: #000;
     color: #fff;
+    overflow-x: hidden; /* Предотвращает горизонтальный скролл */
   }
 
   html { 
@@ -23,6 +27,7 @@ export default createGlobalStyle`
                  Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    position: relative;
   }
 
   img, video { 

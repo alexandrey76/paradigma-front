@@ -51,21 +51,26 @@ const Wrap = styled.div`
   display: flex;
   justify-content: center;
   pointer-events: none;
+  
+  /* Безопасные отступы для современных устройств */
+  padding: 0 var(--side-pad, 16px);
   padding-bottom: env(safe-area-inset-bottom);
-`;
+  box-sizing: border-box;
+`
 
 const Bar = styled.nav`
   pointer-events: auto;
   border: 2px solid #f5b300;
   background: #f5b300;
   border-radius: 10px;
-  width: min(calc(100% - 32px), 760px); /* адаптивно */
+  width: min(100%, 760px);
   height: 64px;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 6px;
   align-items: center;
   justify-items: center;
+  margin: 0 auto;
 `;
 
 /* Ссылка-кнопка — теперь занимает всю ячейку и всю высоту бара */
