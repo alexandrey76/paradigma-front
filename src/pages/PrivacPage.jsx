@@ -1,6 +1,9 @@
+// src/pages/PrivacyPage.jsx
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import TopBar from "../components/TopBar";
+
+const NAVBAR_HEIGHT = 64; // высота нижнего NavBar
 
 export default function PrivacyPage() {
   const [html, setHtml] = useState("");
@@ -24,13 +27,11 @@ export default function PrivacyPage() {
 
 /* ===================== styled ===================== */
 
-const NAVBAR_HEIGHT = 64; // высота NavBar
-
 const Page = styled.main`
-  min-height: 100dvh; /* full viewport height на мобильных */
+  min-height: 100svh; /* безопасная высота viewport */
   background: #000;
   color: #fff;
-  padding-bottom: calc(var(--navbar-height) + env(safe-area-inset-bottom));
+  padding: 12px var(--side-pad, 16px) calc(${NAVBAR_HEIGHT}px + env(safe-area-inset-bottom));
   font-family: "Montserrat", system-ui, sans-serif;
   box-sizing: border-box;
 `;
