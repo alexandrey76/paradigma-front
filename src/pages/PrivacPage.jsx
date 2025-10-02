@@ -29,7 +29,7 @@ const Page = styled.main`
   min-height: 100vh;
   background: #000;             /* черный фон на всю страницу */
   color: #fff;
-  padding: 12px var(--side-pad, 16px) calc(100px + env(safe-area-inset-bottom));
+  padding: 12px var(--side-pad, 16px) 80px;
   font-family: "Montserrat", system-ui, sans-serif;
 `;
 
