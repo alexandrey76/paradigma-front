@@ -2,76 +2,44 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import TopBar from "../components/TopBar";
-// removed duplicate NavBar import — NavBar is rendered globally in AppShell
-
-const NAVBAR_HEIGHT = 64; // высота нижнего NavBar — держим синхронно с компонентом NavBar
+import PageLayout from "../components/PageLayout";
 
 export default function PrivacyPage() {
   const [html, setHtml] = useState("");
 
   useEffect(() => {
     fetch("/privacy.html")
-      .then((res) => res.text())
+      .then((r) => r.text())
       .then(setHtml)
-      .catch((err) => console.error("Ошибка загрузки политики:", err));
+      .catch((e) => {
+        console.error("Ошибка загрузки privacy:", e);
+        setHtml("<p>Не удалось загрузить политику.</p>");
+      });
   }, []);
 
   return (
-    <Page>
+    <PageLayout navHeight={64} maxWidth="900px">
       <TopBar title="Политика конфиденциальности" />
       <Card>
         <Content dangerouslySetInnerHTML={{ __html: html }} />
       </Card>
-      {/* NavBar убран — он уже рендерится в AppShell */}
-    </Page>
+    </PageLayout>
   );
 }
 
-/* ===================== styled ===================== */
-
-const Page = styled.main`
-  min-height: 100svh; /* безопасная высота viewport */
-  background: #000;
-  color: #fff;
-  font-family: "Montserrat", system-ui, sans-serif;
-  box-sizing: border-box;
-  padding: 12px var(--side-pad, 16px);
-  /* обеспечиваем отступ снизу под фиксированный NavBar, чтобы контент не перекрывался */
-  padding-bottom: calc(${NAVBAR_HEIGHT}px + env(safe-area-inset-bottom) + 20px);
-`;
-
+/* ===== styled ===== */
 const Card = styled.div`
-  background: #000;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 10px;
+  background: #0b0b0b;
+  border-radius: 12px;
+  padding: 14px;
+  margin-top: 12px;
 `;
 
 const Content = styled.div`
-  color: #fff;
+  color: #dcdcdc;
 
-  h1, h2, h3 {
-    font-weight: 800;
-    margin: 20px 0 10px;
-  }
-
-  p {
-    font-size: 14px;
-    line-height: 1.6;
-    margin-bottom: 12px;
-  }
-
-  strong, b {
-    font-weight: 700;
-  }
-
-  ul, ol {
-    padding-left: 20px;
-    margin-bottom: 12px;
-  }
-
-  li {
-    font-size: 14px;
-    line-height: 1.6;
-  }
+  h1, h2, h3 { font-weight: 800; margin: 20px 0 10px; color: #fff; }
+  p { margin-bottom: 12px; line-height: 1.6; }
+  ul, ol { margin-bottom: 12px; padding-left: 18px; }
+  a { color: #f5b300; }
 `;

@@ -50,28 +50,19 @@ const Wrap = styled.div`
   z-index: 9999;
   display: flex;
   justify-content: center;
-  /* минимальный внешний отступ, можно регулировать */
+  pointer-events: none;
   padding-bottom: env(safe-area-inset-bottom);
-  pointer-events: none; /* клики идут только на кнопки внутри */
 `;
 
-/* Бар: адаптивно заполняет ширину на мобильных, но ограничивается на больших экранах */
 const Bar = styled.nav`
-  --nav-max: 760px; /* максимум ширины на больших экранах — подгони под себя */
-  --side-gap: 16px; /* боковой отступ от краёв экрана */
   pointer-events: auto;
-  width: min(calc(100% - (var(--side-gap) * 2)), var(--nav-max));
-  max-width: var(--nav-max);
-  height: ${NAVBAR_HEIGHT}px;
-  background: transparent; /* фон будем рисовать внутри кнопок (у тебя svg с фоном) */
+  width: min(calc(100% - 32px), 760px); /* адаптивно */
+  height: 64px;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 6px; /* небольшой gap между кнопками */
+  gap: 6px;
   align-items: center;
   justify-items: center;
-  /* оставляем центрирование и лёгкую тень */
-  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
-  border-radius: 14px;
 `;
 
 /* Ссылка-кнопка — теперь занимает всю ячейку и всю высоту бара */
