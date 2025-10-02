@@ -86,21 +86,30 @@ function useTelegramGuard() {
 function AppShell() {
   useTelegramGuard();
 
+  const NAVBAR_HEIGHT = 64;
+
   return (
     <>
       <GlobalStyle />
-      <Routes>
-        <Route index element={<HomePage />} />
-        <Route path="/" element={<HomePage />} />
-        <Route path="/catalog" element={<CatalogPage />} />
-        <Route path="/product/:id" element={<ProductPage />} />
-        <Route path="/cart" element={<CartPage />} />
-        <Route path="/support" element={<SupportPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/privacy-policy" element={<PrivacyPage />} />
-        <Route path="/consent" element={<ConsentPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <div style={{
+        minHeight: "100svh",
+        paddingBottom: `calc(${NAVBAR_HEIGHT}px + env(safe-area-inset-bottom))`,
+        boxSizing: "border-box",
+        background: "#000"
+      }}>
+        <Routes>
+          <Route index element={<HomePage />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/catalog" element={<CatalogPage />} />
+          <Route path="/product/:id" element={<ProductPage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/support" element={<SupportPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/privacy-policy" element={<PrivacyPage />} />
+          <Route path="/consent" element={<ConsentPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
       <NavBar />
     </>
   );
