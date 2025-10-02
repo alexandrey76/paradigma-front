@@ -1,4 +1,3 @@
-// src/components/NavBar.jsx
 import { Link, useLocation } from "react-router-dom";
 import styled from "styled-components";
 import { useCart } from "../context/CartContext";
@@ -11,29 +10,17 @@ export default function NavBar() {
   return (
     <Wrap>
       <Bar role="navigation" aria-label="Нижняя навигация">
-        <IconLink to="/" $active={pathname === "/"}>
-          <LogoIcon />
-        </IconLink>
-
-        <IconLink to="/catalog" $active={pathname.startsWith("/catalog")}>
-          <CatalogIcon />
-        </IconLink>
+        <IconLink to="/" $active={pathname === "/"}><LogoIcon /></IconLink>
+        <IconLink to="/catalog" $active={pathname.startsWith("/catalog")}><CatalogIcon /></IconLink>
 
         {/* Корзина с бейджем */}
         <CartWrapper>
-          <IconLink to="/cart" $active={pathname.startsWith("/cart")}>
-            <CartIcon />
-          </IconLink>
+          <IconLink to="/cart" $active={pathname.startsWith("/cart")}><CartIcon /></IconLink>
           {totalQty > 0 && <CartBadge>{totalQty > 9 ? "9+" : totalQty}</CartBadge>}
         </CartWrapper>
 
-        <IconLink to="/profile" $active={pathname.startsWith("/profile")}>
-          <UserIcon />
-        </IconLink>
-
-        <IconLink to="/support" $active={pathname.startsWith("/support")}>
-          <ChatIcon />
-        </IconLink>
+        <IconLink to="/profile" $active={pathname.startsWith("/profile")}><UserIcon /></IconLink>
+        <IconLink to="/support" $active={pathname.startsWith("/support")}><ChatIcon /></IconLink>
       </Bar>
     </Wrap>
   );
@@ -41,16 +28,19 @@ export default function NavBar() {
 
 /* ---------- styled ---------- */
 
+const NAVBAR_HEIGHT = 64; // высота навбара
+
 const Wrap = styled.div`
   position: fixed;
   left: 0;
   bottom: 0;
   width: 100%;
+  height: ${NAVBAR_HEIGHT}px;
   z-index: 9999;
-  padding: 20px 10px calc(12px + env(safe-area-inset-bottom));
   display: flex;
   justify-content: center;
-  pointer-events: none;
+  pointer-events: none; /* клики пойдут только на кнопки внутри */
+  padding-bottom: env(safe-area-inset-bottom); /* безопасный отступ */
 `;
 
 const Bar = styled.div`
@@ -59,7 +49,7 @@ const Bar = styled.div`
   max-width: 560px;
   background: #f5b300;
   border-radius: 14px;
-  height: 56px;
+  height: 100%;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   align-items: center;
@@ -89,24 +79,23 @@ const IconLink = styled(Link)`
   }
 `;
 
-/* Обертка корзины для бейджа */
+/* Корзина и бейдж */
 const CartWrapper = styled.div`
   position: relative;
   display: inline-block;
 `;
 
-/* Бейдж с количеством товаров */
 const CartBadge = styled.div`
   position: absolute;
-  top: 5px;
-  right: 2px;
-  width: 14px;
-  height: 14px;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
   padding: 0 4px;
   border-radius: 50%;
   background: #f5b300;
   border: 2px solid #fff;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 800;
   color: #000;
   display: flex;
@@ -116,18 +105,8 @@ const CartBadge = styled.div`
 `;
 
 /* ---------- SVG иконки ---------- */
-function LogoIcon() {
-  return <img src="/assets/images/barLogo.svg" alt="logo" width={26} height={26} />;
-}
-function CartIcon() {
-  return <img src="/assets/images/barCart.svg" alt="cart" width={26} height={26} />;
-}
-function UserIcon() {
-  return <img src="/assets/images/barProfile.svg" alt="profile" width={26} height={26} />;
-}
-function ChatIcon() {
-  return <img src="/assets/images/barChat.svg" alt="chat" width={26} height={26} />;
-}
-function CatalogIcon() {
-  return <img src="/assets/images/barCatalog.svg" alt="catalog" width={26} height={26} />;
-}
+function LogoIcon() { return <img src="/assets/images/barLogo.svg" alt="logo" width={26} height={26} />; }
+function CartIcon() { return <img src="/assets/images/barCart.svg" alt="cart" width={26} height={26} />; }
+function UserIcon() { return <img src="/assets/images/barProfile.svg" alt="profile" width={26} height={26} />; }
+function ChatIcon() { return <img src="/assets/images/barChat.svg" alt="chat" width={26} height={26} />; }
+function CatalogIcon() { return <img src="/assets/images/barCatalog.svg" alt="catalog" width={26} height={26} />; }
