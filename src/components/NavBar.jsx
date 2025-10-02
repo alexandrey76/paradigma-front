@@ -56,6 +56,9 @@ const Wrap = styled.div`
 
 const Bar = styled.nav`
   pointer-events: auto;
+  border: 2px solid #f5b300;
+  background: #f5b300;
+  border-radius: 10px;
   width: min(calc(100% - 32px), 760px); /* адаптивно */
   height: 64px;
   display: grid;
