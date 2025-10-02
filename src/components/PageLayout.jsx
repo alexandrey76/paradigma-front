@@ -4,36 +4,54 @@ import styled from "styled-components";
 
 export default function PageLayout({ children, navHeight = 64, maxWidth = "900px" }) {
   return (
-    <Wrap style={{ 
-      ["--nav-h"]: `${navHeight}px`, 
-      ["--max-w"]: maxWidth 
-    }}>
-      <Inner>{children}</Inner>
-    </Wrap>
+    <LayoutContainer>
+      <ContentWrapper style={{ 
+        ["--nav-h"]: `${navHeight}px`, 
+        ["--max-w"]: maxWidth 
+      }}>
+        {children}
+      </ContentWrapper>
+    </LayoutContainer>
   );
 }
 
-const Wrap = styled.main`
-  min-height: 100vh;
-  min-height: 100dvh; /* Современная альтернатива */
-  background: #000;
-  color: #fff;
-  font-family: "Montserrat", system-ui, sans-serif;
-  
-  /* Только горизонтальные паддинги */
-  padding: 0 var(--side-pad, 16px);
-  
+const LayoutContainer = styled.div`
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
+  background: #000;
+  position: fixed; /* Фиксируем весь layout */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden; /* Убираем скролл у контейнера */
 `;
 
-const Inner = styled.div`
-  width: 100%;
-  max-width: var(--max-w);
-  margin: 0 auto;
+const ContentWrapper = styled.main`
   flex: 1;
+  overflow-y: auto; /* Скролл только внутри контента */
+  overflow-x: hidden;
+  padding: 0 var(--side-pad, 16px);
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 12px);
   
-  /* Вертикальные паддинги и отступ для навбара */
-  padding: 12px 0;
-  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px);
+  /* Центрирование контента */
+  display: flex;
+  flex-direction: column;
+  
+  & > * {
+    width: 100%;
+    max-width: var(--max-w);
+    margin: 0 auto;
+  }
+  
+  /* Отступы для контента */
+  & > *:first-child {
+    margin-top: 12px;
+  }
+  
+  & > *:last-child {
+    margin-bottom: 12px;
+  }
 `;
