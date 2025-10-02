@@ -14,7 +14,7 @@ export default createGlobalStyle`
     padding: 0;
     background: #000;
     color: #fff;
-    overflow: hidden; /* Убираем скролл у корневых элементов */
+    /* УБИРАЕМ overflow: hidden */
   }
 
   body {

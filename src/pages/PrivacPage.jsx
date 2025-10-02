@@ -38,18 +38,6 @@ const StyledContent = styled.div`
   color: #dcdcdc;
   line-height: 1.6;
   
-  /* Сбрасываем все возможные стили из HTML */
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    font-size: 100%;
-    font: inherit;
-    vertical-align: baseline;
-  }
-  
-  /* Базовые стили для HTML элементов */
   h1, h2, h3, h4, h5, h6 {
     font-weight: 800;
     margin: 20px 0 12px;
@@ -85,13 +73,5 @@ const StyledContent = styled.div`
     &:hover {
       text-decoration: underline;
     }
-  }
-  
-  strong, b {
-    font-weight: 700;
-  }
-  
-  em, i {
-    font-style: italic;
   }
 `;
