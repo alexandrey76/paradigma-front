@@ -30,7 +30,7 @@ const Page = styled.main`
   min-height: 100dvh; /* full viewport height на мобильных */
   background: #000;
   color: #fff;
-  padding: 12px var(--side-pad, 16px) calc(${NAVBAR_HEIGHT}px + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--navbar-height) + env(safe-area-inset-bottom));
   font-family: "Montserrat", system-ui, sans-serif;
   box-sizing: border-box;
 `;
