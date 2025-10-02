@@ -85,15 +85,20 @@ function useTelegramGuard() {
 
 function AppShell() {
   useTelegramGuard();
+  const location = useLocation();
 
   const NAVBAR_HEIGHT = 64;
+
+  // Страницы без NavBar
+  const noNavBarPages = ['/privacy-policy', '/consent'];
+  const showNavBar = !noNavBarPages.includes(location.pathname);
 
   return (
     <>
       <GlobalStyle />
       <div style={{
         minHeight: "100svh",
-        paddingBottom: `calc(${NAVBAR_HEIGHT}px + env(safe-area-inset-bottom))`,
+        paddingBottom: showNavBar ? `calc(${NAVBAR_HEIGHT}px + env(safe-area-inset-bottom))` : "0",
         boxSizing: "border-box",
         background: "#000"
       }}>
@@ -110,7 +115,7 @@ function AppShell() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
-      <NavBar />
+      {showNavBar && <NavBar />}
     </>
   );
 }
