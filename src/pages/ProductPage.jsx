@@ -83,71 +83,73 @@ export default function ProductPage() {
   return (
     <FullBleed>
       <Page>
-        <TopBar svgSrc="./assets/images/topLogo.svg"/>
+        <TopBar svgSrc="./assets/images/topLogo.svg" />
 
         <Title>{product.name}</Title>
 
         {/* MEDIA: свайп-карусель */}
-        <Bleed>
-          <MediaBox>
-            <Viewport ref={emblaRef}>
-              <Slides>
-                {media.map((m, i) => {
-                  // источник для размытого фона:
-                  const blurSrc =
-                    m.type === "image"
-                      ? m.src
-                      : product.images?.[0] || `${PUB}/assets/images/placeholder.png`;
-                  return (
-                    <Slide key={i}>
-                      <BlurBg style={{ backgroundImage: `url(${blurSrc})` }} />
-                      {m.type === "image" ? (
-                        <Img src={m.src} alt={`${product.name} ${i + 1}`} />
-                      ) : (
-                        <Vid
-                          autoPlay
-                          controls
-                          muted
-                          loop
-                          playsInline
-                          preload="metadata"
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onTouchStart={(e) => e.stopPropagation()}
-                        >
-                          <source src={m.mp4} type="video/mp4" />
-                        </Vid>
-                      )}
-                    </Slide>
-                  );
-                })}
-              </Slides>
-            </Viewport>
+        <MediaBox>
+          <Viewport ref={emblaRef}>
+            <Slides>
+              {media.map((m, i) => {
+                const blurSrc =
+                  m.type === "image"
+                    ? m.src
+                    : product.images?.[0] ||
+                      `${PUB}/assets/images/placeholder.png`;
+                return (
+                  <Slide key={i}>
+                    <BlurBg style={{ backgroundImage: `url(${blurSrc})` }} />
+                    {m.type === "image" ? (
+                      <Img src={m.src} alt={`${product.name} ${i + 1}`} />
+                    ) : (
+                      <Vid
+                        autoPlay
+                        controls
+                        muted
+                        loop
+                        playsInline
+                        preload="metadata"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                      >
+                        <source src={m.mp4} type="video/mp4" />
+                      </Vid>
+                    )}
+                  </Slide>
+                );
+              })}
+            </Slides>
+          </Viewport>
 
-            {media.length > 1 && (
-              <>
-                <NavArrow left aria-label="Назад" onClick={prev}>
-                  <img src={`${PUB}/assets/images/leftArrow.svg`}
-                  alt = "Назад"/>
-                </NavArrow>
-                <NavArrow aria-label="Вперёд" onClick={next}>
-                  <img src={`${PUB}/assets/images/rightArrow.svg`}
-                  alt = "Вперед"/>
-                </NavArrow>
+          {media.length > 1 && (
+            <>
+              <NavArrow left aria-label="Назад" onClick={prev}>
+                <img
+                  src={`${PUB}/assets/images/leftArrow.svg`}
+                  alt="Назад"
+                />
+              </NavArrow>
+              <NavArrow aria-label="Вперёд" onClick={next}>
+                <img
+                  src={`${PUB}/assets/images/rightArrow.svg`}
+                  alt="Вперед"
+                />
+              </NavArrow>
 
-                <Dots>
-                  {media.map((_, i) => (
-                    <Dot
-                      key={i}
-                      aria-label={`Слайд ${i + 1}`}
-                      $active={i === selectedIndex}
-                      onClick={() => emblaApi && emblaApi.scrollTo(i)}
-                    />
-                  ))}
-                </Dots>
-              </>
-            )}
-          </MediaBox>
-        </Bleed>
+              <Dots>
+                {media.map((_, i) => (
+                  <Dot
+                    key={i}
+                    aria-label={`Слайд ${i + 1}`}
+                    $active={i === selectedIndex}
+                    onClick={() => emblaApi && emblaApi.scrollTo(i)}
+                  />
+                ))}
+              </Dots>
+            </>
+          )}
+        </MediaBox>
 
         <PriceRow>
           <Price>{(product.price ?? 0).toLocaleString("ru-RU")} ₽</Price>
@@ -186,6 +188,8 @@ const Page = styled.main`
   min-height: 100dvh;
   color: #fff;
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  max-width: 720px; /* ограничение ширины */
+  margin: 0 auto;   /* центрируем */
 `;
 
 const EmptyWrap = styled.div`
@@ -196,48 +200,22 @@ const EmptyWrap = styled.div`
   background: #000;
 `;
 
-const BackArrow = styled.button`
-  display: flex;
-  align-items: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0 4px;
-`;
-const Brand = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end; /* прижали вправо */
-  padding-right: 8px;        /* небольшой отступ справа */
-`;
-
-const Logo = styled.img`
-  height: 18px;
-  width: auto;
-`;
-
 const Title = styled.h1`
   margin: 8px 0 10px;
   font-size: 18px;
   font-weight: 800;
 `;
 
-const Bleed = styled.div`
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
-  margin-right: calc(50% - 50vw);
-`;
-
 const MediaBox = styled.div`
   position: relative;
-  width: 100w;
-  max-width: 100vw;
+  width: 100%;
+  max-width: 100%; /* совпадает с шириной Page */
   aspect-ratio: 1 / 1;
-  border: 2px solid #ffffffff;
+  border: 2px solid #fff;
   border-radius: 12px;
   overflow: hidden;
   background: #111;
-  margin: 8px 0 18px;
+  margin: 8px auto 18px;
 `;
 
 const Viewport = styled.div`
@@ -254,42 +232,41 @@ const Slide = styled.div`
   position: relative;
   flex: 0 0 100%;
   height: 100%;
-  overflow: hidden;            /* ничего не «выползает» за рамку */
+  overflow: hidden;
 `;
 
-/* Размытый фон за медиа */
+/* Размытый фон */
 const BlurBg = styled.div`
   position: absolute;
   inset: 0;
   background-position: center;
   background-size: cover;
   filter: blur(24px) brightness(0.6);
-  transform: scale(1.08); /* чуть больше, чтобы блюр не «съедал» края */
+  transform: scale(1.08);
   z-index: 0;
 `;
 
-/* Слой медиа поверх блюра */
+/* Медиа */
 const Img = styled.img`
-  position: absolute;          /* прикалываем к краям слайда */
+  position: absolute;
   inset: 0;
   z-index: 1;
   width: 100%;
   height: 100%;
-  object-fit: contain;         /* вписывание без обрезки */
+  object-fit: contain;
 `;
 
-
 const Vid = styled.video`
-  position: absolute;          /* тоже прикалываем */
+  position: absolute;
   inset: 0;
   z-index: 1;
   width: 100%;
   height: 100%;
-  object-fit: contain;         /* ограничение по высоте/ширине блока */
+  object-fit: contain;
   background: transparent;
 `;
 
-
+/* Навигация */
 const NavArrow = styled.button`
   position: absolute;
   top: 50%;
@@ -347,7 +324,7 @@ const Price = styled.div`
 const AddBtn = styled.button`
   border: 2px solid #f5b300;
   background: #f5b300;
-  color: #000000ff;
+  color: #000;
   border-radius: 10px;
   padding: 10px 14px;
   font-weight: 700;
@@ -355,16 +332,15 @@ const AddBtn = styled.button`
   transition: transform 0.15s ease, background 0.2s ease, color 0.2s ease;
 
   &:hover {
-    background: #f5b300; /* лёгкая подсветка */
+    background: #f5b300;
   }
 
   &:active {
-    transform: scale(0.95); /* кнопка слегка уменьшается */
+    transform: scale(0.95);
     background: #f5b300;
     color: #000;
   }
 `;
-
 
 const SpecBlock = styled.section`
   margin-top: 8px;

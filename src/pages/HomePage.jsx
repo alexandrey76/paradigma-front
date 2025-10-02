@@ -150,7 +150,9 @@ export default function HomePage() {
               <PolicyLine>
                 <Link to="/privacy-policy">Политика конфиденциальности</Link>
               </PolicyLine>
-              <PolicyLine>Согласие на обработку персональных данных</PolicyLine>
+              <PolicyLine>
+                <Link to="/consent">Согласие на обработку персональных данных</Link>
+              </PolicyLine>
               <PolicyLine>ИНН: 771588377502</PolicyLine>
               <PolicyLine>ОГРИП: 32577460063823</PolicyLine>
               <PolicyLine>

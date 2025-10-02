@@ -81,7 +81,7 @@ export default function CartPage() {
 
   return (
     <Page>
-      <TopBar title ="Корзина"/>
+      <TopBar title="Корзина" />
       {!cart?.length ? (
         <EmptyWrap>Корзина пуста</EmptyWrap>
       ) : (
@@ -89,9 +89,15 @@ export default function CartPage() {
           {cart.map((i) => (
             <Item key={i.id}>
               <LeftCol>
-                <ImgWrap>
-                  {i.images?.[0] ? <img src={i.images[0]} alt={i.name} /> : <NoPic />}
-                </ImgWrap>
+                <Clickable onClick={() => navigate(`/product/${i.id}`)}>
+                  <ImgWrap>
+                    {i.images?.[0] ? (
+                      <img src={i.images[0]} alt={i.name} />
+                    ) : (
+                      <NoPic />
+                    )}
+                  </ImgWrap>
+                </Clickable>
 
                 <Controls>
                   <DeleteBtn onClick={() => removeItem(i.id)} aria-label="Удалить">
@@ -118,7 +124,7 @@ export default function CartPage() {
                 </Controls>
               </LeftCol>
 
-              <ItemInfo>
+              <ItemInfo onClick={() => navigate(`/product/${i.id}`)}>
                 <Price>{i.price.toLocaleString("ru-RU")} руб</Price>
                 <Name>{i.name}</Name>
 
@@ -157,20 +163,13 @@ export default function CartPage() {
 const NAVBAR_HEIGHT = 64;
 
 const Page = styled.main`
-  /* 👉 единые адаптивные переменные для размеров контролов */
-  --control-h: clamp(40px, 9vw, 52px);
-  --control-font: clamp(16px, 3.8vw, 20px);
-  --icon-size: clamp(22px, 5.2vw, 28px);
-  --radius: clamp(8px, 2.2vw, 12px);
-
   min-height: 100dvh;
   background: #000;
   color: #fff;
   padding: 12px var(--side-pad, 16px) 24px;
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   overflow-x: hidden;
-  -webkit-text-size-adjust: 100%; /* отключаем авто-скейл шрифта в Safari */
-  touch-action: manipulation;      /* уменьшает странности тач-обработки на iOS */
+  touch-action: manipulation;
 `;
 
 const EmptyWrap = styled.div`
@@ -189,6 +188,10 @@ const Item = styled.div`
 const LeftCol = styled.div`
   display: flex;
   flex-direction: column;
+`;
+
+const Clickable = styled.div`
+  cursor: pointer;
 `;
 
 const ImgWrap = styled.div`
@@ -224,14 +227,14 @@ const DeleteBtn = styled.button`
   cursor: pointer;
   display: grid;
   place-items: center;
-  flex: 0 0 auto; 
+  flex: 0 0 auto;
 
   img {
     width: clamp(26px, 6.2vw, 34px);
     height: clamp(26px, 6.2vw, 34px);
   }
 
-  padding: 4px;    
+  padding: 4px;
 `;
 
 const QtyBox = styled.div`
@@ -275,6 +278,7 @@ const ItemInfo = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
+  cursor: pointer;
 `;
 
 const Price = styled.div`

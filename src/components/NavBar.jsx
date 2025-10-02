@@ -1,9 +1,12 @@
 // src/components/NavBar.jsx
 import { Link, useLocation } from "react-router-dom";
 import styled from "styled-components";
+import { useCart } from "../context/CartContext";
 
 export default function NavBar() {
   const { pathname } = useLocation();
+  const { cart } = useCart();
+  const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
 
   return (
     <Wrap>
@@ -16,9 +19,13 @@ export default function NavBar() {
           <CatalogIcon />
         </IconLink>
 
-        <IconLink to="/cart" $active={pathname.startsWith("/cart")}>
-          <CartIcon />
-        </IconLink>
+        {/* Корзина с бейджем */}
+        <CartWrapper>
+          <IconLink to="/cart" $active={pathname.startsWith("/cart")}>
+            <CartIcon />
+          </IconLink>
+          {totalQty > 0 && <CartBadge>{totalQty > 9 ? "9+" : totalQty}</CartBadge>}
+        </CartWrapper>
 
         <IconLink to="/profile" $active={pathname.startsWith("/profile")}>
           <UserIcon />
@@ -39,14 +46,11 @@ const Wrap = styled.div`
   left: 0;
   bottom: 0;
   width: 100%;
-  z-index: 50;
-
-  /* отступ снизу с учётом выреза */
+  z-index: 9999;
   padding: 20px 10px calc(12px + env(safe-area-inset-bottom));
-
   display: flex;
   justify-content: center;
-  pointer-events: none; /* чтобы клики шли только на кнопки */
+  pointer-events: none;
 `;
 
 const Bar = styled.div`
@@ -56,7 +60,6 @@ const Bar = styled.div`
   background: #f5b300;
   border-radius: 14px;
   height: 56px;
-
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   align-items: center;
@@ -71,7 +74,6 @@ const IconLink = styled(Link)`
   place-items: center;
   border-radius: 12px;
   text-decoration: none;
-
   background: ${(p) => (p.$active ? "linear-gradient(180deg, #906606 0%, #7b5a09 100%)" : "transparent")};
   box-shadow: ${(p) => (p.$active ? "inset 0 3px 8px rgba(0,0,0,0.35)" : "none")};
 
@@ -85,6 +87,32 @@ const IconLink = styled(Link)`
   &:active img {
     transform: scale(0.94);
   }
+`;
+
+/* Обертка корзины для бейджа */
+const CartWrapper = styled.div`
+  position: relative;
+  display: inline-block;
+`;
+
+/* Бейдж с количеством товаров */
+const CartBadge = styled.div`
+  position: absolute;
+  top: 5px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 50%;
+  background: #f5b300;
+  border: 2px solid #fff;
+  font-size: 7px;
+  font-weight: 800;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 `;
 
 /* ---------- SVG иконки ---------- */
