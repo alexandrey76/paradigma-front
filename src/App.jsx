@@ -123,7 +123,6 @@ function AppShell() {
 export default function App() {
   const [showPreloader, setShowPreloader] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
-  const [contentLoaded, setContentLoaded] = useState(false);
   const [startTime] = useState(Date.now());
 
   useEffect(() => {
@@ -155,7 +154,6 @@ export default function App() {
       safety,
     ]).then(() => {
       if (!mounted) return;
-      setContentLoaded(true);
 
       // Вычисляем, сколько времени уже прошло
       const elapsedTime = Date.now() - startTime;
@@ -191,15 +189,8 @@ export default function App() {
   return (
     <CartProvider>
       <HashRouter>
-        {/* AppShell показывается всегда, но может быть под прелоадером */}
-        <div style={{
-          position: 'relative',
-          zIndex: 1,
-          opacity: contentLoaded ? 1 : 0,
-          transition: contentLoaded ? `opacity ${FADE_MS}ms ease-out` : 'none'
-        }}>
-          <AppShell />
-        </div>
+        {/* УБРАЛ opacity transition - это вызывало проблемы */}
+        <AppShell />
         
         {/* Прелоадер поверх контента */}
         {showPreloader && (
