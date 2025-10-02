@@ -20,33 +20,78 @@ export default function PrivacyPage() {
   return (
     <PageLayout>
       <TopBar title="Политика конфиденциальности" />
-      <ContentCard>
-        <Content dangerouslySetInnerHTML={{ __html: html }} />
-      </ContentCard>
+      <ContentContainer>
+        <StyledContent dangerouslySetInnerHTML={{ __html: html }} />
+      </ContentContainer>
     </PageLayout>
   );
 }
 
-const ContentCard = styled.div`
+const ContentContainer = styled.div`
   background: #0b0b0b;
   border-radius: 12px;
   padding: 20px;
   margin-top: 16px;
 `;
 
-const Content = styled.div`
+const StyledContent = styled.div`
   color: #dcdcdc;
   line-height: 1.6;
-
-  h1, h2, h3 { 
-    font-weight: 800; 
-    margin: 20px 0 12px; 
-    color: #fff; 
+  
+  /* Сбрасываем все возможные стили из HTML */
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 100%;
+    font: inherit;
+    vertical-align: baseline;
   }
   
-  h1:first-child { margin-top: 0; }
+  /* Базовые стили для HTML элементов */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 800;
+    margin: 20px 0 12px;
+    color: #fff;
+    line-height: 1.3;
+  }
   
-  p { margin-bottom: 16px; }
-  ul, ol { margin-bottom: 16px; padding-left: 24px; }
-  a { color: #f5b300; }
+  h1 { font-size: 1.5em; }
+  h2 { font-size: 1.3em; }
+  h3 { font-size: 1.1em; }
+  
+  h1:first-child {
+    margin-top: 0;
+  }
+  
+  p {
+    margin-bottom: 16px;
+  }
+  
+  ul, ol {
+    margin-bottom: 16px;
+    padding-left: 24px;
+  }
+  
+  li {
+    margin-bottom: 8px;
+  }
+  
+  a {
+    color: #f5b300;
+    text-decoration: none;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+  
+  strong, b {
+    font-weight: 700;
+  }
+  
+  em, i {
+    font-style: italic;
+  }
 `;
