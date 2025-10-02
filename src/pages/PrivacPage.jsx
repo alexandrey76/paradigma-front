@@ -1,9 +1,7 @@
 // src/pages/PrivacyPage.jsx
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import TopBar from "../components/TopBar";
-
-const NAVBAR_HEIGHT = 64; // высота нижнего NavBar
+import GlobalLayout from "../components/GlobalLayout";
 
 export default function PrivacyPage() {
   const [html, setHtml] = useState("");
@@ -16,25 +14,15 @@ export default function PrivacyPage() {
   }, []);
 
   return (
-    <Page>
-      <TopBar title="Политика конфиденциальности" />
+    <GlobalLayout topBarTitle="Политика конфиденциальности">
       <Card>
         <Content dangerouslySetInnerHTML={{ __html: html }} />
       </Card>
-    </Page>
+    </GlobalLayout>
   );
 }
 
 /* ===================== styled ===================== */
-
-const Page = styled.main`
-  min-height: 100svh; /* безопасная высота viewport */
-  background: #000;
-  color: #fff;
-  padding: 12px var(--side-pad, 16px) calc(${NAVBAR_HEIGHT}px + env(safe-area-inset-bottom));
-  font-family: "Montserrat", system-ui, sans-serif;
-  box-sizing: border-box;
-`;
 
 const Card = styled.div`
   background: #000;
