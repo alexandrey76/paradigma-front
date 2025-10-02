@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import TopBar from "../components/TopBar";
-import PageLayout from "../components/PageLayout";
 
 export default function PrivacyPage() {
   const [html, setHtml] = useState("");
@@ -18,16 +17,25 @@ export default function PrivacyPage() {
   }, []);
 
   return (
-    <PageLayout navHeight={64} maxWidth="900px">
+    <Page>
       <TopBar title="Политика конфиденциальности" />
       <Card>
         <Content dangerouslySetInnerHTML={{ __html: html }} />
       </Card>
-    </PageLayout>
+    </Page>
   );
 }
 
 /* ===== styled ===== */
+const Page = styled.main`
+  min-height: 100svh;
+  background: #000;
+  color: #fff;
+  padding: 12px var(--side-pad, 16px);
+  padding-bottom: calc(64px + env(safe-area-inset-bottom) + 24px);
+  font-family: "Montserrat", system-ui, sans-serif;
+`;
+
 const Card = styled.div`
   background: #0b0b0b;
   border-radius: 12px;
