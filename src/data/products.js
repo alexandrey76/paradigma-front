@@ -3,7 +3,7 @@ const PUB = process.env.PUBLIC_URL || "";
 const products = [
   {
     id: 1,
-    name: "Товар 1",
+    name: "Paradigma One",
     description: `
 Новая модель                                 с защитными системами
 Прочный кейс
@@ -11,8 +11,9 @@ const products = [
 2 чаши
 Набор очистки
 Инструкция`,
-    price: 1000,
+    price: 17990,
     images: [
+      PUB + "/products_images/paradigmaOne.jpg",
       PUB + "/products_images/product1_1.jpg",
       PUB + "/products_images/product1_2.jpg",
       PUB + "/products_images/product1_3.jpg"
@@ -21,24 +22,24 @@ const products = [
   },
   {
     id: 2,
-    name: "Товар 2",
+    name: "Paradigma x Lukah",
     description: "Описание товара 2",
     price: 1000,
-    images: []
+    images: [PUB + "/products_images/paradigmaLukah.jpg"]
   },
   {
-    id: 2,
-    name: "Товар 2",
-    description: "Описание товара 2",
+    id: 3,
+    name: "Paradigma 3",
+    description: "Описание товара 3",
     price: 1000,
-    images: []
+    images: [PUB + "/products_images/paradigma3.jpg"]
   },
   {
-    id: 2,
-    name: "Товар 2",
-    description: "Описание товара 2",
+    id: 4,
+    name: "Paradigma Portable",
+    description: "Описание товара 4",
     price: 1000,
-    images: []
+    images: [PUB + "/products_images/paradigmaPortable.jpg"]
   },
 
   
