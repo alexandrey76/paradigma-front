@@ -39,9 +39,6 @@ export default function NavBar() {
 }
 
 /* ====== стили ====== */
-
-const NAVBAR_HEIGHT = 64;
-
 const Wrap = styled.div`
   position: fixed;
   left: 0;
