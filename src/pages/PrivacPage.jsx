@@ -2,57 +2,73 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import TopBar from "../components/TopBar";
+import NavBar from "../components/NavBar";
 
 export default function PrivacyPage() {
-  const [html, setHtml] = useState("");
+  const [content, setContent] = useState("");
 
   useEffect(() => {
+    // Загружаем локальный HTML-файл политики
     fetch("/privacy.html")
-      .then((r) => r.text())
-      .then(setHtml)
-      .catch((e) => {
-        console.error("Ошибка загрузки privacy:", e);
-        setHtml("<p>Не удалось загрузить политику.</p>");
-      });
+      .then((res) => res.text())
+      .then(setContent)
+      .catch((err) => console.error("Ошибка загрузки политики:", err));
   }, []);
 
   return (
-    <Page>
+    <>
       <TopBar title="Политика конфиденциальности" />
-      <ContentContainer>
-        <StyledContent dangerouslySetInnerHTML={{ __html: html }} />
-      </ContentContainer>
-    </Page>
+      <Main>
+        <Card dangerouslySetInnerHTML={{ __html: content }} />
+      </Main>
+      <NavBar />
+    </>
   );
 }
 
-const Page = styled.div`
-  min-height: 100vh;
+/* ---------- styled ---------- */
+
+const Main = styled.main`
+  min-height: 100svh;
   background: #000;
   color: #fff;
   font-family: "Montserrat", system-ui, sans-serif;
-  padding: 0 16px 24px;
+
+  /* отступы, чтобы контент не упирался в NavBar */
+  padding: 80px var(--side-pad, 16px)
+    calc(90px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
 `;
 
-const ContentContainer = styled.div`
-  background: #0b0b0b;
-  border-radius: 12px;
-  padding: 20px;
-  margin-top: 16px;
-`;
-
-const StyledContent = styled.div`
-  color: #dcdcdc;
+const Card = styled.div`
+  max-width: 900px;
+  margin: 0 auto;
+  font-size: 14px;
   line-height: 1.6;
-  
-  h1, h2, h3 {
+  color: #fff;
+
+  h1,
+  h2,
+  h3 {
     font-weight: 800;
-    margin: 20px 0 12px;
-    color: #fff;
+    margin: 20px 0 10px;
   }
-  
-  h1:first-child { margin-top: 0; }
-  p { margin-bottom: 16px; }
-  ul, ol { margin-bottom: 16px; padding-left: 24px; }
-  a { color: #f5b300; }
+
+  p {
+    margin-bottom: 12px;
+  }
+
+  ul,
+  ol {
+    margin: 10px 0 12px 20px;
+  }
+
+  li {
+    margin-bottom: 8px;
+  }
+
+  strong,
+  b {
+    font-weight: 700;
+  }
 `;
