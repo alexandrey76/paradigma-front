@@ -1,59 +1,44 @@
 // src/components/TopBar.jsx
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 
-const Bar = styled.div`
-  display: flex;
-  align-items: center;
-  background: white;
-  border-radius: 10px;
-  padding: 10px 14px;
-  margin: 10px;
-`;
-
-const BackButton = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  margin-right: 10px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  img {
-    width: 14px;
-    height: 14px;
-  }
-`;
-
-const Title = styled.div`
-  font-weight: bold;
-  font-size: 14px;
-  color: #000;
-`;
-
-const SvgIcon = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  
-  img, svg {
-    width: auto;
-    height: 18px; /* Настройте под ваш SVG */
-    max-width: 100%;
-  }
-`;
-
 export default function TopBar({ title, svgSrc, svgAlt }) {
   const navigate = useNavigate();
+  const touchStartX = useRef(null);
+
+  /* ===== свайп-назад ===== */
+  useEffect(() => {
+    const handleTouchStart = (e) => {
+      touchStartX.current = e.touches[0].clientX;
+    };
+
+    const handleTouchEnd = (e) => {
+      if (touchStartX.current === null) return;
+      const diff = e.changedTouches[0].clientX - touchStartX.current;
+
+      // свайп вправо больше 70px → назад
+      if (diff > 70) {
+        navigate(-1);
+      }
+      touchStartX.current = null;
+    };
+
+    window.addEventListener("touchstart", handleTouchStart);
+    window.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [navigate]);
 
   return (
     <Bar>
-      <BackButton onClick={() => navigate(-1)}>
+      <BackButton onClick={() => navigate(-1)} aria-label="Назад">
         <img src="/assets/images/backArrow.svg" alt="Назад" />
       </BackButton>
+
       {title ? (
         <Title>{title}</Title>
       ) : (
@@ -64,3 +49,58 @@ export default function TopBar({ title, svgSrc, svgAlt }) {
     </Bar>
   );
 }
+
+/* ---------- styled ---------- */
+
+const Bar = styled.div`
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 10px;
+  padding: 6px 12px;
+  margin: 8px 10px;
+  height: 42px; /* 🔹 компактнее */
+`;
+
+const BackButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-right: 8px;
+
+  /* хорошая зона нажатия, но не огромная */
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img {
+    width: 12px;
+    height: 12px;
+    pointer-events: none;
+  }
+
+  &:active {
+    transform: scale(0.94);
+  }
+`;
+
+const Title = styled.div`
+  font-weight: 700;
+  font-size: 14px;
+  color: #000;
+`;
+
+const SvgIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img,
+  svg {
+    height: 16px;
+    width: auto;
+    max-width: 100%;
+  }
+`;
