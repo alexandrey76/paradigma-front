@@ -1,63 +1,83 @@
-// src/pages/ConsentPage.jsx
+// src/pages/PrivacyPage.jsx
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import TopBar from "../components/TopBar";
 
-export default function ConsentPage() {
+export default function PrivacyPage() {
   const [html, setHtml] = useState("");
 
   useEffect(() => {
     fetch("/consent.html")
       .then((res) => res.text())
-      .then(setHtml)
-      .catch((err) => console.error("Ошибка загрузки consent.html:", err));
+      .then((raw) => {
+        // Удаляем doctype, html, head, body и закрывающие теги
+        const cleaned = raw
+          .replace(/<!DOCTYPE[^>]*>/gi, "")
+          .replace(/<html[^>]*>/gi, "")
+          .replace(/<\/html>/gi, "")
+          .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "")
+          .replace(/<body[^>]*>/gi, "")
+          .replace(/<\/body>/gi, "")
+          .trim();
+        setHtml(cleaned);
+      })
+      .catch((err) => console.error("Ошибка загрузки политики:", err));
   }, []);
 
   return (
     <Page>
       <TopBar title="Согласие на обработку ПД" />
-      <Content
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+      <Card>
+        <Content dangerouslySetInnerHTML={{ __html: html }} />
+      </Card>
     </Page>
   );
 }
 
-/* ============ styled ============ */
+/* ===================== styled ===================== */
+
 const Page = styled.main`
   min-height: 100dvh;
   background: #000;
   color: #fff;
-  padding: 12px var(--side-pad, 16px) calc(110px + env(safe-area-inset-bottom));
-  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  padding: 12px var(--side-pad, 16px) calc(100px + env(safe-area-inset-bottom));
+  font-family: "Montserrat", system-ui, sans-serif;
+  overflow-x: hidden;
+  overflow-y: auto;
+`;
 
-  a {
-    color: #f5b300;
-    text-decoration: underline;
-  }
+const Card = styled.div`
+  background: #000;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 10px;
 `;
 
 const Content = styled.div`
-  max-width: 720px;
-  margin: 0 auto;
-  line-height: 1.6;
-  font-size: 14px;
+  color: #fff;
 
   h1, h2, h3 {
-    font-weight: 700;
-    margin: 18px 0 10px;
+    font-weight: 800;
+    margin: 20px 0 10px;
   }
 
   p {
-    margin: 0 0 14px;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+
+  strong, b {
+    font-weight: 700;
   }
 
   ul, ol {
-    margin: 0 0 14px 20px;
-    padding: 0;
+    padding-left: 20px;
+    margin-bottom: 12px;
   }
 
   li {
-    margin-bottom: 8px;
+    font-size: 14px;
+    line-height: 1.6;
   }
 `;

@@ -322,9 +322,9 @@ const Total = styled.div`
 `;
 
 const SendBtn = styled.button`
-  height: var(--control-h);
+  height: 44px;
   padding: 0 16px;
-  border-radius: var(--radius);
+  border-radius: 10px;
   border: 2px solid #f5b300;
   background: #f5b300;
   color: #000;

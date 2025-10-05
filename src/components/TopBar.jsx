@@ -16,11 +16,7 @@ export default function TopBar({ title, svgSrc, svgAlt }) {
     const handleTouchEnd = (e) => {
       if (touchStartX.current === null) return;
       const diff = e.changedTouches[0].clientX - touchStartX.current;
-
-      // свайп вправо больше 70px → назад
-      if (diff > 70) {
-        navigate(-1);
-      }
+      
       touchStartX.current = null;
     };
 

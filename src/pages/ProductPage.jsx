@@ -209,13 +209,13 @@ const Title = styled.h1`
 const MediaBox = styled.div`
   position: relative;
   width: 100%;
-  max-width: 100%; /* совпадает с шириной Page */
+  max-width: calc(100% - 20px); 
+  margin: 8px auto 18px;       
   aspect-ratio: 1 / 1;
   border: 2px solid #fff;
   border-radius: 12px;
   overflow: hidden;
   background: #111;
-  margin: 8px auto 18px;
 `;
 
 const Viewport = styled.div`
@@ -328,6 +328,7 @@ const AddBtn = styled.button`
   border-radius: 10px;
   padding: 10px 14px;
   font-weight: 700;
+  margin-right: 10px
   cursor: pointer;
   transition: transform 0.15s ease, background 0.2s ease, color 0.2s ease;
 
