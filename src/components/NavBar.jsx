@@ -60,7 +60,7 @@ const Bar = styled.nav`
   border: 2px solid #f5b300;
   background: #f5b300;
   border-radius: 10px;
-  width: min(100%, 760px);
+  width: min(98%, 770px);
   height: 64px;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
