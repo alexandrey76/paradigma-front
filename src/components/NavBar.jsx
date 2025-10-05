@@ -73,7 +73,6 @@ const Bar = styled.nav`
   margin: 0 auto;
 `;
 
-/* Ссылка-кнопка — теперь занимает всю ячейку и всю высоту бара */
 const IconLink = styled(Link)`
   width: 100%;
   height: 100%;
@@ -102,7 +101,6 @@ const IconLink = styled(Link)`
   }
 `;
 
-/* Корзина + бейдж (позиционируется внутри своей ячейки) */
 const CartWrapper = styled.div`
   position: relative;
   width: 100%;
@@ -130,7 +128,7 @@ const CartBadge = styled.div`
   pointer-events: none;
 `;
 
-/* ====== иконки (твои svg-файлы) ====== */
+/* ====== иконки ====== */
 function LogoIcon() { return <img src="/assets/images/barLogo.svg" alt="logo" width={26} height={26} />; }
 function CartIcon() { return <img src="/assets/images/barCart.svg" alt="cart" width={26} height={26} />; }
 function UserIcon() { return <img src="/assets/images/barProfile.svg" alt="profile" width={26} height={26} />; }

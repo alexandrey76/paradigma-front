@@ -2,73 +2,82 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import TopBar from "../components/TopBar";
-import NavBar from "../components/NavBar";
 
 export default function PrivacyPage() {
-  const [content, setContent] = useState("");
+  const [html, setHtml] = useState("");
 
   useEffect(() => {
-    // Загружаем локальный HTML-файл политики
     fetch("/privacy.html")
       .then((res) => res.text())
-      .then(setContent)
+      .then((raw) => {
+        // Удаляем doctype, html, head, body и закрывающие теги
+        const cleaned = raw
+          .replace(/<!DOCTYPE[^>]*>/gi, "")
+          .replace(/<html[^>]*>/gi, "")
+          .replace(/<\/html>/gi, "")
+          .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "")
+          .replace(/<body[^>]*>/gi, "")
+          .replace(/<\/body>/gi, "")
+          .trim();
+        setHtml(cleaned);
+      })
       .catch((err) => console.error("Ошибка загрузки политики:", err));
   }, []);
 
   return (
-    <>
+    <Page>
       <TopBar title="Политика конфиденциальности" />
-      <Main>
-        <Card dangerouslySetInnerHTML={{ __html: content }} />
-      </Main>
-      <NavBar />
-    </>
+      <Card>
+        <Content dangerouslySetInnerHTML={{ __html: html }} />
+      </Card>
+    </Page>
   );
 }
 
-/* ---------- styled ---------- */
+/* ===================== styled ===================== */
 
-const Main = styled.main`
-  min-height: 100svh;
+const Page = styled.main`
+  min-height: 100dvh;
   background: #000;
   color: #fff;
+  padding: 12px var(--side-pad, 16px) calc(100px + env(safe-area-inset-bottom));
   font-family: "Montserrat", system-ui, sans-serif;
-
-  /* отступы, чтобы контент не упирался в NavBar */
-  padding: 80px var(--side-pad, 16px)
-    calc(90px + env(safe-area-inset-bottom));
-  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
 `;
 
 const Card = styled.div`
+  background: #000;
   max-width: 900px;
   margin: 0 auto;
-  font-size: 14px;
-  line-height: 1.6;
+  padding: 0 10px;
+`;
+
+const Content = styled.div`
   color: #fff;
 
-  h1,
-  h2,
-  h3 {
+  h1, h2, h3 {
     font-weight: 800;
     margin: 20px 0 10px;
   }
 
   p {
+    font-size: 14px;
+    line-height: 1.6;
     margin-bottom: 12px;
   }
 
-  ul,
-  ol {
-    margin: 10px 0 12px 20px;
+  strong, b {
+    font-weight: 700;
+  }
+
+  ul, ol {
+    padding-left: 20px;
+    margin-bottom: 12px;
   }
 
   li {
-    margin-bottom: 8px;
-  }
-
-  strong,
-  b {
-    font-weight: 700;
+    font-size: 14px;
+    line-height: 1.6;
   }
 `;
