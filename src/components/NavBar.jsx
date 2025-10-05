@@ -74,13 +74,13 @@ const Bar = styled.nav`
 `;
 
 const IconLink = styled(Link)`
-  width: 100%;
-  height: 100%;
+  width: 60%;
+  height: 80%;
   display: grid;
   place-items: center;
   border-radius: 12px;
   text-decoration: none;
-  padding: 6px; /* чтобы иконка не прилипала к краям */
+  padding: 6px;
   box-sizing: border-box;
 
   /* фон проявляется если кнопка активна — ты используешь svg с фоном, поэтому можно оставить прозрачным */
@@ -111,15 +111,15 @@ const CartWrapper = styled.div`
 
 const CartBadge = styled.div`
   position: absolute;
-  top: 8px;
-  right: 10px;
-  min-width: 18px;
-  height: 18px;
+  top: 11px;
+  right: 16px;
+  width: 16px;
+  height: 16px;
   padding: 0 5px;
   border-radius: 999px;
   background: #f5b300;
   border: 2px solid #fff;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 800;
   color: #000;
   display: flex;

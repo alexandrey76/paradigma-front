@@ -2,19 +2,17 @@
 import { createGlobalStyle } from "styled-components";
 
 export default createGlobalStyle`
-  * {
+  *, *::before, *::after {
     box-sizing: border-box;
-    margin: 0;
-    padding: 0;
   }
 
   html, body, #root {
-    height: 100%;
-    margin: 0;
-    padding: 0;
+    min-height: 100%;
     background: #000;
     color: #fff;
-    /* УБИРАЕМ overflow: hidden */
+    margin: 0;
+    padding: 0;
+    scroll-behavior: smooth; /* можно убрать, если не хочешь плавный скролл */
   }
 
   body {
@@ -22,9 +20,12 @@ export default createGlobalStyle`
                  Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden; /* защищаем от горизонтального скролла */
   }
 
   #root {
-    position: relative;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
   }
 `;
