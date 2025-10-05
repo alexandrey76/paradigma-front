@@ -74,7 +74,7 @@ const Bar = styled.nav`
 `;
 
 const IconLink = styled(Link)`
-  width: 60%;
+  width: 75%;
   height: 80%;
   display: grid;
   place-items: center;
