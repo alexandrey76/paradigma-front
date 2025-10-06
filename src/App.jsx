@@ -11,6 +11,7 @@ import CartPage from "./pages/CartPage";
 import NavBar from "./components/NavBar";
 import SupportPage from "./pages/SupportPage";
 import ProfilePage from "./pages/ProfilePage";
+import AgeGate from "./components/AgeGate";
 import PrivacyPage from "./pages/PrivacPage";
 import ConsentPage from "./pages/ConsentPage";
 
@@ -21,11 +22,12 @@ const FADE_MS = 500;
 const MINIMUM_DISPLAY_TIME = 1500;
 const EXTRA_DELAY = 800;
 
-/* ====== Компонент прелоадера ====== */
-function Preloader({ videoSrc, onFadeComplete, fadeOut }) {
+/* ====== Компонент прелоадера (локально) ====== */
+function PreloaderOverlay({ videoSrc, fadeOut, onTransitionEnd }) {
   return (
     <div
       aria-hidden="true"
+      onTransitionEnd={onTransitionEnd}
       style={{
         position: "fixed",
         inset: 0,
@@ -34,11 +36,11 @@ function Preloader({ videoSrc, onFadeComplete, fadeOut }) {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        transition: `opacity ${FADE_MS}ms ease-out`,
+        transition: `opacity ${FADE_MS}ms ease-out, visibility ${FADE_MS}ms`,
         opacity: fadeOut ? 0 : 1,
+        visibility: fadeOut ? "hidden" : "visible",
         pointerEvents: fadeOut ? "none" : "auto",
       }}
-      onTransitionEnd={onFadeComplete}
     >
       <video
         src={videoSrc}
@@ -69,11 +71,13 @@ function useTelegramGuard() {
     try {
       tg.ready?.();
       tg.expand?.();
-      tg.disableVerticalSwipes?.();
-      tg.enableClosingConfirmation?.();
+      // запрещаем сворачивать свайпом вниз
+      if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+      // включаем подтверждение при закрытии
+      if (tg.enableClosingConfirmation) tg.enableClosingConfirmation();
 
       const onViewport = () => {
-        if (!tg.isExpanded) tg.expand?.();
+        if (!tg.isExpanded && tg.expand) tg.expand();
       };
       tg.onEvent?.("viewportChanged", onViewport);
       return () => tg.offEvent?.("viewportChanged", onViewport);
@@ -83,25 +87,28 @@ function useTelegramGuard() {
   }, [pathname]);
 }
 
+/* ====== Shell с маршрутизацией ====== */
 function AppShell() {
   useTelegramGuard();
   const location = useLocation();
 
   const NAVBAR_HEIGHT = 64;
 
-  // Страницы без NavBar
-  const noNavBarPages = ['/privacy-policy', '/consent'];
+  // Страницы, где NavBar НЕ показываем
+  const noNavBarPages = ["/privacy-policy", "/consent"];
   const showNavBar = !noNavBarPages.includes(location.pathname);
 
   return (
     <>
       <GlobalStyle />
-      <div style={{
-        minHeight: "100svh",
-        paddingBottom: showNavBar ? `calc(${NAVBAR_HEIGHT}px + env(safe-area-inset-bottom))` : "0",
-        boxSizing: "border-box",
-        background: "#000"
-      }}>
+      <div
+        style={{
+          minHeight: "100svh",
+          paddingBottom: showNavBar ? `calc(${NAVBAR_HEIGHT}px + env(safe-area-inset-bottom))` : "0",
+          boxSizing: "border-box",
+          background: "#000",
+        }}
+      >
         <Routes>
           <Route index element={<HomePage />} />
           <Route path="/" element={<HomePage />} />
@@ -115,15 +122,29 @@ function AppShell() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
+
       {showNavBar && <NavBar />}
     </>
   );
 }
 
+/* ====== Главный App ====== */
 export default function App() {
   const [showPreloader, setShowPreloader] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
   const [startTime] = useState(Date.now());
+
+  // Age gate
+  const [ageOpen, setAgeOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const ok = localStorage.getItem("age_verified") === "1";
+      if (!ok) setAgeOpen(true);
+    } catch {
+      setAgeOpen(true);
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -148,27 +169,22 @@ export default function App() {
       timeoutId = setTimeout(resolve, SAFETY_TIMEOUT);
     });
 
-    // Ждём загрузки контента
-    Promise.race([
-      Promise.all([waitLoad, fontsReady]),
-      safety,
-    ]).then(() => {
+    // Ждём загрузки контента (или таймаута)
+    Promise.race([Promise.all([waitLoad, fontsReady]), safety]).then(() => {
       if (!mounted) return;
 
       // Вычисляем, сколько времени уже прошло
       const elapsedTime = Date.now() - startTime;
-      
+
       // Если прошло меньше минимального времени, ждём остаток
       const remainingTime = Math.max(0, MINIMUM_DISPLAY_TIME - elapsedTime);
-      
+
       // Добавляем дополнительную задержку
       const totalDelay = remainingTime + EXTRA_DELAY;
 
-      console.log(`Preloader timing: elapsed ${elapsedTime}ms, waiting ${totalDelay}ms more`);
-
-      setTimeout(() => {
+      // Запускаем отложенный fadeOut
+      timeoutId = setTimeout(() => {
         if (!mounted) return;
-        // Запускаем fade-out
         setFadeOut(true);
       }, totalDelay);
     });
@@ -180,24 +196,34 @@ export default function App() {
     };
   }, [startTime]);
 
-  const handleFadeComplete = () => {
+  // когда CSS-транзишн завершится — скрываем прелоадер из DOM
+  const handlePreloaderTransitionEnd = () => {
     if (fadeOut) {
       setShowPreloader(false);
     }
   };
 
+  const handleAgeClose = () => {
+    try {
+      localStorage.setItem("age_verified", "1");
+    } catch {}
+    setAgeOpen(false);
+  };
+
   return (
     <CartProvider>
       <HashRouter>
-        {/* УБРАЛ opacity transition - это вызывало проблемы */}
         <AppShell />
-        
+
+        {/* Age gate поверх всего (если открыт) */}
+        <AgeGate open={ageOpen} onClose={handleAgeClose} />
+
         {/* Прелоадер поверх контента */}
         {showPreloader && (
-          <Preloader
+          <PreloaderOverlay
             videoSrc={PRELOADER_VIDEO}
             fadeOut={fadeOut}
-            onFadeComplete={handleFadeComplete}
+            onTransitionEnd={handlePreloaderTransitionEnd}
           />
         )}
       </HashRouter>
