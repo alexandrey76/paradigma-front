@@ -3,7 +3,7 @@ import React, { useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 
-import { cartDelta } from "../api/cartApi";
+import { getTgContext, cartDelta, fetchCart } from "../api/cartApi";
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
 import TopBar from "../components/TopBar";

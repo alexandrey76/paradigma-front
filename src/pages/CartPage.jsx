@@ -5,7 +5,7 @@ import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import api from "../api/client"; // ⟵ добавили
-import { cartDelta } from "../api/cartApi";
+import { getTgContext, cartDelta, fetchCart } from "../api/cartApi";
 
 // корректный приоритет: env или локалка
 const API_BASE =

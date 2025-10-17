@@ -1,64 +1,76 @@
 // src/api/cartApi.js
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
-  "https://alexandrey76-paradigma-back-c956.twc1.net";
+  "https://alexandrey76-paradigma-back-c956.twc1.net"; // твой бэк
 
-function getTGUserId() {
+// Собираем контекст из Telegram WebApp
+export function getTgContext() {
   const tg = window?.Telegram?.WebApp;
-  return tg?.initDataUnsafe?.user?.id || null;
-}
-function getInitData() {
-  const tg = window?.Telegram?.WebApp;
-  return tg?.initData || "";
+  const user = tg?.initDataUnsafe?.user || {};
+  const initData = tg?.initData || "";
+
+  return {
+    init_data: initData,
+    tg_user_id: user.id ?? null,
+    tg_username: user.username ?? null,
+    tg_first_name: user.first_name ?? null,
+  };
 }
 
-/**
- * Универсальная функция для всех кнопок:
- * - delta: +1 / -1 / 0
- * - setQty: число (если нужно выставить точное qty), иначе не передавать
- */
-export async function cartDelta({ product, delta = 0, setQty = null }) {
-  const tg_user_id = getTGUserId();
-  if (!tg_user_id) {
-    // Без TG user id делать персональную корзину нельзя
-    return { ok: false, reason: "no tg_user_id" };
-  }
+async function apiFetch(path, opts = {}) {
+  const ctx = getTgContext();
 
-  const payload = {
-    tg_user_id,
-    product: {
-      id: product.id,
-      name: product.name,
-      price: product.price ?? 0,
-    },
-    delta,
-    setQty,
+  const headers = {
+    "Content-Type": "application/json",
+    "X-Telegram-Init-Data": ctx.init_data || "",
+    ...(opts.headers || {}),
   };
 
-  const res = await fetch(`${API_BASE}/api/cart/delta`, {
+  const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
+  return res;
+}
+
+// +1 / -1 / setQty для корзины в БД
+export async function cartDelta({ product, delta, setQty }) {
+  const ctx = getTgContext();
+
+  const payload = {
+    tg_user_id: ctx.tg_user_id,
+    tg_username: ctx.tg_username,
+    tg_first_name: ctx.tg_first_name,
+    product_id: product.id,
+    name: product.name,
+    price: product.price,
+    image: product.images?.[0] || null,
+  };
+
+  if (typeof setQty === "number") payload.set_qty = setQty;
+  if (typeof delta === "number") payload.delta = delta;
+
+  const res = await apiFetch("/api/cart/update", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Telegram-Init-Data": getInitData() || "",
-    },
     body: JSON.stringify(payload),
   });
 
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!res.ok) throw new Error(data?.detail || `HTTP ${res.status}`);
-
-  return data; // { ok: true, items: [...] }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.detail || data.message || "cart update failed");
+  }
+  return data; // { ok: true, ... }
 }
 
+// Получить актуальную корзину из БД (для синхронизации при старте)
 export async function fetchCart() {
-  const tg_user_id = getTGUserId();
-  if (!tg_user_id) return { items: [] };
+  const ctx = getTgContext();
 
-  const res = await fetch(`${API_BASE}/api/cart?tg_user_id=${tg_user_id}`, {
-    headers: { "X-Telegram-Init-Data": getInitData() || "" },
-  });
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : { items: [] };
-  return data;
+  const url = `/api/cart/sync?tg_user_id=${encodeURIComponent(
+    ctx.tg_user_id ?? ""
+  )}`;
+
+  const res = await apiFetch(url, { method: "GET" });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.detail || data.message || "cart fetch failed");
+  }
+  return data; // { items: [{product_id, qty, ...}], total }
 }
