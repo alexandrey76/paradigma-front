@@ -1,14 +1,13 @@
 // src/api/cartApi.js
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
-  "https://alexandrey76-paradigma-back-c956.twc1.net"; // твой бэк
+  "https://alexandrey76-paradigma-back-c956.twc1.net";
 
-// Собираем контекст из Telegram WebApp
+// ---- TG context ----
 export function getTgContext() {
   const tg = window?.Telegram?.WebApp;
   const user = tg?.initDataUnsafe?.user || {};
   const initData = tg?.initData || "";
-
   return {
     init_data: initData,
     tg_user_id: user.id ?? null,
@@ -19,18 +18,16 @@ export function getTgContext() {
 
 async function apiFetch(path, opts = {}) {
   const ctx = getTgContext();
-
   const headers = {
     "Content-Type": "application/json",
     "X-Telegram-Init-Data": ctx.init_data || "",
     ...(opts.headers || {}),
   };
-
   const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
   return res;
 }
 
-// +1 / -1 / setQty для корзины в БД
+// ---- CART: +1 / -1 / setQty ----
 export async function cartDelta({ product, delta, setQty }) {
   const ctx = getTgContext();
 
@@ -56,21 +53,22 @@ export async function cartDelta({ product, delta, setQty }) {
   if (!res.ok) {
     throw new Error(data.detail || data.message || "cart update failed");
   }
-  return data; // { ok: true, ... }
+  return data; // { ok: true }
 }
 
-// Получить актуальную корзину из БД (для синхронизации при старте)
+// ---- CART: fetch current server cart ----
 export async function fetchCart() {
   const ctx = getTgContext();
-
-  const url = `/api/cart/sync?tg_user_id=${encodeURIComponent(
-    ctx.tg_user_id ?? ""
-  )}`;
-
-  const res = await apiFetch(url, { method: "GET" });
+  const res = await apiFetch(
+    `/api/cart/sync?tg_user_id=${encodeURIComponent(ctx.tg_user_id ?? "")}`,
+    { method: "GET" }
+  );
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(data.detail || data.message || "cart fetch failed");
   }
-  return data; // { items: [{product_id, qty, ...}], total }
+  return data; // { items: [...], total }
 }
+
+// совместимость с существующими импортами
+export { fetchCart as fetchServerCart };
