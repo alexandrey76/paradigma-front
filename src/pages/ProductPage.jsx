@@ -5,6 +5,7 @@ import styled from "styled-components";
 import useEmblaCarousel from "embla-carousel-react";
 import { getTgContext, cartDelta, fetchCart } from "../api/cartApi";
 import products from "../data/products";
+import { handleCartAction } from "../api/cartApi";
 import { useCart } from "../context/CartContext";
 import TopBar from "../components/TopBar";
 

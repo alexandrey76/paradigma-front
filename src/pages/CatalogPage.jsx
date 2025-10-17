@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 
 import { getTgContext, cartDelta, fetchCart } from "../api/cartApi";
+import { handleCartAction } from "../api/cartApi";
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
 import TopBar from "../components/TopBar";

@@ -3,6 +3,7 @@ import React, { useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import useEmblaCarousel from "embla-carousel-react";
+import { handleCartAction } from "../api/cartApi";
 
 import { getTgContext, cartDelta, fetchCart } from "../api/cartApi";
 import products from "../data/products";
@@ -127,13 +128,10 @@ export default function HomePage() {
 
                       <CartBtnWrap
                         onClick={async (e) => {
-                          e.stopPropagation();
-                          onAdd(p);
-                          try { await cartDelta({ product: i, setQty: newQty }); } catch (err) { console.error(err); }
-                        }}
-                        aria-label={
-                          qty > 0 ? `В корзине: ${qty}` : "В корзину"
-                        }
+                        e.stopPropagation();
+                        await handleCartAction({ type: "add", product: p, addItem });
+                      }}
+                      aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
                       >
                         <img src={icon} alt="" />
                         {qty > 0 && (
