@@ -7,7 +7,6 @@ import useEmblaCarousel from "embla-carousel-react";
 import { cartDelta } from "../api/cartApi";
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
-import { handleCartAction } from "../utils/cartApi";
 
 const PUB = process.env.PUBLIC_URL || "";
 

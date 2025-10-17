@@ -7,7 +7,6 @@ import { cartDelta } from "../api/cartApi";
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
 import TopBar from "../components/TopBar";
-import { handleCartAction } from "../utils/cartApi";
 
 const PUB = process.env.PUBLIC_URL || "";
 
