@@ -5,6 +5,7 @@ import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import api from "../api/client"; // ⟵ добавили
+import { cartDelta } from "../api/cartApi";
 
 // корректный приоритет: env или локалка
 const API_BASE =
@@ -126,14 +127,14 @@ export default function CartPage() {
                 </Clickable>
 
                 <Controls>
-                  <DeleteBtn onClick={() => removeItem(i.id)} aria-label="Удалить">
+                  <DeleteBtn onClick={async () => {removeItem(i.id); try { await cartDelta({ product: i, setQty: 0 }); } catch (err) { console.error(err); }}} aria-label="Удалить">
                     <img src={`${PUB}/assets/images/trashBin.svg`} alt="" />
                   </DeleteBtn>
 
                   <QtyBox>
                     <button
                       type="button"
-                      onClick={() => setQty(i.id, Math.max(1, i.qty - 1))}
+                      onClick={async () => {setQty(i.id, Math.max(1, i.qty - 1)); try { await cartDelta({ product: i, setQty: 0 }); } catch (err) { console.error(err); }}}
                       aria-label="Уменьшить"
                     >
                       −
@@ -141,7 +142,7 @@ export default function CartPage() {
                     <span>{i.qty}</span>
                     <button
                       type="button"
-                      onClick={() => setQty(i.id, i.qty + 1)}
+                      onClick={async () => {setQty(i.id, i.qty + 1); try { await cartDelta({ product: i, setQty: 0 }); } catch (err) { console.error(err); }}}
                       aria-label="Увеличить"
                     >
                       +

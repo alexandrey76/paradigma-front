@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import styled from "styled-components";
 import useEmblaCarousel from "embla-carousel-react";
-
+import { cartDelta } from "../api/cartApi";
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
 import { handleCartAction } from "../utils/cartApi";
@@ -163,7 +163,14 @@ export default function ProductPage() {
 
         <PriceRow>
           <Price>{(product.price ?? 0).toLocaleString("ru-RU")} ₽</Price>
-          <AddBtn onClick={() => onAdd(product)}>Добавить в корзину</AddBtn>
+          <AddBtn onClick={async () => { 
+              addItem(product); 
+              try { 
+                await cartDelta({ product, delta: +1 }); 
+              } catch (err) { 
+                console.error("cartDelta +1 failed", err); 
+              } 
+            }}/>
         </PriceRow>
 
         {product.description && (

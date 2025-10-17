@@ -25,17 +25,13 @@ export default function SupportPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
-  // простая проверка телефона: + и 7..15 цифр (очищаем спецсимволы)
+ 
   const phoneOk = useMemo(() => {
     const digits = phone.replace(/\D/g, ""); // только цифры
     return digits.length === 11; // строго 11 цифр
   }, [phone]);
 
-  // теперь правила отправки:
-  // - имя обязательно
-  // - вопрос обязателен
-  // - согласие1 обязательно
-  // - телефон обязателен ТОЛЬКО если выбрано "call"
+
   const canSend =
     name.trim().length > 0 &&
     question.trim().length > 0 &&

@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import useEmblaCarousel from "embla-carousel-react";
 
+import { cartDelta } from "../api/cartApi";
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
 import { handleCartAction } from "../utils/cartApi";
@@ -126,9 +127,10 @@ export default function HomePage() {
                       </PriceBlock>
 
                       <CartBtnWrap
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
                           onAdd(p);
+                          try { await cartDelta({ product: i, setQty: newQty }); } catch (err) { console.error(err); }
                         }}
                         aria-label={
                           qty > 0 ? `В корзине: ${qty}` : "В корзину"
