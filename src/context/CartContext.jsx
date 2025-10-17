@@ -1,116 +1,182 @@
 // src/context/CartContext.jsx
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import api from "../api/client";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  getTgContext,
+  fetchServerCart,
+  addServerCartItem,
+  updateServerCartQty,
+  deleteServerCartItem,
+} from "../api/cart";
 
 const CartContext = createContext(null);
-export const useCart = () => useContext(CartContext);
-
-function getTelegramUser() {
-  const tg = window?.Telegram?.WebApp;
-  return {
-    tg,
-    tg_user_id: tg?.initDataUnsafe?.user?.id || null,
-    tg_username: tg?.initDataUnsafe?.user?.username || null,
-    tg_first_name: tg?.initDataUnsafe?.user?.first_name || null,
-  };
-}
 
 export function CartProvider({ children }) {
-  const { tg, tg_user_id, tg_username, tg_first_name } = getTelegramUser();
-
-  // Telegram UI готовность (не обязательно, но полезно)
-  useEffect(() => {
+  const [cart, setCart] = useState(() => {
     try {
-      tg?.ready?.();
-    } catch {}
-  }, [tg]);
-
-  const [items, setItems] = useState([]); // [{product_key,name,price,qty,meta,added_at}]
-  const [loading, setLoading] = useState(Boolean(tg_user_id));
-  const [error, setError] = useState("");
-
-  // загрузка корзины при монтировании/смене пользователя
-  useEffect(() => {
-    if (!tg_user_id) return;
-    (async () => {
-      try {
-        setLoading(true);
-        const data = await api.getCart(tg_user_id);
-        setItems(data.items || []);
-        setError("");
-      } catch (e) {
-        setError(e.message || "Не удалось загрузить корзину");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [tg_user_id]);
-
-  // добавить/увеличить qty
-  const addItem = async (product, qty = 1, meta = {}) => {
-    if (!tg_user_id || !product) return;
-    await api.addCartItem({
-      tg_user_id,
-      product_key: String(product.id), // ВАЖНО: стабильный ключ (id/sku/slug)
-      name: product.name,
-      price: Number(product.price),
-      qty: Number(qty),
-      meta: { image: product.image, ...meta },
-    });
-    const data = await api.getCart(tg_user_id);
-    setItems(data.items || []);
-  };
-
-  // установить точное количество (qty<=0 удаляет позицию)
-  const setQty = async (product_key, qty) => {
-    if (!tg_user_id) return;
-    await api.setCartItemQty({
-      tg_user_id,
-      product_key: String(product_key),
-      qty: Number(qty),
-    });
-    const data = await api.getCart(tg_user_id);
-    setItems(data.items || []);
-  };
-
-  // удалить одну позицию
-  const removeItem = async (product_key) => {
-    if (!tg_user_id) return;
-    await api.removeCartItem(tg_user_id, String(product_key));
-    setItems((prev) => prev.filter((x) => String(x.product_key) !== String(product_key)));
-  };
-
-  // очистить корзину
-  const clearCart = async () => {
-    if (!tg_user_id) return;
-    await api.clearCart(tg_user_id);
-    setItems([]);
-  };
+      const raw = localStorage.getItem("cart_v1") || "[]";
+      return JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  });
 
   const total = useMemo(
-    () => items.reduce((s, x) => s + Number(x.price) * Number(x.qty), 0),
-    [items]
+    () => cart.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.qty) || 0), 0),
+    [cart]
   );
 
-  const value = {
-    items,
-    total,
-    loading,
-    error,
-    addItem,
-    setQty,
-    removeItem,
-    clearCart,
-    tg_user_id,
-    tg_username,
-    tg_first_name,
-  };
+  // Сохраняем локально для оффлайна
+  useEffect(() => {
+    localStorage.setItem("cart_v1", JSON.stringify(cart));
+  }, [cart]);
+
+  // При старте — стянуть корзину с сервера и слить её с локальной
+  useEffect(() => {
+    const { tg_user_id } = getTgContext();
+    if (!tg_user_id) {
+      console.info("[cart] no tg_user_id — работаем только локально");
+      return;
+    }
+    (async () => {
+      try {
+        const srv = await fetchServerCart(tg_user_id);
+        const serverItems = Array.isArray(srv?.items) ? srv.items : [];
+        // Простое мердж-правило: если один и тот же product_key есть локально и на сервере —
+        // берём максимум qty (можно заменить на серверную версию или суммирование)
+        const map = new Map();
+        for (const it of serverItems) {
+          map.set(String(it.product_key), {
+            id: Number(it.product_key),
+            name: it.name,
+            price: Number(it.price) || 0,
+            qty: Number(it.qty) || 0,
+            images: it.meta?.images || [],
+          });
+        }
+        for (const it of cart) {
+          const key = String(it.id);
+          if (!map.has(key)) {
+            map.set(key, { ...it });
+          } else {
+            const cur = map.get(key);
+            map.set(key, { ...cur, qty: Math.max(cur.qty, it.qty) });
+          }
+        }
+        const merged = Array.from(map.values()).filter((x) => x.qty > 0);
+        setCart(merged);
+      } catch (e) {
+        console.warn("[cart] fetchServerCart failed:", e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Хелпер для записи на сервер (тихо, без падений UI)
+  async function safeCall(promise, label) {
+    try {
+      return await promise;
+    } catch (e) {
+      console.warn(`[cart:${label}] server call failed:`, e);
+      return null;
+    }
+  }
+
+  // Добавить товар (qty относительно текущего)
+  async function addItem(product, inc = 1) {
+    const id = Number(product?.id);
+    if (!id || inc <= 0) return;
+
+    // 1) локально
+    setCart((prev) => {
+      const idx = prev.findIndex((x) => x.id === id);
+      if (idx === -1) {
+        return [...prev, { id, name: product.name, price: product.price || 0, qty: inc, images: product.images || [] }];
+      } else {
+        const copy = [...prev];
+        copy[idx] = { ...copy[idx], qty: copy[idx].qty + inc };
+        return copy;
+      }
+    });
+
+    // 2) сервер
+    const { tg_user_id } = getTgContext();
+    if (!tg_user_id) return; // вне Telegram — просто локально
+    await safeCall(
+      addServerCartItem({
+        tg_user_id,
+        product_key: String(id),
+        name: product.name,
+        price: Number(product.price) || 0,
+        qty: inc,
+        meta: { images: product.images || [] },
+      }),
+      "add"
+    );
+  }
+
+  // Установить абсолютное количество
+  async function setQty(id, qty) {
+    id = Number(id);
+    qty = Number(qty);
+
+    // 1) локально
+    setCart((prev) => {
+      if (qty <= 0) return prev.filter((x) => x.id !== id);
+      const idx = prev.findIndex((x) => x.id === id);
+      if (idx === -1) {
+        return [...prev, { id, name: "", price: 0, qty }];
+      } else {
+        const copy = [...prev];
+        copy[idx] = { ...copy[idx], qty };
+        return copy;
+      }
+    });
+
+    // 2) сервер
+    const { tg_user_id } = getTgContext();
+    if (!tg_user_id) return;
+    if (qty <= 0) {
+      await safeCall(deleteServerCartItem({ tg_user_id, product_key: String(id) }), "delete");
+    } else {
+      await safeCall(updateServerCartQty({ tg_user_id, product_key: String(id), qty }), "updateQty");
+    }
+  }
+
+  // Удалить
+  async function removeItem(id) {
+    id = Number(id);
+
+    // 1) локально
+    setCart((prev) => prev.filter((x) => x.id !== id));
+
+    // 2) сервер
+    const { tg_user_id } = getTgContext();
+    if (!tg_user_id) return;
+    await safeCall(deleteServerCartItem({ tg_user_id, product_key: String(id) }), "delete");
+  }
+
+  // Очистить корзину
+  async function clearCart() {
+    const { tg_user_id } = getTgContext();
+    // локально
+    setCart([]);
+    // на сервере — пробежимся по текущему снапшоту и удалим
+    if (tg_user_id && cart.length) {
+      const ops = cart.map((it) =>
+        safeCall(deleteServerCartItem({ tg_user_id, product_key: String(it.id) }), "deleteAll")
+      );
+      await Promise.allSettled(ops);
+    }
+  }
+
+  const value = useMemo(
+    () => ({ cart, total, addItem, setQty, removeItem, clearCart }),
+    [cart, total]
+  );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+}
+
+export function useCart() {
+  return useContext(CartContext);
 }
