@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react"; // ★ NEW: useRef
 import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
 import GlobalStyle from "./styles/GlobalStyle";
@@ -14,6 +14,7 @@ import ProfilePage from "./pages/ProfilePage";
 import AgeGate from "./components/AgeGate";
 import PrivacyPage from "./pages/PrivacPage";
 import ConsentPage from "./pages/ConsentPage";
+import { ensureUserOnServer } from "./api/userApi"; // ★ NEW
 
 /* ====== Настройки прелоадера ====== */
 const PRELOADER_VIDEO = "/assets/video/Preloader.mp4";
@@ -71,9 +72,7 @@ function useTelegramGuard() {
     try {
       tg.ready?.();
       tg.expand?.();
-      // запрещаем сворачивать свайпом вниз
       if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
-      // включаем подтверждение при закрытии
       if (tg.enableClosingConfirmation) tg.enableClosingConfirmation();
 
       const onViewport = () => {
@@ -93,10 +92,28 @@ function AppShell() {
   const location = useLocation();
 
   const NAVBAR_HEIGHT = 64;
-
-  // Страницы, где NavBar НЕ показываем
   const noNavBarPages = ["/privacy-policy", "/consent"];
   const showNavBar = !noNavBarPages.includes(location.pathname);
+
+  // ★ NEW: авторегистрация пользователя на сервере (один раз)
+  const ensuredRef = useRef(false);
+  useEffect(() => {
+    if (ensuredRef.current) return;
+
+    const tg = window?.Telegram?.WebApp;
+    const initData = tg?.initData;
+    if (!initData) {
+      // Открыли вне Telegram — молча пропускаем
+      ensuredRef.current = true;
+      return;
+    }
+
+    ensureUserOnServer()
+      .catch((e) => console.warn("ensureUser error:", e?.message || e))
+      .finally(() => {
+        ensuredRef.current = true;
+      });
+  }, []);
 
   return (
     <>
@@ -151,7 +168,6 @@ export default function App() {
     let loadHandler = null;
     let timeoutId = null;
 
-    // Promise: ждём window.load
     const waitLoad = new Promise((resolve) => {
       if (document.readyState === "complete") {
         resolve();
@@ -161,28 +177,19 @@ export default function App() {
       window.addEventListener("load", loadHandler, { passive: true });
     });
 
-    // Promise: шрифты
     const fontsReady = document.fonts ? document.fonts.ready : Promise.resolve();
 
-    // safety timeout
     const safety = new Promise((resolve) => {
       timeoutId = setTimeout(resolve, SAFETY_TIMEOUT);
     });
 
-    // Ждём загрузки контента (или таймаута)
     Promise.race([Promise.all([waitLoad, fontsReady]), safety]).then(() => {
       if (!mounted) return;
 
-      // Вычисляем, сколько времени уже прошло
       const elapsedTime = Date.now() - startTime;
-
-      // Если прошло меньше минимального времени, ждём остаток
       const remainingTime = Math.max(0, MINIMUM_DISPLAY_TIME - elapsedTime);
-
-      // Добавляем дополнительную задержку
       const totalDelay = remainingTime + EXTRA_DELAY;
 
-      // Запускаем отложенный fadeOut
       timeoutId = setTimeout(() => {
         if (!mounted) return;
         setFadeOut(true);
@@ -196,7 +203,6 @@ export default function App() {
     };
   }, [startTime]);
 
-  // когда CSS-транзишн завершится — скрываем прелоадер из DOM
   const handlePreloaderTransitionEnd = () => {
     if (fadeOut) {
       setShowPreloader(false);
