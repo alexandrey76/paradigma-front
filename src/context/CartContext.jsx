@@ -6,7 +6,7 @@ import {
   addServerCartItem,
   updateServerCartQty,
   deleteServerCartItem,
-} from "../api/cart";
+} from "../api/cartApi";
 
 const CartContext = createContext(null);
 
