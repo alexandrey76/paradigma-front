@@ -6,6 +6,7 @@ import useEmblaCarousel from "embla-carousel-react";
 
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
+import { handleCartAction } from "../utils/cartApi";
 
 const PUB = process.env.PUBLIC_URL || "";
 
@@ -30,6 +31,16 @@ export default function HomePage() {
     qty > 0
       ? `${PUB}/assets/images/productCartActive.svg`
       : `${PUB}/assets/images/productCart.svg`;
+
+  const onAdd = async (product) => {
+    try {
+      await handleCartAction("add", product);
+      addItem(product, 1);
+    } catch (e) {
+      console.error(e);
+      alert(`Не удалось добавить в корзину: ${e.message || e}`);
+    }
+  };
 
   return (
     <Page>
@@ -117,7 +128,7 @@ export default function HomePage() {
                       <CartBtnWrap
                         onClick={(e) => {
                           e.stopPropagation();
-                          addItem(p, 1);
+                          onAdd(p);
                         }}
                         aria-label={
                           qty > 0 ? `В корзине: ${qty}` : "В корзину"
@@ -290,7 +301,6 @@ const LogoOverlay = styled.div`
 const HeroImg = styled.img`
   width: 100%;
   display: block;
-  height: auto;
 `;
 
 /* ——— Преимущества ——— */

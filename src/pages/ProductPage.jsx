@@ -1,18 +1,18 @@
 // src/pages/ProductPage.jsx
 import React, { useMemo, useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import styled from "styled-components";
 import useEmblaCarousel from "embla-carousel-react";
 
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
+import { handleCartAction } from "../utils/cartApi";
 import TopBar from "../components/TopBar";
 
 const PUB = process.env.PUBLIC_URL || "";
 
 export default function ProductPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const { addItem } = useCart();
 
   const product = useMemo(
@@ -79,6 +79,16 @@ export default function ProductPage() {
 
   const prev = () => emblaApi && emblaApi.scrollPrev();
   const next = () => emblaApi && emblaApi.scrollNext();
+
+  const onAdd = async (prod) => {
+    try {
+      await handleCartAction("add", prod);
+      addItem(prod, 1);
+    } catch (e) {
+      console.error(e);
+      alert(`Не удалось добавить в корзину: ${e.message || e}`);
+    }
+  };
 
   return (
     <FullBleed>
@@ -153,7 +163,7 @@ export default function ProductPage() {
 
         <PriceRow>
           <Price>{(product.price ?? 0).toLocaleString("ru-RU")} ₽</Price>
-          <AddBtn onClick={() => addItem(product)}>Добавить в корзину</AddBtn>
+          <AddBtn onClick={() => onAdd(product)}>Добавить в корзину</AddBtn>
         </PriceRow>
 
         {product.description && (
@@ -188,8 +198,8 @@ const Page = styled.main`
   min-height: 100dvh;
   color: #fff;
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  max-width: 720px; /* ограничение ширины */
-  margin: 0 auto;   /* центрируем */
+  max-width: 720px;
+  margin: 0 auto;
 `;
 
 const EmptyWrap = styled.div`
@@ -209,8 +219,8 @@ const Title = styled.h1`
 const MediaBox = styled.div`
   position: relative;
   width: 100%;
-  max-width: calc(100% - 20px); 
-  margin: 8px auto 18px;       
+  max-width: calc(100% - 20px);
+  margin: 8px auto 18px;
   aspect-ratio: 1 / 1;
   border: 2px solid #fff;
   border-radius: 12px;
@@ -235,7 +245,6 @@ const Slide = styled.div`
   overflow: hidden;
 `;
 
-/* Размытый фон */
 const BlurBg = styled.div`
   position: absolute;
   inset: 0;
@@ -246,7 +255,6 @@ const BlurBg = styled.div`
   z-index: 0;
 `;
 
-/* Медиа */
 const Img = styled.img`
   position: absolute;
   inset: 0;
@@ -266,7 +274,6 @@ const Vid = styled.video`
   background: transparent;
 `;
 
-/* Навигация */
 const NavArrow = styled.button`
   position: absolute;
   top: 50%;
@@ -329,18 +336,11 @@ const AddBtn = styled.button`
   padding: 10px 14px;
   font-weight: 700;
   font-size: 14px;
-  margin-right: 10px
   cursor: pointer;
   transition: transform 0.15s ease, background 0.2s ease, color 0.2s ease;
 
-  &:hover {
-    background: #f5b300;
-  }
-
   &:active {
     transform: scale(0.95);
-    background: #f5b300;
-    color: #000;
   }
 `;
 

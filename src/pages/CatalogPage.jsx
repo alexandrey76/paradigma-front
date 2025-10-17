@@ -6,6 +6,7 @@ import styled from "styled-components";
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
 import TopBar from "../components/TopBar";
+import { handleCartAction } from "../utils/cartApi";
 
 const PUB = process.env.PUBLIC_URL || "";
 
@@ -25,13 +26,20 @@ export default function CatalogPage() {
       ? `${PUB}/assets/images/productCartActive.svg`
       : `${PUB}/assets/images/productCart.svg`;
 
+  const onAdd = async (product) => {
+    try {
+      await handleCartAction("add", product);
+      addItem(product, 1); // обновим локально бейдж
+    } catch (e) {
+      console.error(e);
+      alert(`Не удалось добавить в корзину: ${e.message || e}`);
+    }
+  };
+
   return (
     <PageWrapper>
-      {/* 🔙 Заголовок с кнопкой назад */}
-      <TopBar title ="Каталог товаров"/>
+      <TopBar title="Каталог товаров" />
 
-
-      {/* 🔲 Сетка товаров */}
       <Grid>
         {products.map((p) => {
           const qty = getQty(p.id);
@@ -53,20 +61,13 @@ export default function CatalogPage() {
                   <Name>{p.name}</Name>
                 </PriceBlock>
 
-              <CartBtnWrap
-                onClick={(e) => { e.stopPropagation(); addItem(p, 1); }}
-                aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
-              >
-                {/* сама корзина */}
-                <img src={icon} alt="" />
-
-                {/* кружок + количество (только если есть товар) */}
-                {qty > 0 && (
-                  <CartBadge>
-                    {qty > 9 ? "9+" : qty}
-                  </CartBadge>
-                )}
-              </CartBtnWrap>
+                <CartBtnWrap
+                  onClick={(e) => { e.stopPropagation(); onAdd(p); }}
+                  aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
+                >
+                  <img src={icon} alt="" />
+                  {qty > 0 && <CartBadge>{qty > 9 ? "9+" : qty}</CartBadge>}
+                </CartBtnWrap>
               </InfoRow>
             </Card>
           );
@@ -94,7 +95,6 @@ const Grid = styled.div`
 
 const Card = styled.div`
   background: transparent;
-  border: 2px solid #000; /* внутренняя тень мы не рисуем, оставим чисто */
   border-radius: 8px;
   overflow: hidden;
   padding: 8px;
@@ -169,24 +169,6 @@ const CartBadge = styled.span`
   display: flex;
   align-items: center;
   justify-content: center;
-  line-height: 1;
-  pointer-events: none;
-`;
-
-/* Счётчик поверх жёлтого кружка в SVG */
-const CartCount = styled.span`
-  position: absolute;
-  top: 0px;      /* подгони под свой кружок */
-  right: 6px;    /* подгони под свой кружок */
-  width: 2px;   /* диаметр твоего жёлтого круга в SVG */
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  font-size: 8px;
-  font-weight: 800;
-  color: #000;   /* чёрный, чтобы читалось на жёлтом */
   line-height: 1;
   pointer-events: none;
 `;
