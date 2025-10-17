@@ -1,17 +1,18 @@
 // src/pages/CartPage.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
+import api from "../api/client"; // ⟵ добавили
 
+// корректный приоритет: env или локалка
 const API_BASE =
-  process.env.REACT_APP_API_BASE ||
-  "https://alexandrey76-paradigma-back-c956.twc1.net" ||
+  (process.env.REACT_APP_API_BASE && process.env.REACT_APP_API_BASE.trim()) ||
   "http://localhost:8000";
 
 export default function CartPage() {
-  const { cart, total, clearCart, removeItem, setQty } = useCart();
+  const { cart, total, clearCart, removeItem, setQty, tg_user_id, tg_username, tg_first_name } = useCart();
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -22,34 +23,56 @@ export default function CartPage() {
     tg?.ready();
   }, []);
 
+  const formattedTotal = useMemo(
+    () => (Number.isFinite(total) ? total.toLocaleString("ru-RU") : "0"),
+    [total]
+  );
+
   const handleSubmit = async () => {
     setError("");
-    if (!cart?.length) {
-      setError("Корзина пуста");
-      return;
-    }
 
+    // 1) Получаем пользователя из Telegram
     const tg = window.Telegram?.WebApp;
     const u = tg?.initDataUnsafe?.user;
     const initData = tg?.initData || "";
 
-    const payload = {
-      items: cart.map((i) => ({
-        id: i.id,
-        name: i.name,
-        price: i.price,
-        qty: i.qty,
-      })),
-      contact: {
-        tg_user_id: u?.id ?? null,
-        tg_username: u?.username ?? null,
-        tg_first_name: u?.first_name ?? null,
-        init_data: initData,
-      },
-    };
+    const uid = tg_user_id || u?.id || null;
+    if (!uid) {
+      setError("Не удалось определить пользователя Telegram");
+      alert("Не удалось определить пользователя Telegram");
+      return;
+    }
 
     try {
       setSending(true);
+
+      // 2) Берём САМЫЕ СВЕЖИЕ позиции из серверной корзины
+      const serverCart = await api.getCart(uid); // { tg_user_id, items: [...] }
+      const items = (serverCart?.items || []).map((it) => ({
+        id: it.product_key,              // ⟵ ВАЖНО: product_key === id товара во фронте
+        name: it.name,
+        price: Number(it.price),
+        qty: Number(it.qty),
+        // image: it.meta?.image,        // если нужно
+      }));
+
+      if (!items.length) {
+        setError("Корзина пуста");
+        alert("Корзина пуста");
+        return;
+      }
+
+      // 3) Формируем контакт и отправляем заказ
+      const payload = {
+        items,
+        contact: {
+          tg_user_id: uid,
+          tg_username: tg_username ?? u?.username ?? null,
+          tg_first_name: tg_first_name ?? u?.first_name ?? null,
+          init_data: initData,
+        },
+      };
+
       const res = await fetch(`${API_BASE}/api/orders`, {
         method: "POST",
         headers: {
@@ -64,12 +87,15 @@ export default function CartPage() {
 
       if (!res.ok) {
         throw new Error(
-          (data && (data.detail || data.message)) || `HTTP ${res.status}`
+          (data && (data.detail || data.message || data.error)) ||
+            `HTTP ${res.status}`
         );
       }
 
+      // 4) Очищаем корзину на сервере и в контексте
+      await api.clearCart(uid); // сервер
+      await clearCart();        // контекст
       alert(`Заявка №${data.order_id} отправлена`);
-      clearCart();
     } catch (err) {
       console.error("Request error:", err);
       setError(String(err.message || err));
@@ -131,7 +157,7 @@ export default function CartPage() {
                 {i.description && (
                   <SpecList>
                     {i.description
-                      .split(/\r?\n|•|- |—/)
+                      .split(/\r?\n|•|- |—/m)
                       .filter(Boolean)
                       .map((f, idx) => (
                         <li key={idx}>{f.trim()}</li>
@@ -144,7 +170,7 @@ export default function CartPage() {
 
           <BottomBar>
             <Total>
-              Итого: <b>{total.toLocaleString("ru-RU")} ₽</b>
+              Итого: <b>{formattedTotal} ₽</b>
             </Total>
             <SendBtn onClick={handleSubmit} disabled={sending}>
               {sending ? "Отправляем…" : "Оставить заявку"}
@@ -158,7 +184,7 @@ export default function CartPage() {
   );
 }
 
-/* ===== styled-components ===== */
+/* ===== styled-components (без изменений по смыслу) ===== */
 
 const NAVBAR_HEIGHT = 64;
 

@@ -1,50 +1,116 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+// src/context/CartContext.jsx
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import api from "../api/client";
 
 const CartContext = createContext(null);
 export const useCart = () => useContext(CartContext);
 
-const LS_KEY = "cart.v1";
+function getTelegramUser() {
+  const tg = window?.Telegram?.WebApp;
+  return {
+    tg,
+    tg_user_id: tg?.initDataUnsafe?.user?.id || null,
+    tg_username: tg?.initDataUnsafe?.user?.username || null,
+    tg_first_name: tg?.initDataUnsafe?.user?.first_name || null,
+  };
+}
 
 export function CartProvider({ children }) {
-  const [cart, setCart] = useState(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  });
+  const { tg, tg_user_id, tg_username, tg_first_name } = getTelegramUser();
 
-  // сохраняем корзину в localStorage
+  // Telegram UI готовность (не обязательно, но полезно)
   useEffect(() => {
-    localStorage.setItem(LS_KEY, JSON.stringify(cart));
-  }, [cart]);
+    try {
+      tg?.ready?.();
+    } catch {}
+  }, [tg]);
 
-  const addItem = (item, qty = 1) => {
-    if (!item?.id) return;
-    setCart(prev => {
-      const idx = prev.findIndex(x => x.id === item.id);
-      if (idx === -1) return [...prev, { ...item, qty }];
-      const next = [...prev];
-      next[idx] = { ...next[idx], qty: next[idx].qty + qty };
-      return next;
+  const [items, setItems] = useState([]); // [{product_key,name,price,qty,meta,added_at}]
+  const [loading, setLoading] = useState(Boolean(tg_user_id));
+  const [error, setError] = useState("");
+
+  // загрузка корзины при монтировании/смене пользователя
+  useEffect(() => {
+    if (!tg_user_id) return;
+    (async () => {
+      try {
+        setLoading(true);
+        const data = await api.getCart(tg_user_id);
+        setItems(data.items || []);
+        setError("");
+      } catch (e) {
+        setError(e.message || "Не удалось загрузить корзину");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [tg_user_id]);
+
+  // добавить/увеличить qty
+  const addItem = async (product, qty = 1, meta = {}) => {
+    if (!tg_user_id || !product) return;
+    await api.addCartItem({
+      tg_user_id,
+      product_key: String(product.id), // ВАЖНО: стабильный ключ (id/sku/slug)
+      name: product.name,
+      price: Number(product.price),
+      qty: Number(qty),
+      meta: { image: product.image, ...meta },
     });
+    const data = await api.getCart(tg_user_id);
+    setItems(data.items || []);
   };
 
-  const removeItem = (id) => setCart(prev => prev.filter(x => x.id !== id));
+  // установить точное количество (qty<=0 удаляет позицию)
+  const setQty = async (product_key, qty) => {
+    if (!tg_user_id) return;
+    await api.setCartItemQty({
+      tg_user_id,
+      product_key: String(product_key),
+      qty: Number(qty),
+    });
+    const data = await api.getCart(tg_user_id);
+    setItems(data.items || []);
+  };
 
-  const setQty = (id, qty) =>
-    setCart(prev =>
-      prev.map(x => (x.id === id ? { ...x, qty: Math.max(1, qty) } : x))
-    );
+  // удалить одну позицию
+  const removeItem = async (product_key) => {
+    if (!tg_user_id) return;
+    await api.removeCartItem(tg_user_id, String(product_key));
+    setItems((prev) => prev.filter((x) => String(x.product_key) !== String(product_key)));
+  };
 
-  const clearCart = () => setCart([]);
+  // очистить корзину
+  const clearCart = async () => {
+    if (!tg_user_id) return;
+    await api.clearCart(tg_user_id);
+    setItems([]);
+  };
 
   const total = useMemo(
-    () => cart.reduce((s, x) => s + x.price * x.qty, 0),
-    [cart]
+    () => items.reduce((s, x) => s + Number(x.price) * Number(x.qty), 0),
+    [items]
   );
 
-  const value = { cart, addItem, removeItem, setQty, clearCart, total };
+  const value = {
+    items,
+    total,
+    loading,
+    error,
+    addItem,
+    setQty,
+    removeItem,
+    clearCart,
+    tg_user_id,
+    tg_username,
+    tg_first_name,
+  };
+
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
