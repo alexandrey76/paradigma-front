@@ -53,7 +53,7 @@ function PreloaderOverlay({ videoSrc, fadeOut, onTransitionEnd }) {
         style={{
           width: "100%",
           height: "100%",
-          object-fit: "cover",
+          object_fit: "cover",
           background: "transparent",
         }}
       />
