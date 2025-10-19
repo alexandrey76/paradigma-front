@@ -7,12 +7,18 @@ import {
   updateServerCartQty,
   deleteServerCartItem,
 } from "../api/cartApi";
+import products from "../data/products"; // ★ NEW: импортируем продукты
 
 const CartContext = createContext(null);
 
 export function CartProvider({ children }) {
-  const [cart, setCart] = useState([]); // начинаем с пустой корзины
+  const [cart, setCart] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // ★ NEW: функция для получения данных товара по ID
+  const getProductById = (productId) => {
+    return products.find(product => product.id === productId);
+  };
 
   const total = useMemo(
     () => cart.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.qty) || 0), 0),
@@ -44,14 +50,20 @@ export function CartProvider({ children }) {
         console.log("[cart] Loading cart from server for user:", tg_user_id);
         const serverItems = await fetchServerCart();
         
-        // Преобразуем серверные товары в локальный формат
-        const serverCartNormalized = serverItems.map(item => ({
-          id: Number(item.product_key),
-          name: item.name,
-          price: Number(item.price) || 0,
-          qty: Number(item.qty) || 0,
-          images: item.meta?.images || [item.meta?.image].filter(Boolean),
-        }));
+        // ★ UPDATED: Обогащаем данные товарами из products.js
+        const serverCartNormalized = serverItems.map(serverItem => {
+          const productId = Number(serverItem.product_key);
+          const productData = getProductById(productId);
+          
+          return {
+            id: productId,
+            name: productData?.name || serverItem.name || `Товар ${productId}`,
+            price: Number(productData?.price) || Number(serverItem.price) || 0,
+            qty: Number(serverItem.qty) || 0,
+            images: productData?.images || [serverItem.meta?.image].filter(Boolean) || [],
+            description: productData?.description || "",
+          };
+        });
 
         console.log("[cart] Server cart loaded:", serverCartNormalized.length, "items");
         setCart(serverCartNormalized);
@@ -63,7 +75,18 @@ export function CartProvider({ children }) {
           const localCart = localStorage.getItem("cart_v1");
           if (localCart) {
             const parsed = JSON.parse(localCart);
-            setCart(Array.isArray(parsed) ? parsed : []);
+            // ★ UPDATED: Обогащаем и локальные данные
+            const enrichedLocalCart = parsed.map(item => {
+              const productData = getProductById(item.id);
+              return {
+                ...item,
+                name: productData?.name || item.name,
+                price: Number(productData?.price) || Number(item.price) || 0,
+                images: productData?.images || item.images || [],
+                description: productData?.description || item.description || "",
+              };
+            });
+            setCart(Array.isArray(enrichedLocalCart) ? enrichedLocalCart : []);
           }
         } catch (localError) {
           console.warn("[cart] Local storage load failed:", localError);
@@ -74,7 +97,7 @@ export function CartProvider({ children }) {
     };
 
     loadCartFromServer();
-  }, []); // пустой массив зависимостей - выполняется только при монтировании
+  }, []);
 
   // Хелпер для безопасного вызова API
   async function safeApiCall(promise, label) {
@@ -91,16 +114,20 @@ export function CartProvider({ children }) {
     const id = Number(product?.id);
     if (!id || inc <= 0) return;
 
+    // ★ UPDATED: Получаем полные данные товара
+    const productData = getProductById(id) || product;
+
     // 1) Обновляем локальное состояние
     setCart((prev) => {
       const idx = prev.findIndex((x) => x.id === id);
       if (idx === -1) {
         return [...prev, { 
           id, 
-          name: product.name, 
-          price: product.price || 0, 
+          name: productData.name, 
+          price: productData.price || 0, 
           qty: inc, 
-          images: product.images || [] 
+          images: productData.images || [],
+          description: productData.description || "",
         }];
       } else {
         const copy = [...prev];
@@ -114,7 +141,7 @@ export function CartProvider({ children }) {
     if (!tg_user_id) return;
 
     await safeApiCall(
-      addServerCartItem(product, inc),
+      addServerCartItem(productData, inc),
       "addItem"
     );
   }
@@ -130,7 +157,16 @@ export function CartProvider({ children }) {
       
       const idx = prev.findIndex((x) => x.id === id);
       if (idx === -1) {
-        return [...prev, { id, name: "", price: 0, qty, images: [] }];
+        // ★ UPDATED: Получаем данные товара при добавлении
+        const productData = getProductById(id);
+        return [...prev, { 
+          id, 
+          name: productData?.name || "", 
+          price: productData?.price || 0, 
+          qty, 
+          images: productData?.images || [],
+          description: productData?.description || "",
+        }];
       } else {
         const copy = [...prev];
         copy[idx] = { ...copy[idx], qty };
@@ -194,13 +230,20 @@ export function CartProvider({ children }) {
       setIsLoading(true);
       const serverItems = await fetchServerCart();
       
-      const serverCartNormalized = serverItems.map(item => ({
-        id: Number(item.product_key),
-        name: item.name,
-        price: Number(item.price) || 0,
-        qty: Number(item.qty) || 0,
-        images: item.meta?.images || [item.meta?.image].filter(Boolean),
-      }));
+      // ★ UPDATED: Обогащаем данные товарами из products.js
+      const serverCartNormalized = serverItems.map(serverItem => {
+        const productId = Number(serverItem.product_key);
+        const productData = getProductById(productId);
+        
+        return {
+          id: productId,
+          name: productData?.name || serverItem.name || `Товар ${productId}`,
+          price: Number(productData?.price) || Number(serverItem.price) || 0,
+          qty: Number(serverItem.qty) || 0,
+          images: productData?.images || [serverItem.meta?.image].filter(Boolean) || [],
+          description: productData?.description || "",
+        };
+      });
 
       setCart(serverCartNormalized);
       console.log("[cart] Cart synced with server:", serverCartNormalized.length, "items");
@@ -222,7 +265,7 @@ export function CartProvider({ children }) {
       removeItem, 
       clearCart,
       getItemQuantity,
-      syncCart, // новая функция для принудительной синхронизации
+      syncCart,
     }),
     [cart, total, totalItems, isLoading]
   );
