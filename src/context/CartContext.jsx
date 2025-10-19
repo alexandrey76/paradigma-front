@@ -6,6 +6,7 @@ import {
   addServerCartItem,
   updateServerCartQty,
   deleteServerCartItem,
+  cartDelta // ★ ADD: импортируем cartDelta
 } from "../api/cartApi";
 import products from "../data/products";
 
@@ -143,14 +144,17 @@ export function CartProvider({ children }) {
     id = Number(id);
     qty = Number(qty);
 
-    // 1) Обновляем локальное состояние - ТОЛЬКО если товар уже есть в корзине
+    // Находим текущий товар в корзине чтобы получить его данные
+    const currentItem = cart.find(item => item.id === id);
+    if (!currentItem) {
+      console.warn(`[cart] Product ${id} not found in cart`);
+      return;
+    }
+
+    // 1) Обновляем локальное состояние
     setCart((prev) => {
       const idx = prev.findIndex((x) => x.id === id);
-      if (idx === -1) {
-        // Товара нет в корзине - ничего не делаем
-        console.warn(`[cart] Cannot set quantity for product ${id} - not in cart`);
-        return prev;
-      }
+      if (idx === -1) return prev;
       
       if (qty <= 0) {
         return prev.filter((x) => x.id !== id);
@@ -164,11 +168,14 @@ export function CartProvider({ children }) {
     // 2) Синхронизируем с сервером
     const { tg_user_id } = getTgContext();
     if (!tg_user_id) return;
+  
+    // ★ FIXED: передаем полные данные товара используя cartDelta
+    const productData = getProductById(id) || currentItem;
     
     if (qty <= 0) {
       await safeApiCall(deleteServerCartItem(id), "delete");
     } else {
-      await safeApiCall(updateServerCartQty(id, qty), "updateQty");
+      await safeApiCall(cartDelta({ product: productData, setQty: qty }), "updateQty");
     }
   }
 
@@ -176,14 +183,20 @@ export function CartProvider({ children }) {
   async function removeItem(id) {
     id = Number(id);
 
+    // Находим текущий товар в корзине чтобы получить его данные
+    const currentItem = cart.find(item => item.id === id);
+    if (!currentItem) return;
+
     // 1) Обновляем локальное состояние
     setCart((prev) => prev.filter((x) => x.id !== id));
 
     // 2) Синхронизируем с сервером
     const { tg_user_id } = getTgContext();
     if (!tg_user_id) return;
-    
-    await safeApiCall(deleteServerCartItem(id), "removeItem");
+  
+    // ★ FIXED: передаем полные данные товара используя cartDelta
+    const productData = getProductById(id) || currentItem;
+    await safeApiCall(cartDelta({ product: productData, setQty: 0 }), "removeItem");
   }
 
   // Очистить корзину

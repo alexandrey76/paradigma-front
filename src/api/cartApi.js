@@ -31,12 +31,6 @@ async function apiFetch(path, opts = {}) {
 export async function cartDelta({ product, delta, setQty }) {
   const ctx = getTgContext();
 
-  // Подготавливаем meta данные - только базовые поля
-  const meta = {};
-  if (product?.images?.[0]) {
-    meta.image = product.images[0];
-  }
-
   const payload = {
     tg_user_id: ctx.tg_user_id,
     tg_username: ctx.tg_username,
@@ -81,9 +75,27 @@ export async function addServerCartItem(product, qty = 1) {
 }
 
 export async function deleteServerCartItem(productId) {
-  return cartDelta({ product: { id: productId }, setQty: 0 });
+  // ★ FIXED: передаем объект товара с минимальными данными
+  return cartDelta({ 
+    product: { 
+      id: productId,
+      name: `Товар ${productId}`,
+      price: 0,
+      images: []
+    }, 
+    setQty: 0 
+  });
 }
 
 export async function updateServerCartQty(productId, newQty) {
-  return cartDelta({ product: { id: productId }, setQty: newQty });
+  // ★ FIXED: передаем объект товара с минимальными данными
+  return cartDelta({ 
+    product: { 
+      id: productId,
+      name: `Товар ${productId}`,
+      price: 0,
+      images: []
+    }, 
+    setQty: newQty 
+  });
 }
