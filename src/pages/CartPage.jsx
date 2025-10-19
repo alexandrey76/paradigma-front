@@ -9,7 +9,7 @@ import { getTgContext } from "../api/cartApi";
 
 // корректный приоритет: env или локалка
 const API_BASE =
-  (process.env.REACT_APP_API_BASE && process.env.REACT_APP_API_BASE.trim()) ||
+  process.env.REACT_APP_API_BASE ||
   "http://localhost:8000";
 
 export default function CartPage() {
