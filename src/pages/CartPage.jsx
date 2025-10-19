@@ -95,18 +95,23 @@ export default function CartPage() {
       // 5) Очищаем корзину на сервере и в контексте
       // Сначала очищаем локально, затем на сервере
       clearCart();
-      
-      // Очищаем корзину на сервере одним запросом
-      await fetch(`${API_BASE}/api/cart`, {
-        method: 'DELETE', 
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tg_user_id: uid
-        })
-      });
-      
+
+      // Пытаемся очистить корзину на сервере, но не блокируем успех заказа
+      try {
+        await fetch(`${API_BASE}/api/cart`, {
+          method: 'DELETE', 
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tg_user_id: uid
+          })
+        });
+      } catch (err) {
+        console.log("Cart clear failed, but order was created:", err);
+        // Игнорируем ошибку - заказ уже создан
+      }
+
       alert(`Заявка №${data.order_id} отправлена! Менеджер свяжется с вами в ближайшее время.`);
       
     } catch (err) {
