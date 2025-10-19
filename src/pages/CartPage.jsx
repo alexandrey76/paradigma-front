@@ -96,11 +96,16 @@ export default function CartPage() {
       // Сначала очищаем локально, затем на сервере
       clearCart();
       
-      // Удаляем все товары на сервере
-      const deletePromises = cart.map(item =>
-        api.deleteServerCartItem(item.id)
-      );
-      await Promise.allSettled(deletePromises);
+      // Очищаем корзину на сервере одним запросом
+      await fetch(`${API_BASE}/api/cart`, {
+        method: 'DELETE', 
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tg_user_id: uid
+        })
+      });
       
       alert(`Заявка №${data.order_id} отправлена! Менеджер свяжется с вами в ближайшее время.`);
       
