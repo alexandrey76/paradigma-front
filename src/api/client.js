@@ -1,7 +1,7 @@
 // src/api/client.js
 const BASE =
-  (process.env.REACT_APP_API_BASE && process.env.REACT_APP_API_BASE.trim()) ||
-  "http://localhost:8000"; // локальная отладка
+  process.env.REACT_APP_API_BASE ||
+  "http://localhost:8000" || "https://alexandrey76-paradigma-back-c956.twc1.net"; // локальная отладка
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
