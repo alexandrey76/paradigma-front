@@ -1,7 +1,7 @@
 // src/App.jsx
 import React, { useEffect, useState, useRef } from "react"; // ★ NEW: useRef
 import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { CartProvider } from "./context/CartContext";
+import { CartProvider, useCart } from "./context/CartContext"; // ★ NEW: useCart
 import GlobalStyle from "./styles/GlobalStyle";
 
 import HomePage from "./pages/HomePage";
@@ -53,7 +53,7 @@ function PreloaderOverlay({ videoSrc, fadeOut, onTransitionEnd }) {
         style={{
           width: "100%",
           height: "100%",
-          objectFit: "cover",
+          object-fit: "cover",
           background: "transparent",
         }}
       />
@@ -90,6 +90,7 @@ function useTelegramGuard() {
 function AppShell() {
   useTelegramGuard();
   const location = useLocation();
+  const { syncCart } = useCart(); // ★ NEW: получаем функцию синхронизации корзины
 
   const NAVBAR_HEIGHT = 64;
   const noNavBarPages = ["/privacy-policy", "/consent"];
@@ -114,6 +115,22 @@ function AppShell() {
         ensuredRef.current = true;
       });
   }, []);
+
+  // ★ NEW: синхронизируем корзину с сервером при каждом запуске приложения
+  useEffect(() => {
+    const syncCartOnStart = async () => {
+      const tg = window?.Telegram?.WebApp;
+      const initData = tg?.initData;
+      
+      if (initData) {
+        // Только если пользователь в Telegram - синхронизируем корзину
+        console.log("🔄 Syncing cart with server on app start...");
+        await syncCart();
+      }
+    };
+
+    syncCartOnStart();
+  }, [syncCart]);
 
   return (
     <>

@@ -11,14 +11,8 @@ import {
 const CartContext = createContext(null);
 
 export function CartProvider({ children }) {
-  const [cart, setCart] = useState(() => {
-    try {
-      const raw = localStorage.getItem("cart_v1") || "[]";
-      return JSON.parse(raw);
-    } catch {
-      return [];
-    }
-  });
+  const [cart, setCart] = useState([]); // начинаем с пустой корзины
+  const [isLoading, setIsLoading] = useState(true);
 
   const total = useMemo(
     () => cart.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.qty) || 0), 0),
@@ -35,16 +29,19 @@ export function CartProvider({ children }) {
     localStorage.setItem("cart_v1", JSON.stringify(cart));
   }, [cart]);
 
-  // При старте — стянуть корзину с сервера и слить её с локальной
+  // ПРИ СТАРТЕ — всегда стянуть корзину с сервера
   useEffect(() => {
-    const { tg_user_id } = getTgContext();
-    if (!tg_user_id) {
-      console.info("[cart] no tg_user_id — работаем только локально");
-      return;
-    }
-    
-    (async () => {
+    const loadCartFromServer = async () => {
+      const { tg_user_id } = getTgContext();
+      
+      if (!tg_user_id) {
+        console.info("[cart] no tg_user_id — работаем только локально");
+        setIsLoading(false);
+        return;
+      }
+      
       try {
+        console.log("[cart] Loading cart from server for user:", tg_user_id);
         const serverItems = await fetchServerCart();
         
         // Преобразуем серверные товары в локальный формат
@@ -56,30 +53,28 @@ export function CartProvider({ children }) {
           images: item.meta?.images || [item.meta?.image].filter(Boolean),
         }));
 
-        // Мердж корзин: приоритет у серверной версии
-        const mergedMap = new Map();
-        
-        // Сначала добавляем серверные товары
-        serverCartNormalized.forEach(item => {
-          mergedMap.set(item.id, item);
-        });
-        
-        // Затем добавляем локальные товары только если их нет на сервере
-        cart.forEach(localItem => {
-          if (!mergedMap.has(localItem.id)) {
-            mergedMap.set(localItem.id, localItem);
-          }
-        });
-
-        const merged = Array.from(mergedMap.values()).filter(item => item.qty > 0);
-        setCart(merged);
+        console.log("[cart] Server cart loaded:", serverCartNormalized.length, "items");
+        setCart(serverCartNormalized);
         
       } catch (e) {
         console.warn("[cart] fetchServerCart failed:", e);
+        // Если не удалось загрузить с сервера, пробуем загрузить из localStorage
+        try {
+          const localCart = localStorage.getItem("cart_v1");
+          if (localCart) {
+            const parsed = JSON.parse(localCart);
+            setCart(Array.isArray(parsed) ? parsed : []);
+          }
+        } catch (localError) {
+          console.warn("[cart] Local storage load failed:", localError);
+        }
+      } finally {
+        setIsLoading(false);
       }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    };
+
+    loadCartFromServer();
+  }, []); // пустой массив зависимостей - выполняется только при монтировании
 
   // Хелпер для безопасного вызова API
   async function safeApiCall(promise, label) {
@@ -190,18 +185,46 @@ export function CartProvider({ children }) {
     return item ? item.qty : 0;
   }
 
+  // Принудительно синхронизировать корзину с сервером
+  async function syncCart() {
+    const { tg_user_id } = getTgContext();
+    if (!tg_user_id) return;
+
+    try {
+      setIsLoading(true);
+      const serverItems = await fetchServerCart();
+      
+      const serverCartNormalized = serverItems.map(item => ({
+        id: Number(item.product_key),
+        name: item.name,
+        price: Number(item.price) || 0,
+        qty: Number(item.qty) || 0,
+        images: item.meta?.images || [item.meta?.image].filter(Boolean),
+      }));
+
+      setCart(serverCartNormalized);
+      console.log("[cart] Cart synced with server:", serverCartNormalized.length, "items");
+    } catch (e) {
+      console.warn("[cart] Sync failed:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   const value = useMemo(
     () => ({ 
       cart, 
       total, 
       totalItems,
+      isLoading,
       addItem, 
       setQty, 
       removeItem, 
       clearCart,
       getItemQuantity,
+      syncCart, // новая функция для принудительной синхронизации
     }),
-    [cart, total, totalItems]
+    [cart, total, totalItems, isLoading]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
