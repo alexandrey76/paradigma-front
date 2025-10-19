@@ -25,6 +25,11 @@ export function CartProvider({ children }) {
     [cart]
   );
 
+  const totalItems = useMemo(
+    () => cart.reduce((total, item) => total + item.qty, 0),
+    [cart]
+  );
+
   // Сохраняем локально для оффлайна
   useEffect(() => {
     localStorage.setItem("cart_v1", JSON.stringify(cart));
@@ -37,43 +42,37 @@ export function CartProvider({ children }) {
       console.info("[cart] no tg_user_id — работаем только локально");
       return;
     }
+    
     (async () => {
       try {
-        const serverItems = await fetchServerCart(tg_user_id);
+        const serverItems = await fetchServerCart();
         
-        // Простое мердж-правило: если один и тот же product_key есть локально и на сервере —
-        // берём максимум qty
-        const map = new Map();
+        // Преобразуем серверные товары в локальный формат
+        const serverCartNormalized = serverItems.map(item => ({
+          id: Number(item.product_key),
+          name: item.name,
+          price: Number(item.price) || 0,
+          qty: Number(item.qty) || 0,
+          images: item.meta?.images || [item.meta?.image].filter(Boolean),
+        }));
+
+        // Мердж корзин: приоритет у серверной версии
+        const mergedMap = new Map();
         
-        // Добавляем серверные товары
-        for (const it of serverItems) {
-          map.set(String(it.product_key), {
-            id: Number(it.product_key),
-            name: it.name,
-            price: Number(it.price) || 0,
-            qty: Number(it.qty) || 0,
-            images: it.meta?.images || [it.meta?.image].filter(Boolean),
-          });
-        }
+        // Сначала добавляем серверные товары
+        serverCartNormalized.forEach(item => {
+          mergedMap.set(item.id, item);
+        });
         
-        // Добавляем локальные товары (если их нет на сервере или qty больше)
-        for (const it of cart) {
-          const key = String(it.id);
-          if (!map.has(key)) {
-            map.set(key, { ...it });
-          } else {
-            const cur = map.get(key);
-            map.set(key, { ...cur, qty: Math.max(cur.qty, it.qty) });
+        // Затем добавляем локальные товары только если их нет на сервере
+        cart.forEach(localItem => {
+          if (!mergedMap.has(localItem.id)) {
+            mergedMap.set(localItem.id, localItem);
           }
-        }
-        
-        const merged = Array.from(map.values()).filter((x) => x.qty > 0);
+        });
+
+        const merged = Array.from(mergedMap.values()).filter(item => item.qty > 0);
         setCart(merged);
-        
-        // Синхронизируем объединенную корзину на сервер
-        if (merged.length > 0) {
-          await syncCartToServer(tg_user_id, merged);
-        }
         
       } catch (e) {
         console.warn("[cart] fetchServerCart failed:", e);
@@ -82,37 +81,12 @@ export function CartProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Синхронизация всей корзины на сервер
-  async function syncCartToServer(tg_user_id, cartItems) {
-    try {
-      await fetch('/api/cart/update-bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tg_user_id,
-          items: cartItems.map(item => ({
-            product_key: String(item.id),
-            name: item.name,
-            price: Number(item.price) || 0,
-            qty: Number(item.qty) || 0,
-            meta: { 
-              images: item.images || [],
-              image: item.images?.[0] || null
-            }
-          }))
-        })
-      });
-    } catch (e) {
-      console.warn("[cart] syncCartToServer failed:", e);
-    }
-  }
-
-  // Хелпер для записи на сервер (тихо, без падений UI)
-  async function safeCall(promise, label) {
+  // Хелпер для безопасного вызова API
+  async function safeApiCall(promise, label) {
     try {
       return await promise;
     } catch (e) {
-      console.warn(`[cart:${label}] server call failed:`, e);
+      console.warn(`[cart:${label}] API call failed:`, e);
       return null;
     }
   }
@@ -122,7 +96,7 @@ export function CartProvider({ children }) {
     const id = Number(product?.id);
     if (!id || inc <= 0) return;
 
-    // 1) локально
+    // 1) Обновляем локальное состояние
     setCart((prev) => {
       const idx = prev.findIndex((x) => x.id === id);
       if (idx === -1) {
@@ -140,24 +114,13 @@ export function CartProvider({ children }) {
       }
     });
 
-    // 2) сервер
+    // 2) Синхронизируем с сервером
     const { tg_user_id } = getTgContext();
-    if (!tg_user_id) return; // вне Telegram — просто локально
-    
-    await safeCall(
-      fetch('/api/cart/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tg_user_id,
-          product_id: String(id),
-          name: product.name,
-          price: Number(product.price) || 0,
-          image: product.images?.[0] || null,
-          delta: inc
-        })
-      }),
-      "add"
+    if (!tg_user_id) return;
+
+    await safeApiCall(
+      addServerCartItem(product, inc),
+      "addItem"
     );
   }
 
@@ -166,12 +129,13 @@ export function CartProvider({ children }) {
     id = Number(id);
     qty = Number(qty);
 
-    // 1) локально
+    // 1) Обновляем локальное состояние
     setCart((prev) => {
       if (qty <= 0) return prev.filter((x) => x.id !== id);
+      
       const idx = prev.findIndex((x) => x.id === id);
       if (idx === -1) {
-        return [...prev, { id, name: "", price: 0, qty }];
+        return [...prev, { id, name: "", price: 0, qty, images: [] }];
       } else {
         const copy = [...prev];
         copy[idx] = { ...copy[idx], qty };
@@ -179,73 +143,44 @@ export function CartProvider({ children }) {
       }
     });
 
-    // 2) сервер
+    // 2) Синхронизируем с сервером
     const { tg_user_id } = getTgContext();
     if (!tg_user_id) return;
     
-    await safeCall(
-      fetch('/api/cart/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tg_user_id,
-          product_id: String(id),
-          set_qty: qty
-        })
-      }),
-      "setQty"
-    );
+    if (qty <= 0) {
+      await safeApiCall(deleteServerCartItem(id), "delete");
+    } else {
+      await safeApiCall(updateServerCartQty(id, qty), "updateQty");
+    }
   }
 
-  // Удалить
+  // Удалить товар
   async function removeItem(id) {
     id = Number(id);
 
-    // 1) локально
+    // 1) Обновляем локальное состояние
     setCart((prev) => prev.filter((x) => x.id !== id));
 
-    // 2) сервер
+    // 2) Синхронизируем с сервером
     const { tg_user_id } = getTgContext();
     if (!tg_user_id) return;
     
-    await safeCall(
-      fetch('/api/cart/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tg_user_id,
-          product_id: String(id),
-          set_qty: 0
-        })
-      }),
-      "remove"
-    );
+    await safeApiCall(deleteServerCartItem(id), "removeItem");
   }
 
   // Очистить корзину
   async function clearCart() {
     const { tg_user_id } = getTgContext();
     
-    // локально
+    // 1) Очищаем локальное состояние
     setCart([]);
     
-    // на сервере — удаляем все товары
-    if (tg_user_id && cart.length) {
-      const ops = cart.map((it) =>
-        safeCall(
-          fetch('/api/cart/update', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              tg_user_id,
-              product_id: String(it.id),
-              set_qty: 0
-            })
-          }),
-          "clearItem"
-        )
+    // 2) Синхронизируем с сервером - удаляем все товары
+    if (tg_user_id && cart.length > 0) {
+      const deletePromises = cart.map(item =>
+        safeApiCall(deleteServerCartItem(item.id), "clearCartItem")
       );
-      await Promise.allSettled(ops);
+      await Promise.allSettled(deletePromises);
     }
   }
 
@@ -254,12 +189,6 @@ export function CartProvider({ children }) {
     const item = cart.find(item => item.id === productId);
     return item ? item.qty : 0;
   }
-
-  // Получить общее количество товаров в корзине
-  const totalItems = useMemo(
-    () => cart.reduce((total, item) => total + item.qty, 0),
-    [cart]
-  );
 
   const value = useMemo(
     () => ({ 
@@ -270,7 +199,7 @@ export function CartProvider({ children }) {
       setQty, 
       removeItem, 
       clearCart,
-      getItemQuantity
+      getItemQuantity,
     }),
     [cart, total, totalItems]
   );
