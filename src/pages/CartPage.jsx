@@ -5,7 +5,7 @@ import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import api from "../api/client";
-import { getTgContext, cartDelta } from "../api/cartApi";
+import { getTgContext } from "../api/cartApi";
 
 // корректный приоритет: env или локалка
 const API_BASE =
@@ -28,33 +28,6 @@ export default function CartPage() {
     () => (Number.isFinite(total) ? total.toLocaleString("ru-RU") : "0"),
     [total]
   );
-
-  // Функция для обновления количества с синхронизацией на сервер
-  const updateQuantity = async (product, newQty) => {
-    try {
-      // 1. Обновляем локальное состояние
-      setQty(product.id, newQty);
-      
-      // 2. Синхронизируем с сервером
-      await cartDelta({ product, setQty: newQty });
-    } catch (err) {
-      console.error("Error updating quantity:", err);
-      // Можно показать уведомление об ошибке
-    }
-  };
-
-  // Функция для удаления товара с синхронизацией на сервер
-  const removeItemWithSync = async (product) => {
-    try {
-      // 1. Удаляем локально
-      removeItem(product.id);
-      
-      // 2. Синхронизируем с сервером
-      await cartDelta({ product, setQty: 0 });
-    } catch (err) {
-      console.error("Error removing item:", err);
-    }
-  };
 
   const handleSubmit = async () => {
     setError("");
@@ -125,14 +98,11 @@ export default function CartPage() {
       
       // Удаляем все товары на сервере
       const deletePromises = cart.map(item =>
-        cartDelta({ product: item, setQty: 0 })
+        api.deleteServerCartItem(item.id)
       );
       await Promise.allSettled(deletePromises);
       
       alert(`Заявка №${data.order_id} отправлена! Менеджер свяжется с вами в ближайшее время.`);
-      
-      // 6) Перенаправляем на главную или страницу успеха
-      navigate("/");
       
     } catch (err) {
       console.error("Request error:", err);
@@ -150,13 +120,13 @@ export default function CartPage() {
         <EmptyWrap>Корзина пуста</EmptyWrap>
       ) : (
         <>
-          {cart.map((item) => (
-            <Item key={item.id}>
+          {cart.map((i) => (
+            <Item key={i.id}>
               <LeftCol>
-                <Clickable onClick={() => navigate(`/product/${item.id}`)}>
+                <Clickable onClick={() => navigate(`/product/${i.id}`)}>
                   <ImgWrap>
-                    {item.images?.[0] ? (
-                      <img src={item.images[0]} alt={item.name} />
+                    {i.images?.[0] ? (
+                      <img src={i.images[0]} alt={i.name} />
                     ) : (
                       <NoPic />
                     )}
@@ -164,26 +134,22 @@ export default function CartPage() {
                 </Clickable>
 
                 <Controls>
-                  <DeleteBtn 
-                    onClick={() => removeItemWithSync(item)} 
-                    aria-label="Удалить"
-                  >
+                  <DeleteBtn onClick={() => removeItem(i.id)} aria-label="Удалить">
                     <img src={`${PUB}/assets/images/trashBin.svg`} alt="" />
                   </DeleteBtn>
 
                   <QtyBox>
                     <button
                       type="button"
-                      onClick={() => updateQuantity(item, Math.max(0, item.qty - 1))}
+                      onClick={() => setQty(i.id, Math.max(1, i.qty - 1))}
                       aria-label="Уменьшить"
-                      disabled={item.qty <= 1}
                     >
                       −
                     </button>
-                    <span>{item.qty}</span>
+                    <span>{i.qty}</span>
                     <button
                       type="button"
-                      onClick={() => updateQuantity(item, item.qty + 1)}
+                      onClick={() => setQty(i.id, i.qty + 1)}
                       aria-label="Увеличить"
                     >
                       +
@@ -192,13 +158,13 @@ export default function CartPage() {
                 </Controls>
               </LeftCol>
 
-              <ItemInfo onClick={() => navigate(`/product/${item.id}`)}>
-                <Price>{item.price.toLocaleString("ru-RU")} руб</Price>
-                <Name>{item.name}</Name>
+              <ItemInfo onClick={() => navigate(`/product/${i.id}`)}>
+                <Price>{i.price.toLocaleString("ru-RU")} руб</Price>
+                <Name>{i.name}</Name>
 
-                {item.description && (
+                {i.description && (
                   <SpecList>
-                    {item.description
+                    {i.description
                       .split(/\r?\n|•|- |—/m)
                       .filter(Boolean)
                       .map((f, idx) => (
@@ -226,7 +192,7 @@ export default function CartPage() {
   );
 }
 
-/* ===== styled-components ===== */
+/* ===== styled-components (оригинальный дизайн) ===== */
 
 const NAVBAR_HEIGHT = 64;
 
@@ -244,8 +210,6 @@ const EmptyWrap = styled.div`
   min-height: 60vh;
   display: grid;
   place-items: center;
-  font-size: 18px;
-  color: #888;
 `;
 
 const Item = styled.div`
@@ -253,9 +217,6 @@ const Item = styled.div`
   grid-template-columns: clamp(150px, 40vw, 220px) 1fr;
   column-gap: 14px;
   margin-bottom: 24px;
-  padding: 12px;
-  background: #111;
-  border-radius: 12px;
 `;
 
 const LeftCol = styled.div`
@@ -283,11 +244,7 @@ const ImgWrap = styled.div`
 const NoPic = styled.div`
   width: 100%;
   height: 100%;
-  background: #222;
-  display: grid;
-  place-items: center;
-  color: #666;
-  font-size: 14px;
+  background: #111;
 `;
 
 const Controls = styled.div`
@@ -305,18 +262,13 @@ const DeleteBtn = styled.button`
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  padding: 4px;
-  border-radius: 6px;
-  transition: background-color 0.2s;
-
-  &:hover {
-    background: #222;
-  }
 
   img {
     width: clamp(26px, 6.2vw, 34px);
     height: clamp(26px, 6.2vw, 34px);
   }
+
+  padding: 4px;
 `;
 
 const QtyBox = styled.div`
@@ -346,16 +298,6 @@ const QtyBox = styled.div`
     cursor: pointer;
     display: grid;
     place-items: center;
-    
-    &:disabled {
-      color: #666;
-      cursor: not-allowed;
-    }
-    
-    &:not(:disabled):hover {
-      background: #222;
-      border-radius: 4px;
-    }
   }
 
   span {
@@ -376,7 +318,6 @@ const ItemInfo = styled.div`
 const Price = styled.div`
   font-weight: 900;
   font-size: clamp(16px, 4.2vw, 20px);
-  color: #f5b300;
 `;
 
 const Name = styled.div`
@@ -397,27 +338,26 @@ const SpecList = styled.ul`
 `;
 
 const BottomBar = styled.div`
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  margin-top: 12px;
+  margin-bottom: ${NAVBAR_HEIGHT + 12}px;
   padding: 12px var(--side-pad, 16px);
   border-top: 2px solid #f5b300;
   background: #000;
+
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 10px;
 `;
 
 const Total = styled.div`
+  align-self: flex-start;
   font-size: clamp(16px, 4vw, 18px);
-  font-weight: 600;
 `;
 
 const SendBtn = styled.button`
   height: 44px;
-  padding: 0 20px;
+  padding: 0 16px;
   border-radius: 10px;
   border: 2px solid #f5b300;
   background: #f5b300;
@@ -425,25 +365,15 @@ const SendBtn = styled.button`
   font-weight: 700;
   font-size: clamp(14px, 3.8vw, 16px);
   cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover:not(:disabled) {
-    background: #ffc400;
-    border-color: #ffc400;
-  }
 
   &:disabled {
     opacity: 0.6;
-    cursor: not-allowed;
+    cursor: default;
   }
 `;
 
 const ErrorMsg = styled.div`
-  color: #ff4444;
+  color: crimson;
   margin-top: 12px;
   font-size: 14px;
-  text-align: center;
-  padding: 8px;
-  background: #1a0000;
-  border-radius: 6px;
 `;
