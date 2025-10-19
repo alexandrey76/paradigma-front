@@ -7,7 +7,7 @@ import {
   updateServerCartQty,
   deleteServerCartItem,
 } from "../api/cartApi";
-import products from "../data/products"; // ★ NEW: импортируем продукты
+import products from "../data/products";
 
 const CartContext = createContext(null);
 
@@ -15,9 +15,24 @@ export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ★ NEW: функция для получения данных товара по ID
+  // Функция для получения данных товара по ID
   const getProductById = (productId) => {
     return products.find(product => product.id === productId);
+  };
+
+  // Функция для обогащения данных товара
+  const enrichCartItem = (serverItem) => {
+    const productId = Number(serverItem.product_key);
+    const productData = getProductById(productId);
+    
+    return {
+      id: productId,
+      name: productData?.name || serverItem.name || `Товар ${productId}`,
+      price: Number(productData?.price) || Number(serverItem.price) || 0,
+      qty: Number(serverItem.qty) || 0,
+      images: productData?.images || [serverItem.meta?.image].filter(Boolean) || [],
+      description: productData?.description || "",
+    };
   };
 
   const total = useMemo(
@@ -50,20 +65,8 @@ export function CartProvider({ children }) {
         console.log("[cart] Loading cart from server for user:", tg_user_id);
         const serverItems = await fetchServerCart();
         
-        // ★ UPDATED: Обогащаем данные товарами из products.js
-        const serverCartNormalized = serverItems.map(serverItem => {
-          const productId = Number(serverItem.product_key);
-          const productData = getProductById(productId);
-          
-          return {
-            id: productId,
-            name: productData?.name || serverItem.name || `Товар ${productId}`,
-            price: Number(productData?.price) || Number(serverItem.price) || 0,
-            qty: Number(serverItem.qty) || 0,
-            images: productData?.images || [serverItem.meta?.image].filter(Boolean) || [],
-            description: productData?.description || "",
-          };
-        });
+        // Обогащаем данные товарами из products.js
+        const serverCartNormalized = serverItems.map(enrichCartItem);
 
         console.log("[cart] Server cart loaded:", serverCartNormalized.length, "items");
         setCart(serverCartNormalized);
@@ -75,18 +78,7 @@ export function CartProvider({ children }) {
           const localCart = localStorage.getItem("cart_v1");
           if (localCart) {
             const parsed = JSON.parse(localCart);
-            // ★ UPDATED: Обогащаем и локальные данные
-            const enrichedLocalCart = parsed.map(item => {
-              const productData = getProductById(item.id);
-              return {
-                ...item,
-                name: productData?.name || item.name,
-                price: Number(productData?.price) || Number(item.price) || 0,
-                images: productData?.images || item.images || [],
-                description: productData?.description || item.description || "",
-              };
-            });
-            setCart(Array.isArray(enrichedLocalCart) ? enrichedLocalCart : []);
+            setCart(Array.isArray(parsed) ? parsed : []);
           }
         } catch (localError) {
           console.warn("[cart] Local storage load failed:", localError);
@@ -114,7 +106,7 @@ export function CartProvider({ children }) {
     const id = Number(product?.id);
     if (!id || inc <= 0) return;
 
-    // ★ UPDATED: Получаем полные данные товара
+    // Получаем полные данные товара
     const productData = getProductById(id) || product;
 
     // 1) Обновляем локальное состояние
@@ -151,22 +143,17 @@ export function CartProvider({ children }) {
     id = Number(id);
     qty = Number(qty);
 
-    // 1) Обновляем локальное состояние
+    // 1) Обновляем локальное состояние - ТОЛЬКО если товар уже есть в корзине
     setCart((prev) => {
-      if (qty <= 0) return prev.filter((x) => x.id !== id);
-      
       const idx = prev.findIndex((x) => x.id === id);
       if (idx === -1) {
-        // ★ UPDATED: Получаем данные товара при добавлении
-        const productData = getProductById(id);
-        return [...prev, { 
-          id, 
-          name: productData?.name || "", 
-          price: productData?.price || 0, 
-          qty, 
-          images: productData?.images || [],
-          description: productData?.description || "",
-        }];
+        // Товара нет в корзине - ничего не делаем
+        console.warn(`[cart] Cannot set quantity for product ${id} - not in cart`);
+        return prev;
+      }
+      
+      if (qty <= 0) {
+        return prev.filter((x) => x.id !== id);
       } else {
         const copy = [...prev];
         copy[idx] = { ...copy[idx], qty };
@@ -230,20 +217,8 @@ export function CartProvider({ children }) {
       setIsLoading(true);
       const serverItems = await fetchServerCart();
       
-      // ★ UPDATED: Обогащаем данные товарами из products.js
-      const serverCartNormalized = serverItems.map(serverItem => {
-        const productId = Number(serverItem.product_key);
-        const productData = getProductById(productId);
-        
-        return {
-          id: productId,
-          name: productData?.name || serverItem.name || `Товар ${productId}`,
-          price: Number(productData?.price) || Number(serverItem.price) || 0,
-          qty: Number(serverItem.qty) || 0,
-          images: productData?.images || [serverItem.meta?.image].filter(Boolean) || [],
-          description: productData?.description || "",
-        };
-      });
+      // Обогащаем данные товарами из products.js
+      const serverCartNormalized = serverItems.map(enrichCartItem);
 
       setCart(serverCartNormalized);
       console.log("[cart] Cart synced with server:", serverCartNormalized.length, "items");
