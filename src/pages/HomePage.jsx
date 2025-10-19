@@ -3,9 +3,7 @@ import React, { useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import useEmblaCarousel from "embla-carousel-react";
-import { handleCartAction } from "../api/cartApi";
 
-import { getTgContext, cartDelta, fetchCart } from "../api/cartApi";
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
 
@@ -13,7 +11,7 @@ const PUB = process.env.PUBLIC_URL || "";
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { cart, addItem } = useCart();
+  const { cart, addItem, getItemQuantity } = useCart();
 
   const [emblaRef] = useEmblaCarousel({
     align: "start",
@@ -27,7 +25,7 @@ export default function HomePage() {
     [navigate]
   );
 
-  const getQty = (id) => cart.find((x) => x.id === id)?.qty || 0;
+  const getQty = (id) => getItemQuantity(id);
   const getIcon = (qty) =>
     qty > 0
       ? `${PUB}/assets/images/productCartActive.svg`
@@ -35,10 +33,9 @@ export default function HomePage() {
 
   const onAdd = async (product) => {
     try {
-      await handleCartAction("add", product);
-      addItem(product, 1);
+      await addItem(product, 1);
     } catch (e) {
-      console.error(e);
+      console.error("Failed to add to cart:", e);
       alert(`Не удалось добавить в корзину: ${e.message || e}`);
     }
   };
@@ -127,11 +124,11 @@ export default function HomePage() {
                       </PriceBlock>
 
                       <CartBtnWrap
-                        onClick={async (e) => {
-                        e.stopPropagation();
-                        await handleCartAction({ type: "add", product: p, addItem });
-                      }}
-                      aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAdd(p);
+                        }}
+                        aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
                       >
                         <img src={icon} alt="" />
                         {qty > 0 && (
@@ -224,6 +221,7 @@ export default function HomePage() {
     </Page>
   );
 }
+
 
 /* ===================== styled ===================== */
 

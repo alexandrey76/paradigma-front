@@ -3,9 +3,7 @@ import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import styled from "styled-components";
 import useEmblaCarousel from "embla-carousel-react";
-import { getTgContext, cartDelta, fetchCart } from "../api/cartApi";
 import products from "../data/products";
-import { handleCartAction } from "../api/cartApi";
 import { useCart } from "../context/CartContext";
 import TopBar from "../components/TopBar";
 
@@ -80,12 +78,11 @@ export default function ProductPage() {
   const prev = () => emblaApi && emblaApi.scrollPrev();
   const next = () => emblaApi && emblaApi.scrollNext();
 
-  const onAdd = async (prod) => {
+  const onAdd = async () => {
     try {
-      await handleCartAction("add", prod);
-      addItem(prod, 1);
+      await addItem(product, 1);
     } catch (e) {
-      console.error(e);
+      console.error("Failed to add to cart:", e);
       alert(`Не удалось добавить в корзину: ${e.message || e}`);
     }
   };
@@ -163,14 +160,9 @@ export default function ProductPage() {
 
         <PriceRow>
           <Price>{(product.price ?? 0).toLocaleString("ru-RU")} ₽</Price>
-          <AddBtn onClick={async () => { 
-              addItem(product); 
-              try { 
-                await cartDelta({ product, delta: +1 }); 
-              } catch (err) { 
-                console.error("cartDelta +1 failed", err); 
-              } 
-            }}/>
+          <AddBtn onClick={onAdd}>
+            В корзину
+          </AddBtn>
         </PriceRow>
 
         {product.description && (

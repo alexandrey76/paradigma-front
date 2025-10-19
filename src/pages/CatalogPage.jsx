@@ -3,8 +3,6 @@ import React, { useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 
-import { getTgContext, cartDelta, fetchCart } from "../api/cartApi";
-import { handleCartAction } from "../api/cartApi";
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
 import TopBar from "../components/TopBar";
@@ -15,11 +13,12 @@ const PUB = process.env.PUBLIC_URL || "";
 
 export default function CatalogPage() {
   const navigate = useNavigate();
-  const { cart, addItem } = useCart();
+  const { cart, addItem, getItemQuantity } = useCart();
 
+  // Используем метод из CartContext вместо ручного поиска
   const getQty = useCallback(
-    (id) => cart.find((x) => x.id === id)?.qty || 0,
-    [cart]
+    (id) => getItemQuantity(id),
+    [getItemQuantity]
   );
 
   const getIcon = (qty) =>
@@ -29,10 +28,10 @@ export default function CatalogPage() {
 
   const onAdd = async (product) => {
     try {
-      await handleCartAction("add", product);
-      addItem(product, 1); // обновим локально бейдж
+      // Используем addItem из контекста - он сам синхронизирует с сервером
+      await addItem(product, 1);
     } catch (e) {
-      console.error(e);
+      console.error("Failed to add to cart:", e);
       alert(`Не удалось добавить в корзину: ${e.message || e}`);
     }
   };
@@ -63,7 +62,10 @@ export default function CatalogPage() {
                 </PriceBlock>
 
                 <CartBtnWrap
-                  onClick={async (e) => { e.stopPropagation(); onAdd(p); try { await cartDelta({ product: p, delta: +1 }); } catch {}}}
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    onAdd(p);
+                  }}
                   aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
                 >
                   <img src={icon} alt="" />
