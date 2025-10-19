@@ -31,13 +31,19 @@ async function apiFetch(path, opts = {}) {
 export async function cartDelta({ product, delta, setQty }) {
   const ctx = getTgContext();
 
+  // Подготавливаем meta данные - только базовые поля
+  const meta = {};
+  if (product?.images?.[0]) {
+    meta.image = product.images[0];
+  }
+
   const payload = {
     tg_user_id: ctx.tg_user_id,
     tg_username: ctx.tg_username,
     tg_first_name: ctx.tg_first_name,
-    product_id: product?.id ?? null,
-    name: product?.name ?? null,
-    price: product?.price ?? null,
+    product_id: String(product?.id), // ВАЖНО: преобразуем в строку
+    name: product?.name || `Товар ${product?.id}`,
+    price: Number(product?.price) || 0,
     image: product?.images?.[0] || null,
   };
 
@@ -80,41 +86,4 @@ export async function deleteServerCartItem(productId) {
 
 export async function updateServerCartQty(productId, newQty) {
   return cartDelta({ product: { id: productId }, setQty: newQty });
-}
-
-/**
- * Утилита для страниц (если захотите дергать сервер прямо из UI).
- * Передайте локальные методы контекста, чтобы синхронизировать UI.
- */
-export async function handleCartAction({
-  type,           // 'add' | 'dec' | 'set' | 'remove'
-  product,        // объект товара
-  newQty,         // для 'set'
-  addItem,        // fn из CartContext
-  removeItem,     // fn из CartContext
-  setQty,         // fn из CartContext
-}) {
-  if (!product?.id) return;
-
-  if (type === "add") {
-    await cartDelta({ product, delta: +1 });
-    addItem?.(product, 1);
-    return;
-  }
-  if (type === "dec") {
-    await cartDelta({ product, delta: -1 });
-    setQty?.(product.id, (q) => Math.max(0, (typeof q === "number" ? q : 1) - 1));
-    return;
-  }
-  if (type === "set") {
-    const qty = Math.max(0, Number(newQty || 0));
-    await cartDelta({ product, setQty: qty });
-    setQty?.(product.id, qty);
-    return;
-  }
-  if (type === "remove") {
-    await cartDelta({ product, setQty: 0 });
-    removeItem?.(product.id);
-    return;
-  }
 }
