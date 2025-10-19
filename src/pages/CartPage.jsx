@@ -10,7 +10,7 @@ import { getTgContext } from "../api/cartApi";
 // корректный приоритет: env или локалка
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
-  "alexandrey76-paradigma-back-c956.twc1.net";
+  "https://alexandrey76-paradigma-back-c956.twc1.net";
 
 export default function CartPage() {
   const { cart, total, clearCart, removeItem, setQty } = useCart();
