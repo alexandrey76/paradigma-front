@@ -14,7 +14,7 @@ const SENT_REQS_KEY = "sentRequests.v1";
 export default function ProfilePage() {
   const navigate = useNavigate();
 
-  // Попытка получить данные из Telegram WebApp
+  // Данные Telegram WebApp (если запущено в ТГ)
   const tgUser = useMemo(() => {
     try {
       return window.Telegram?.WebApp?.initDataUnsafe?.user || null;
@@ -23,7 +23,7 @@ export default function ProfilePage() {
     }
   }, []);
 
-  // Сохранённые данные (fallback)
+  // Локально сохранённые данные (fallback)
   const saved = useMemo(() => {
     try {
       const raw = localStorage.getItem(LOCAL_KEY);
@@ -33,15 +33,18 @@ export default function ProfilePage() {
     }
   }, []);
 
-  // Имя берём в порядке: tgUser.first_name (+ last_name) -> saved -> дефолт
+  // Имя
   const defaultName =
-    (tgUser && `${tgUser.first_name || ""}${tgUser.last_name ? " " + tgUser.last_name : ""}`.trim()) ||
-    saved?.name ||
-    "Валерчик";
+    (tgUser &&
+      `${tgUser.first_name || ""}${
+        tgUser.last_name ? " " + tgUser.last_name : ""
+      }`.trim()) ||
+    saved?.name;
 
-  // Аватар: Telegram WebApp обычно не даёт прямой url, но пытаем возможные поля — иначе fallback
+  // Аватар
   const defaultAvatar =
-    (tgUser && (tgUser.photo_url || tgUser.avatar_url || tgUser.picture || null)) ||
+    (tgUser &&
+      (tgUser.photo_url || tgUser.avatar_url || tgUser.picture || null)) ||
     saved?.avatar ||
     null;
 
@@ -56,46 +59,42 @@ export default function ProfilePage() {
   const [error, setError] = useState("");
   const [editingPhone, setEditingPhone] = useState(false);
 
+  // Количество отправленных заявок из localStorage
   const sentCount = useMemo(() => {
     try {
       const raw = localStorage.getItem(SENT_REQS_KEY);
-      return raw ? Number(raw) : 1;
+      return raw ? Number(raw) : 0; // дефолт — 0
     } catch {
       return 0;
     }
   }, []);
 
   useEffect(() => {
-    // если tgUser доступен и имеет аватар, попробовать использовать
+    // Если из ТГ есть аватар — используем
     if (tgUser && !avatar) {
-      const candidate = tgUser.photo_url || tgUser.avatar_url || tgUser.picture || null;
+      const candidate =
+        tgUser.photo_url || tgUser.avatar_url || tgUser.picture || null;
       if (candidate) setAvatar(candidate);
     }
   }, [tgUser, avatar]);
 
-  // Простая валидация номера (цифры 7..15)
-  const phoneDigits = phone.replace(/\D/g, "");
+  // Валидация телефона (11 цифр)
   const phoneOk = useMemo(() => {
-      const digits = phone.replace(/\D/g, ""); // только цифры
-      return digits.length === 11; // строго 11 цифр
-    }, [phone]);
+    const digits = phone.replace(/\D/g, "");
+    return digits.length === 11;
+  }, [phone]);
 
   const canSave = phoneOk;
 
-  // Форматирование номера при вводе (поддерживает ввод цифр, добавляет +7 (xxx) xxx - xx - xx)
+  // Форматирование телефона
   function formatPhoneInputRaw(rawDigits) {
     let v = rawDigits.replace(/\D/g, "");
-    // если пользователь вводит с ведущим 8 — заменим на 7
     if (v.startsWith("8")) v = "7" + v.slice(1);
-    if (!v.startsWith("7")) {
-      // если не начинается с 7 — добавим 7 (российский)
-      v = "7" + v;
-    }
-    // собираем формат
+    if (!v.startsWith("7")) v = "7" + v;
+
     let out = "+" + v.charAt(0);
     if (v.length > 1) {
-      const a = v.slice(1, 4);
-      out += " (" + a;
+      out += " (" + v.slice(1, 4);
     }
     if (v.length >= 5) {
       out += ") " + v.slice(4, 7);
@@ -111,7 +110,6 @@ export default function ProfilePage() {
 
   function handlePhoneChangeInput(e) {
     const raw = e.target.value;
-    // оставим только цифры и плюс (удалим лишнее)
     const digits = raw.replace(/\D/g, "");
     const formatted = formatPhoneInputRaw(digits);
     setPhone(formatted);
@@ -119,11 +117,9 @@ export default function ProfilePage() {
 
   function startEditPhone() {
     setEditingPhone(true);
-    // фокус позже (через nextTick) — используем setTimeout
     setTimeout(() => {
       const el = document.getElementById("profile-phone-input");
       el?.focus();
-      // поставить caret в конец
       const len = el?.value?.length || 0;
       try {
         el.setSelectionRange(len, len);
@@ -133,7 +129,6 @@ export default function ProfilePage() {
 
   function finishEditPhone() {
     setEditingPhone(false);
-    // можно дополнительно нормализовать
     const normalized = formatPhoneInputRaw(phone.replace(/\D/g, ""));
     setPhone(normalized);
   }
@@ -155,10 +150,10 @@ export default function ProfilePage() {
     };
 
     try {
-      // локально сохраняем
+      // локально
       localStorage.setItem(LOCAL_KEY, JSON.stringify(payload));
 
-      // отправляем на бэк (если нужно)
+      // на бэк (не критично, если не получится)
       try {
         const tg = window.Telegram?.WebApp;
         const initData = tg?.initData || "";
@@ -171,7 +166,6 @@ export default function ProfilePage() {
           body: JSON.stringify(payload),
         });
       } catch (netErr) {
-        // не критично — просто логируем
         console.warn("Profile save network error:", netErr);
       }
 
@@ -184,10 +178,19 @@ export default function ProfilePage() {
     }
   }
 
-  // если пользователь кликнул на аватар — ничего не меняем (не просили менять)
+  // склонение "заявка/заявки/заявок"
+  function pluralize(n, [one, few, many]) {
+    const v = Math.abs(n) % 100;
+    const v1 = v % 10;
+    if (v > 10 && v < 20) return many;
+    if (v1 > 1 && v1 < 5) return few;
+    if (v1 === 1) return one;
+    return many;
+  }
+
   return (
     <Page>
-      <TopBar title="Личный кабинет"/>
+      <TopBar title="Личный кабинет" />
 
       <Container>
         <Card as="form" onSubmit={handleSave}>
@@ -209,13 +212,15 @@ export default function ProfilePage() {
 
             <FieldTitle>
               <FieldTitleText>{name}</FieldTitleText>
-              <FieldSubText>{tgUser?.username ? `@${tgUser.username}` : ""}</FieldSubText>
+              <FieldSubText>
+                {tgUser?.username ? `@${tgUser.username}` : ""}
+              </FieldSubText>
             </FieldTitle>
           </AvatarRow>
 
           <Divider />
 
-          {/* Номер телефона — кликабельная строка; при клике появляется inline input */}
+          {/* Номер телефона */}
           <ClickableRow onClick={() => !editingPhone && startEditPhone()}>
             <RowLeft>
               <RowLabel>Номер телефона</RowLabel>
@@ -239,7 +244,7 @@ export default function ProfilePage() {
 
           <Divider />
 
-          {/* Пол — только один выбор */}
+          {/* Пол */}
           <FieldRow>
             <RowLeft>
               <RowLabel>Пол</RowLabel>
@@ -273,13 +278,17 @@ export default function ProfilePage() {
 
           <Divider />
 
-          <FieldRow>
+          {/* Отправленные заявки */}
+          <ClickableRow onClick={() => navigate("/orders")}>
             <RowLeft>
               <RowLabel>Отправленные заявки</RowLabel>
-              <RowValueSmall>0 заявок</RowValueSmall>
+              <RowValueSmall>
+                {sentCount}{" "}
+                {pluralize(sentCount, ["заявка", "заявки", "заявок"])}
+              </RowValueSmall>
             </RowLeft>
             <Arrow>›</Arrow>
-          </FieldRow>
+          </ClickableRow>
 
           {error && <ErrorText>{error}</ErrorText>}
 
@@ -303,7 +312,6 @@ const Page = styled.main`
   padding: 12px var(--side-pad, 16px) calc(110px + env(safe-area-inset-bottom));
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 `;
-
 
 const Container = styled.div`
   width: 100%;

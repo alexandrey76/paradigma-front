@@ -4,13 +4,33 @@ import styled from "styled-components";
 import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
-import api from "../api/client";
-import { getTgContext } from "../api/cartApi";
+import products from "../data/products";
 
-// корректный приоритет: env или локалка
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
   "https://alexandrey76-paradigma-back-c956.twc1.net";
+
+const NAVBAR_HEIGHT = 64;
+
+function stripCodeFences(text = "") {
+  return String(text).replace(/^\s*```|```\s*$/g, "").trim();
+}
+
+function parseConfig(raw = "") {
+  const text = stripCodeFences(raw);
+  const lines = text.split(/\r?\n/);
+  const out = [];
+  for (let line of lines) {
+    let s = line.trim();
+    if (!s) continue;
+    // убрать заголовок "Комплектация:"
+    if (/^комплектац(ия|ии):?$/i.test(s)) continue;
+    // убрать ведущие маркеры "•", "-" и лишние пробелы
+    s = s.replace(/^[-•]\s*/u, "");
+    out.push(s);
+  }
+  return out;
+}
 
 export default function CartPage() {
   const { cart, total, clearCart, removeItem, setQty } = useCart();
@@ -32,12 +52,11 @@ export default function CartPage() {
   const handleSubmit = async () => {
     setError("");
 
-    // 1) Получаем пользователя из Telegram
     const tg = window.Telegram?.WebApp;
     const u = tg?.initDataUnsafe?.user;
     const initData = tg?.initData || "";
-
     const uid = u?.id || null;
+
     if (!uid) {
       setError("Не удалось определить пользователя Telegram");
       alert("Не удалось определить пользователя Telegram");
@@ -47,14 +66,12 @@ export default function CartPage() {
     try {
       setSending(true);
 
-      // 2) Используем текущую корзину из контекста (уже синхронизирована с сервером)
       if (!cart.length) {
         setError("Корзина пуста");
         alert("Корзина пуста");
         return;
       }
 
-      // 3) Формируем items в правильном формате для бэкенда
       const items = cart.map((item) => ({
         id: item.id,
         name: item.name,
@@ -62,7 +79,6 @@ export default function CartPage() {
         qty: Number(item.qty),
       }));
 
-      // 4) Формируем контакт и отправляем заказ
       const payload = {
         items,
         contact: {
@@ -92,28 +108,21 @@ export default function CartPage() {
         );
       }
 
-      // 5) Очищаем корзину на сервере и в контексте
-      // Сначала очищаем локально, затем на сервере
       clearCart();
 
-      // Пытаемся очистить корзину на сервере, но не блокируем успех заказа
       try {
         await fetch(`${API_BASE}/api/cart`, {
-          method: 'DELETE', 
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            tg_user_id: uid
-          })
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tg_user_id: uid }),
         });
       } catch (err) {
         console.log("Cart clear failed, but order was created:", err);
-        // Игнорируем ошибку - заказ уже создан
       }
 
-      alert(`Заявка №${data.order_id} отправлена! Менеджер свяжется с вами в ближайшее время.`);
-      
+      alert(
+        `Заявка №${data.order_id} отправлена! Менеджер свяжется с вами в ближайшее время.`
+      );
     } catch (err) {
       console.error("Request error:", err);
       setError(String(err.message || err));
@@ -130,61 +139,73 @@ export default function CartPage() {
         <EmptyWrap>Корзина пуста</EmptyWrap>
       ) : (
         <>
-          {cart.map((i) => (
-            <Item key={i.id}>
-              <LeftCol>
-                <Clickable onClick={() => navigate(`/product/${i.id}`)}>
-                  <ImgWrap>
-                    {i.images?.[0] ? (
-                      <img src={i.images[0]} alt={i.name} />
-                    ) : (
-                      <NoPic />
-                    )}
-                  </ImgWrap>
-                </Clickable>
+          {cart.map((i) => {
+            const fromCatalog = products.find(
+              (p) => Number(p.id) === Number(i.id)
+            );
+            const cfgLines = parseConfig(
+              i.configuration ?? fromCatalog?.configuration ?? ""
+            );
 
-                <Controls>
-                  <DeleteBtn onClick={() => removeItem(i.id)} aria-label="Удалить">
-                    <img src={`${PUB}/assets/images/trashBin.svg`} alt="" />
-                  </DeleteBtn>
+            return (
+              <Item key={i.id}>
+                <LeftCol>
+                  <Clickable onClick={() => navigate(`/product/${i.id}`)}>
+                    <ImgWrap>
+                      {i.images?.[0] ? (
+                        <img src={i.images[0]} alt={i.name} />
+                      ) : (
+                        <NoPic />
+                      )}
+                    </ImgWrap>
+                  </Clickable>
 
-                  <QtyBox>
-                    <button
-                      type="button"
-                      onClick={() => setQty(i.id, Math.max(1, i.qty - 1))}
-                      aria-label="Уменьшить"
+                  <Controls>
+                    <DeleteBtn
+                      onClick={() => removeItem(i.id)}
+                      aria-label="Удалить"
                     >
-                      −
-                    </button>
-                    <span>{i.qty}</span>
-                    <button
-                      type="button"
-                      onClick={() => setQty(i.id, i.qty + 1)}
-                      aria-label="Увеличить"
-                    >
-                      +
-                    </button>
-                  </QtyBox>
-                </Controls>
-              </LeftCol>
+                      <img src={`${PUB}/assets/images/trashBin.svg`} alt="" />
+                    </DeleteBtn>
 
-              <ItemInfo onClick={() => navigate(`/product/${i.id}`)}>
-                <Price>{i.price.toLocaleString("ru-RU")} руб</Price>
-                <Name>{i.name}</Name>
+                    <QtyBox>
+                      <button
+                        type="button"
+                        onClick={() => setQty(i.id, Math.max(1, i.qty - 1))}
+                        aria-label="Уменьшить"
+                      >
+                        −
+                      </button>
+                      <span>{i.qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => setQty(i.id, i.qty + 1)}
+                        aria-label="Увеличить"
+                      >
+                        +
+                      </button>
+                    </QtyBox>
+                  </Controls>
+                </LeftCol>
 
-                {i.description && (
-                  <SpecList>
-                    {i.description
-                      .split(/\r?\n|•|- |—/m)
-                      .filter(Boolean)
-                      .map((f, idx) => (
-                        <li key={idx}>{f.trim()}</li>
-                      ))}
-                  </SpecList>
-                )}
-              </ItemInfo>
-            </Item>
-          ))}
+                <ItemInfo onClick={() => navigate(`/product/${i.id}`)}>
+                  <Price>{i.price.toLocaleString("ru-RU")} руб</Price>
+                  <Name>{i.name}</Name>
+
+                  {!!cfgLines.length && (
+                    <>
+                      <ConfigTitle>Комплектация:</ConfigTitle>
+                      <ConfigList>
+                        {cfgLines.map((line, idx) => (
+                          <li key={idx}>{line}</li>
+                        ))}
+                      </ConfigList>
+                    </>
+                  )}
+                </ItemInfo>
+              </Item>
+            );
+          })}
 
           <BottomBar>
             <Total>
@@ -202,9 +223,7 @@ export default function CartPage() {
   );
 }
 
-/* ===== styled-components (оригинальный дизайн) ===== */
-
-const NAVBAR_HEIGHT = 64;
+/* ===== styles ===== */
 
 const Page = styled.main`
   min-height: 100dvh;
@@ -335,15 +354,36 @@ const Name = styled.div`
   font-weight: 600;
 `;
 
-const SpecList = styled.ul`
-  margin: 0;
-  padding-left: 18px;
-  display: grid;
-  gap: 4px;
+/* Новый заголовок и список конфигурации */
+const ConfigTitle = styled.div`
+  margin-top: 6px;
+  font-weight: 700;
+  font-size: clamp(14px, 3.6vw, 16px);
+`;
+
+const ConfigList = styled.ul`
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
 
   li {
+    position: relative;
+    padding-left: 18px;      /* ← текст ровно правее точки */
     color: #d6d6d6;
     font-size: clamp(13px, 3.4vw, 15px);
+    line-height: 1.35;
+  }
+
+  li::before {
+    content: "";
+    position: absolute;
+    left: 6px;               /* положение самой точки */
+    top: 0.6em;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #d6d6d6;
+    transform: translateY(-50%);
   }
 `;
 

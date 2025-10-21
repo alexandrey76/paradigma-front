@@ -1,4 +1,3 @@
-// src/pages/ProductPage.jsx
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import styled from "styled-components";
@@ -23,6 +22,18 @@ export default function ProductPage() {
     const vids = (product.videos || []).map((mp4) => ({ type: "video", mp4 }));
     const imgs = (product.images || []).map((src) => ({ type: "image", src }));
     return [...vids, ...imgs];
+  }, [product]);
+
+  // Комплектация: парсим поле configuration
+  const configItems = useMemo(() => {
+    const raw0 = product?.configuration || "";
+    const noFence = raw0.replace(/```/g, "");
+    const noHeader = noFence.replace(/^Комплектация:\s*/i, "");
+    return noHeader
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => s.replace(/^[-•]\s*/, "").trim());
   }, [product]);
 
   const [emblaRef, emblaApi] = useEmblaCarousel({
@@ -132,16 +143,10 @@ export default function ProductPage() {
           {media.length > 1 && (
             <>
               <NavArrow left aria-label="Назад" onClick={prev}>
-                <img
-                  src={`${PUB}/assets/images/leftArrow.svg`}
-                  alt="Назад"
-                />
+                <img src={`${PUB}/assets/images/leftArrow.svg`} alt="Назад" />
               </NavArrow>
               <NavArrow aria-label="Вперёд" onClick={next}>
-                <img
-                  src={`${PUB}/assets/images/rightArrow.svg`}
-                  alt="Вперед"
-                />
+                <img src={`${PUB}/assets/images/rightArrow.svg`} alt="Вперед" />
               </NavArrow>
 
               <Dots>
@@ -160,22 +165,24 @@ export default function ProductPage() {
 
         <PriceRow>
           <Price>{(product.price ?? 0).toLocaleString("ru-RU")} ₽</Price>
-          <AddBtn onClick={onAdd}>
-            В корзину
-          </AddBtn>
+          <AddBtn onClick={onAdd}>В корзину</AddBtn>
         </PriceRow>
 
+        {/* Описание — просто текстом над набором */}
         {product.description && (
+          <p style={{ margin: "8px 0 0", color: "#d6d6d6", lineHeight: 1.5 }}>
+            {product.description}
+          </p>
+        )}
+
+        {/* Набор (теперь из configuration) */}
+        {configItems.length > 0 && (
           <SpecBlock>
             <SpecTitle>Набор:</SpecTitle>
             <SpecList>
-              {product.description
-                .split(/\r?\n|•|- |—/)
-                .map((s) => s.trim())
-                .filter(Boolean)
-                .map((s, i) => (
-                  <li key={i}>{s}</li>
-                ))}
+              {configItems.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
             </SpecList>
           </SpecBlock>
         )}
@@ -193,7 +200,7 @@ const FullBleed = styled.div`
 `;
 
 const Page = styled.main`
-  padding: 12px var(--side-pad) calc(110px + env(safe-area-inset-bottom));
+  padding: 12px var(--side-pad, 16px) calc(110px + env(safe-area-inset-bottom));
   min-height: 100dvh;
   color: #fff;
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
@@ -218,8 +225,8 @@ const Title = styled.h1`
 const MediaBox = styled.div`
   position: relative;
   width: 100%;
-  max-width: calc(100% - 20px);
-  margin: 8px auto 18px;
+  max-width: 100%;
+  margin: 8px 0 18px;
   aspect-ratio: 1 / 1;
   border: 2px solid #fff;
   border-radius: 12px;

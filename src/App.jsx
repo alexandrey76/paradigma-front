@@ -1,9 +1,10 @@
 // src/App.jsx
-import React, { useEffect, useState, useRef } from "react"; // ★ NEW: useRef
+import React, { useEffect, useState, useRef } from "react"; // ★ useRef
 import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
 import GlobalStyle from "./styles/GlobalStyle";
 
+import OrdersPage from "./pages/OrdersPage";
 import HomePage from "./pages/HomePage";
 import CatalogPage from "./pages/CatalogPage";
 import ProductPage from "./pages/ProductPage";
@@ -13,8 +14,9 @@ import SupportPage from "./pages/SupportPage";
 import ProfilePage from "./pages/ProfilePage";
 import AgeGate from "./components/AgeGate";
 import PrivacyPage from "./pages/PrivacPage";
+import OrderDetailsPage from "./pages/OrderDetailsPage";
 import ConsentPage from "./pages/ConsentPage";
-import { ensureUserOnServer } from "./api/userApi"; // ★ NEW
+import { ensureUserOnServer } from "./api/userApi"; // ★
 
 /* ====== Настройки прелоадера ====== */
 const PRELOADER_VIDEO = "/assets/video/Preloader.mp4";
@@ -61,6 +63,52 @@ function PreloaderOverlay({ videoSrc, fadeOut, onTransitionEnd }) {
   );
 }
 
+/* ====== Сброс скролла при смене роутов: мгновенно, без отключения плавности в остальном ====== */
+function ScrollReset() {
+  const { pathname, hash } = useLocation();
+
+  useEffect(() => {
+    // если есть якорь — скроллим к нему мгновенно
+    if (hash) {
+      const el = document.querySelector(hash);
+      if (el) {
+        const html = document.documentElement;
+        const body = document.body;
+        const prevHtml = html.style.scrollBehavior;
+        const prevBody = body.style.scrollBehavior;
+        html.style.scrollBehavior = "auto";
+        body.style.scrollBehavior = "auto";
+        el.scrollIntoView();
+        requestAnimationFrame(() => {
+          html.style.scrollBehavior = prevHtml;
+          body.style.scrollBehavior = prevBody;
+        });
+        return;
+      }
+    }
+
+    // обычный переход: мгновенно наверх
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.scrollBehavior;
+    const prevBody = body.style.scrollBehavior;
+
+    html.style.scrollBehavior = "auto";
+    body.style.scrollBehavior = "auto";
+    window.scrollTo(0, 0);
+
+    // вернуть прежние значения на следующий кадр
+    const id = requestAnimationFrame(() => {
+      html.style.scrollBehavior = prevHtml;
+      body.style.scrollBehavior = prevBody;
+    });
+
+    return () => cancelAnimationFrame(id);
+  }, [pathname, hash]);
+
+  return null;
+}
+
 /* ====== Telegram guard ====== */
 function useTelegramGuard() {
   const { pathname } = useLocation();
@@ -95,7 +143,7 @@ function AppShell() {
   const noNavBarPages = ["/privacy-policy", "/consent"];
   const showNavBar = !noNavBarPages.includes(location.pathname);
 
-  // ★ NEW: авторегистрация пользователя на сервере (один раз)
+  // ★ авторегистрация пользователя на сервере (один раз)
   const ensuredRef = useRef(false);
   useEffect(() => {
     if (ensuredRef.current) return;
@@ -103,7 +151,6 @@ function AppShell() {
     const tg = window?.Telegram?.WebApp;
     const initData = tg?.initData;
     if (!initData) {
-      // Открыли вне Telegram — молча пропускаем
       ensuredRef.current = true;
       return;
     }
@@ -126,6 +173,9 @@ function AppShell() {
           background: "#000",
         }}
       >
+        {/* Мгновенный сброс скролла при смене страницы */}
+        <ScrollReset />
+
         <Routes>
           <Route index element={<HomePage />} />
           <Route path="/" element={<HomePage />} />
@@ -136,6 +186,8 @@ function AppShell() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/privacy-policy" element={<PrivacyPage />} />
           <Route path="/consent" element={<ConsentPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/order/:id" element={<OrderDetailsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
