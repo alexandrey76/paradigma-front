@@ -1,4 +1,5 @@
 const PUB = process.env.PUBLIC_URL || "";
+const P = `${PUB}/assets/products_images`;
 
 const products = [
   {
@@ -18,10 +19,10 @@ const products = [
 `,
     price: 19900,
     images: [
-      `${PUB}/products_images/paradigmaone.jpg`,
-      `${PUB}/products_images/paradigmaone2.jpg`,
-      `${PUB}/products_images/paradigmaone3.jpg`,
-      `${PUB}/products_images/paradigmaone4.jpg`,
+      `${P}/paradigmaone.jpg`,
+      `${P}/paradigmaone2.jpg`,
+      `${P}/paradigmaone3.jpg`,
+      `${P}/paradigmaone4.jpg`,
     ],
   },
 
@@ -43,9 +44,9 @@ const products = [
 `,
     price: 46500,
     images: [
-      `${PUB}/products_images/paradigmalukah.jpg`,
-      `${PUB}/products_images/paradigmalukah2.jpg`,
-      `${PUB}/products_images/paradigmalukah3.jpg`,
+      `${P}/paradigmalukah.jpg`,
+      `${P}/paradigmalukah2.jpg`, // ← исправлено (раньше было "aradigmalukah2.jpg")
+      `${P}/paradigmalukah3.jpg`,
     ],
   },
 
@@ -67,9 +68,9 @@ const products = [
 `,
     price: 26900,
     images: [
-      `${PUB}/products_images/paradigmaneo.jpg`,
-      `${PUB}/products_images/paradigmaneo2.jpg`,
-      `${PUB}/products_images/paradigmaneo3.jpg`,
+      `${P}/paradigmaneo.jpg`,
+      `${P}/paradigmaneo2.jpg`,
+      `${P}/paradigmaneo3.jpg`,
     ],
   },
 
@@ -89,9 +90,9 @@ const products = [
 `,
     price: 18500,
     images: [
-      `${PUB}/products_images/paradigmaportative.jpg`,
-      `${PUB}/products_images/paradigmaportative2.jpg`,
-      `${PUB}/products_images/paradigmaportative3.jpg`,
+      `${P}/paradigmaportative.jpg`,
+      `${P}/paradigmaportative2.jpg`,
+      `${P}/paradigmaportative3.jpg`,
     ],
   },
 ];
