@@ -18,10 +18,10 @@ const products = [
     `,
     price: 19900,
     images: [
-      PUB + "/products_images/ParadigmaOne.jpg",
-      PUB + "/products_images/ParadigmaOne2.jpg",
-      PUB + "/products_images/ParadigmaOne3.jpg",
-      PUB + "/products_images/ParadigmaOne4.jpg"
+      PUB + "/products_images/paradigmaone.jpg",
+      PUB + "/products_images/paradigmaone2.jpg",
+      PUB + "/products_images/paradigmaone3.jpg",
+      PUB + "/products_images/paradigmaone4.jpg"
     ]
   },
 
@@ -45,9 +45,9 @@ const products = [
     `,
     price: 46500,
     images: [
-      PUB + "/products_images/ParadigmaLukah.jpg",
-      PUB + "/products_images/ParadigmaLukah2.jpg",
-      PUB + "/products_images/ParadigmaLukah3.jpg"
+      PUB + "/products_images/paradigmalukah.jpg",
+      PUB + "/products_images/aradigmalukah2.jpg",
+      PUB + "/products_images/paradigmalukah3.jpg"
     ]
   },
 
@@ -69,9 +69,9 @@ const products = [
     `,
     price: 26900,
     images: [
-      PUB + "/products_images/ParadigmaNeo.jpg",
-      PUB + "/products_images/ParadigmaNeo2.jpg",
-      PUB + "/products_images/ParadigmaNeo3.jpg"
+      PUB + "/products_images/paradigmaneo.jpg",
+      PUB + "/products_images/paradigmaneo2.jpg",
+      PUB + "/products_images/paradigmaneo3.jpg"
     ]
   },
 
@@ -91,9 +91,9 @@ const products = [
     `,
     price: 18500,
     images: [
-      PUB + "/products_images/ParadigmaPortative.jpg",
-      PUB + "/products_images/ParadigmaPortative2.jpg",
-      PUB + "/products_images/ParadigmaPortative3.jpg"
+      PUB + "/products_images/paradigmaportative.jpg",
+      PUB + "/products_images/paradigmaportative2.jpg",
+      PUB + "/products_images/paradigmaportative3.jpg"
     ]
   }
 
