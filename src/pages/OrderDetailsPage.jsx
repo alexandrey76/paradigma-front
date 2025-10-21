@@ -1,67 +1,154 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import styled from "styled-components";
 import { useParams, useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 
-/* ===== MOCK (замени на API) ===== */
-const MOCK_BY_ID = {
-  "9764c4s0y64vyushiu": {
-    id: "9764c4s0y64vyushiu",
-    created_at: "2025-11-04T12:12:00Z",
-    total: 72657177,
-    delivery: 0,
-    discount: 0,
-    status: "done",
-    items: [
-      {
-        id: 1,
-        name: "Электронный кальян Paradigma One",
-        price: 18000,
-        qty: 1,
-        image: "/assets/images/product-1.jpg",
-      },
-      {
-        id: 2,
-        name: "Электронный кальян Paradigma x Lukah",
-        price: 46000,
-        qty: 1,
-        image: "/assets/images/product-2.jpg",
-      },
-    ],
-  },
-};
+const API_BASE = process.env.REACT_APP_API_BASE || "https://alexandrey76-paradigma-back-c956.twc1.net";
 
 const STEPS = [
-  { key: "created",         label: "Создана" },
-  { key: "processed",       label: "Обработана" },
-  { key: "ready_to_ship",   label: "Товар готов к отправке" },
-  { key: "ready_to_pickup", label: "Товар готов к получению" },
-  { key: "done",            label: "Выполнена" },
+  { key: "pending", label: "Ожидает подтверждения" },
+  { key: "confirmed", label: "Подтверждена" },
+  { key: "processing", label: "Обработана" },
+  { key: "ready_to_ship", label: "Товар готов к отправке" },
+  { key: "ready_for_pickup", label: "Товар готов к получению" },
+  { key: "done", label: "Выполнена" },
+  { key: "rejected", label: "Отклонена" },
 ];
 
 /* ===== PAGE ===== */
 export default function OrderDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const order = useMemo(() => MOCK_BY_ID[id] || null, [id]);
+  useEffect(() => {
+    fetchOrderDetails();
+  }, [id]);
 
-  const activeIndex = useMemo(() => {
-    const idx = STEPS.findIndex((s) => s.key === order?.status);
-    return idx < 0 ? 0 : idx;
+  const fetchOrderDetails = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      
+      const tg = window.Telegram?.WebApp;
+      const initData = tg?.initData || "";
+
+      const response = await fetch(`${API_BASE}/api/orders/${id}`, {
+        method: "GET",
+        headers: {
+          "X-Telegram-Init-Data": initData,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error("Заявка не найдена");
+        }
+        throw new Error(`Ошибка загрузки: HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      setOrder(data.order);
+      
+    } catch (err) {
+      console.error("Error fetching order details:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Функция для получения картинки товара
+  const getProductImage = (productId) => {
+    const imageMap = {
+      1: "/assets/images/product-1.jpg",
+      2: "/assets/images/product-2.jpg",
+      // добавь другие товары по необходимости
+    };
+    return imageMap[productId] || null;
+  };
+
+  // Преобразование данных из БД
+  const transformedOrder = useMemo(() => {
+    if (!order) return null;
+
+    try {
+      const items = typeof order.items_json === 'string' 
+        ? JSON.parse(order.items_json)
+        : order.items_json || [];
+
+      return {
+        id: order.order_uid,
+        created_at: order.created_at,
+        total: order.total,
+        delivery: 0, // можно добавить в БД если нужно
+        discount: 0, // можно добавить в БД если нужно
+        status: order.status || 'pending',
+        items: items.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          qty: item.qty,
+          image: getProductImage(item.id)
+        }))
+      };
+    } catch (e) {
+      console.error("Error transforming order:", e);
+      return {
+        id: order.order_uid,
+        created_at: order.created_at,
+        total: order.total,
+        delivery: 0,
+        discount: 0,
+        status: order.status || 'pending',
+        items: []
+      };
+    }
   }, [order]);
 
+  const activeIndex = useMemo(() => {
+    if (!transformedOrder) return 0;
+    const idx = STEPS.findIndex((s) => s.key === transformedOrder.status);
+    return idx < 0 ? 0 : idx;
+  }, [transformedOrder]);
+
   const getStepTime = (i) => {
-    const base = new Date(order.created_at);
-    const t = new Date(base.getTime() + i * 12 * 60 * 1000);
+    if (!transformedOrder) return "";
+    const base = new Date(transformedOrder.created_at);
+    
+    // Логика времени для разных статусов (можно доработать)
+    const timeOffsets = {
+      pending: 0,
+      confirmed: 30, // минуты после создания
+      processing: 60,
+      ready_to_ship: 120,
+      ready_for_pickup: 180,
+      done: 240,
+      rejected: 30
+    };
+    
+    const currentStep = STEPS[i].key;
+    const offset = timeOffsets[currentStep] || i * 30;
+    const t = new Date(base.getTime() + offset * 60 * 1000);
     return formatDateTime(t);
   };
 
-  if (!order) {
+  if (loading) {
     return (
       <Page>
         <TopBar title="Заявка" onBack={() => navigate(-1)} />
-        <Empty>Заявка не найдена</Empty>
+        <Empty>Загружаем...</Empty>
+      </Page>
+    );
+  }
+
+  if (error || !transformedOrder) {
+    return (
+      <Page>
+        <TopBar title="Заявка" onBack={() => navigate(-1)} />
+        <Empty>{error || "Заявка не найдена"}</Empty>
       </Page>
     );
   }
@@ -73,12 +160,12 @@ export default function OrderDetailsPage() {
       <Section>
         <Row>
           <LeftMuted>Заявка №</LeftMuted>
-          <RightStrong>{order.id}</RightStrong>
+          <RightStrong>{transformedOrder.id}</RightStrong>
         </Row>
         <Divider />
         <Row>
           <LeftMuted>Дата создания:</LeftMuted>
-          <RightStrong>{formatDate(order.created_at)}</RightStrong>
+          <RightStrong>{formatDate(transformedOrder.created_at)}</RightStrong>
         </Row>
       </Section>
 
@@ -104,8 +191,8 @@ export default function OrderDetailsPage() {
       <Hairline />
 
       <Items>
-        {order.items.map((it, idx) => (
-          <Item key={it.id}>
+        {transformedOrder.items.map((it, idx) => (
+          <Item key={`${it.id}-${idx}`}>
             <Pic>{it.image && <img src={it.image} alt="" />}</Pic>
 
             <Info>
@@ -125,7 +212,7 @@ export default function OrderDetailsPage() {
             </Info>
 
             {/* Жёлтая линия только между товарами */}
-            {idx !== order.items.length - 1 && <AccentSeparator />}
+            {idx !== transformedOrder.items.length - 1 && <AccentSeparator />}
           </Item>
         ))}
       </Items>
@@ -136,18 +223,18 @@ export default function OrderDetailsPage() {
       <SummarySection>
         <SumRow>
           <span>Сумма товаров:</span>
-          <b>{formatRUB(order.total)}</b>
+          <b>{formatRUB(transformedOrder.total)}</b>
         </SumRow>
         <SumRow>
           <span>Доставка:</span>
-          <b>{order.delivery ? formatRUB(order.delivery) : "Бесплатно"}</b>
+          <b>{transformedOrder.delivery ? formatRUB(transformedOrder.delivery) : "Бесплатно"}</b>
         </SumRow>
 
         <TotalRow>
           Итого:{" "}
           <b>
             {formatRUB(
-              order.total - (order.discount || 0) + (order.delivery || 0)
+              transformedOrder.total - (transformedOrder.discount || 0) + (transformedOrder.delivery || 0)
             )}
           </b>
         </TotalRow>
@@ -215,10 +302,7 @@ const RightStrong = styled.span`
   font-size: 14px;
 `;
 
-/* ===== Таймлайн =====
-   Фиксированная колонка 24px, центр линии = 12px,
-   точка 14px -> отступ слева 5px (12 - 7) для идеального центра.
-*/
+/* ===== Таймлайн ===== */
 const Timeline = styled.ul`
   list-style: none;
   margin: 0 0 8px 0;
@@ -233,28 +317,24 @@ const Timeline = styled.ul`
     padding: 6px 0;
   }
 
-  /* Вертикальная линия по центру первой колонки */
   li::before {
     content: "";
     position: absolute;
-    left: 11px; /* 12px центр - 1px половина ширины линии */
+    left: 11px;
     top: 0;
     bottom: 0;
     width: 2px;
     background: #2a2a2a;
   }
 
-  /* Убираем верхнюю часть линии над первой точкой */
   li:first-child::before {
-    top: 20px; /* половина диаметра точки (14px / 2) */
+    top: 20px;
   }
 
-  /* У последнего шага линия уходит в прозрачность ниже точки */
   li:last-child::before {
     background: linear-gradient(to bottom, #2a2a2a 0 50%, transparent 50% 100%);
   }
 
-  /* Пройденные шаги — жёлтые линия и точка */
   li.reached .dot {
     border-color: #f5b300;
     background: #f5b300;
@@ -275,7 +355,7 @@ const Timeline = styled.ul`
     border: 2px solid #8c8c8c;
     background: transparent;
     display: block;
-    margin-left: 5px; /* 12 - 7 — центрируем в колонке */
+    margin-left: 5px;
   }
 
   .text .label {
@@ -380,7 +460,7 @@ const TotalRow = styled.div`
 `;
 
 const BottomPad = styled.div`
-  height: 80px; /* под нижнюю навигацию */
+  height: 80px;
 `;
 
 /* ===== utils ===== */
