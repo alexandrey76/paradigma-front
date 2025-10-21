@@ -60,26 +60,20 @@ export default function OrdersPage() {
     } catch (err) {
       console.error("Error fetching orders:", err);
       setError("Не удалось загрузить заказы");
-      // В случае ошибки показываем пустой список
       setOrders([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Функция для получения первой картинки товара (заглушка)
   const getProductImage = (productId) => {
-    // Здесь можно добавить логику получения картинок товаров
-    // Пока используем заглушки по productId
     const imageMap = {
       1: "/assets/images/product-1.jpg",
       2: "/assets/images/product-2.jpg",
-      // добавь другие товары по необходимости
     };
     return imageMap[productId] || null;
   };
 
-  // Функция для преобразования данных из БД в формат фронтенда
   const transformOrder = (order) => {
     try {
       const items = typeof order.items_json === 'string' 
@@ -111,6 +105,23 @@ export default function OrdersPage() {
     }
   };
 
+  // Обработчик клика на картинку товара
+  const handleProductClick = (e, productId) => {
+    e.stopPropagation(); // Останавливаем всплытие, чтобы не сработал клик на заказ
+    navigate(`/product/${productId}`);
+  };
+
+  // Обработчик клика на заказ
+  const handleOrderClick = (orderId) => {
+    navigate(`/order/${orderId}`);
+  };
+
+  // Обработчик клика на кнопку "Посмотреть"
+  const handleSeeButtonClick = (e, orderId) => {
+    e.stopPropagation(); // Останавливаем всплытие
+    navigate(`/order/${orderId}`);
+  };
+
   const transformedOrders = orders.map(transformOrder);
 
   return (
@@ -126,14 +137,25 @@ export default function OrdersPage() {
       ) : (
         <List>
           {transformedOrders.map((o) => {
-            // гарантированно 4 клетки: картинки + пустые плейсхолдеры
-            const thumbs = Array.from({ length: 4 }, (_, i) => o.items[i]?.image || null);
+            const thumbs = Array.from({ length: 4 }, (_, i) => {
+              const item = o.items[i];
+              return item ? { src: item.image, productId: item.id } : null;
+            });
+            
             return (
-              <Card key={o.id} onClick={() => navigate(`/orders/${o.id}`)}>
+              <Card key={o.id} onClick={() => handleOrderClick(o.id)}>
                 {/* 4 квадрата с белой рамкой */}
                 <ThumbsRow>
-                  {thumbs.map((src, idx) => (
-                    <Thumb key={idx}>{src ? <img src={src} alt="" /> : null}</Thumb>
+                  {thumbs.map((thumb, idx) => (
+                    <Thumb key={idx}>
+                      {thumb ? (
+                        <img 
+                          src={thumb.src} 
+                          alt="" 
+                          onClick={(e) => handleProductClick(e, thumb.productId)}
+                        />
+                      ) : null}
+                    </Thumb>
                   ))}
                 </ThumbsRow>
 
@@ -156,7 +178,10 @@ export default function OrdersPage() {
                 </div>
 
                 {/* Кнопка Смотреть */}
-                <SeeBtn type="button" onClick={(e) => (e.stopPropagation(), navigate(`/order/${o.id}`))}>
+                <SeeBtn 
+                  type="button" 
+                  onClick={(e) => handleSeeButtonClick(e, o.id)}
+                >
                   Посмотреть
                 </SeeBtn>
               </Card>
@@ -224,11 +249,17 @@ const Thumb = styled.div`
   border-radius: 10px;
   overflow: hidden;
   background: transparent;
+  
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
+    cursor: pointer;
+    
+    &:hover {
+      opacity: 0.8;
+    }
   }
 `;
 
@@ -273,6 +304,10 @@ const SeeBtn = styled.button`
   
   &:active { 
     transform: translateY(1px); 
+  }
+  
+  &:hover {
+    background: #f0f0f0;
   }
 `;
 
