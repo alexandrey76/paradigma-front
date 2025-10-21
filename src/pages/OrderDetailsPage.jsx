@@ -3,7 +3,19 @@ import styled from "styled-components";
 import { useParams, useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 
-const API_BASE = process.env.REACT_APP_API_BASE || "https://alexandrey76-paradigma-back-c956.twc1.net";
+const API_BASE =
+  process.env.REACT_APP_API_BASE ||
+  "https://alexandrey76-paradigma-back-c956.twc1.net";
+
+/* === изображения товаров (детали) === */
+const PUB = process.env.PUBLIC_URL || "";
+const P = `${PUB}/assets/products_images`;
+const IMAGE_MAP = {
+  1: `${P}/paradigmaone.jpg`,
+  2: `${P}/paradigmalukah.jpg`,
+  3: `${P}/paradigmaneo.jpg`,
+  4: `${P}/paradigmaportative.jpg`,
+};
 
 const STEPS = [
   { key: "pending", label: "Ожидает подтверждения" },
@@ -15,7 +27,6 @@ const STEPS = [
   { key: "rejected", label: "Отклонена" },
 ];
 
-/* ===== PAGE ===== */
 export default function OrderDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -31,7 +42,7 @@ export default function OrderDetailsPage() {
     try {
       setLoading(true);
       setError("");
-      
+
       const tg = window.Telegram?.WebApp;
       const initData = tg?.initData || "";
 
@@ -51,7 +62,6 @@ export default function OrderDetailsPage() {
 
       const data = await response.json();
       setOrder(data.order);
-      
     } catch (err) {
       console.error("Error fetching order details:", err);
       setError(err.message);
@@ -60,39 +70,31 @@ export default function OrderDetailsPage() {
     }
   };
 
-  // Функция для получения картинки товара
-  const getProductImage = (productId) => {
-    const imageMap = {
-      1: "/assets/images/product-1.jpg",
-      2: "/assets/images/product-2.jpg",
-      // добавь другие товары по необходимости
-    };
-    return imageMap[productId] || null;
-  };
+  const getProductImage = (productId) => IMAGE_MAP[productId] || null;
 
-  // Преобразование данных из БД
   const transformedOrder = useMemo(() => {
     if (!order) return null;
 
     try {
-      const items = typeof order.items_json === 'string' 
-        ? JSON.parse(order.items_json)
-        : order.items_json || [];
+      const items =
+        typeof order.items_json === "string"
+          ? JSON.parse(order.items_json)
+          : order.items_json || [];
 
       return {
         id: order.order_uid,
         created_at: order.created_at,
         total: order.total,
-        delivery: 0, // можно добавить в БД если нужно
-        discount: 0, // можно добавить в БД если нужно
-        status: order.status || 'pending',
-        items: items.map(item => ({
+        delivery: 0,
+        discount: 0,
+        status: order.status || "pending",
+        items: items.map((item) => ({
           id: item.id,
           name: item.name,
           price: item.price,
           qty: item.qty,
-          image: getProductImage(item.id)
-        }))
+          image: getProductImage(item.id),
+        })),
       };
     } catch (e) {
       console.error("Error transforming order:", e);
@@ -102,8 +104,8 @@ export default function OrderDetailsPage() {
         total: order.total,
         delivery: 0,
         discount: 0,
-        status: order.status || 'pending',
-        items: []
+        status: order.status || "pending",
+        items: [],
       };
     }
   }, [order]);
@@ -117,18 +119,15 @@ export default function OrderDetailsPage() {
   const getStepTime = (i) => {
     if (!transformedOrder) return "";
     const base = new Date(transformedOrder.created_at);
-    
-    // Логика времени для разных статусов (можно доработать)
     const timeOffsets = {
       pending: 0,
-      confirmed: 30, // минуты после создания
+      confirmed: 30,
       processing: 60,
       ready_to_ship: 120,
       ready_for_pickup: 180,
       done: 240,
-      rejected: 30
+      rejected: 30,
     };
-    
     const currentStep = STEPS[i].key;
     const offset = timeOffsets[currentStep] || i * 30;
     const t = new Date(base.getTime() + offset * 60 * 1000);
@@ -211,13 +210,11 @@ export default function OrderDetailsPage() {
               </ThreeCols>
             </Info>
 
-            {/* Жёлтая линия только между товарами */}
             {idx !== transformedOrder.items.length - 1 && <AccentSeparator />}
           </Item>
         ))}
       </Items>
 
-      {/* Белая линия перед блоком итогов */}
       <WhiteSeparator />
 
       <SummarySection>
@@ -227,14 +224,20 @@ export default function OrderDetailsPage() {
         </SumRow>
         <SumRow>
           <span>Доставка:</span>
-          <b>{transformedOrder.delivery ? formatRUB(transformedOrder.delivery) : "Бесплатно"}</b>
+          <b>
+            {transformedOrder.delivery
+              ? formatRUB(transformedOrder.delivery)
+              : "Бесплатно"}
+          </b>
         </SumRow>
 
         <TotalRow>
           Итого:{" "}
           <b>
             {formatRUB(
-              transformedOrder.total - (transformedOrder.discount || 0) + (transformedOrder.delivery || 0)
+              transformedOrder.total -
+                (transformedOrder.discount || 0) +
+                (transformedOrder.delivery || 0)
             )}
           </b>
         </TotalRow>
@@ -302,7 +305,6 @@ const RightStrong = styled.span`
   font-size: 14px;
 `;
 
-/* ===== Таймлайн ===== */
 const Timeline = styled.ul`
   list-style: none;
   margin: 0 0 8px 0;
@@ -370,7 +372,6 @@ const Timeline = styled.ul`
   }
 `;
 
-/* ===== Товары ===== */
 const Items = styled.div`
   margin-top: 6px;
 `;
@@ -415,7 +416,6 @@ const ThreeCols = styled.div`
   margin-bottom: ${(p) => (p.strong ? "0" : "4px")};
 `;
 
-/* Жёлтая линия между товарами */
 const AccentSeparator = styled.div`
   position: absolute;
   left: 0;
@@ -426,7 +426,6 @@ const AccentSeparator = styled.div`
   border-radius: 2px;
 `;
 
-/* Белая линия перед итогами */
 const WhiteSeparator = styled.div`
   height: 2px;
   background: #ffffff;

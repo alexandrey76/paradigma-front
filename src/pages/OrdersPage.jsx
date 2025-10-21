@@ -1,11 +1,22 @@
-// src/pages/OrdersPage.jsx
 import { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import StatusPillSvg from "../components/StatusPillSvg";
 
-const API_BASE = process.env.REACT_APP_API_BASE || "https://alexandrey76-paradigma-back-c956.twc1.net";
+const API_BASE =
+  process.env.REACT_APP_API_BASE ||
+  "https://alexandrey76-paradigma-back-c956.twc1.net";
+
+/* === изображения товаров (миниатюры) === */
+const PUB = process.env.PUBLIC_URL || "";
+const P = `${PUB}/assets/products_images`;
+const IMAGE_MAP = {
+  1: `${P}/paradigmaone.jpg`,
+  2: `${P}/paradigmalukah.jpg`,
+  3: `${P}/paradigmaneo.jpg`,
+  4: `${P}/paradigmaportative.jpg`,
+};
 
 const STATUS_TEXT = {
   pending: "Ожидает подтверждения",
@@ -32,7 +43,7 @@ export default function OrdersPage() {
     try {
       setLoading(true);
       setError("");
-      
+
       const tg = window.Telegram?.WebApp;
       const u = tg?.initDataUnsafe?.user;
       const initData = tg?.initData || "";
@@ -43,12 +54,15 @@ export default function OrdersPage() {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/api/orders/my-orders?tg_user_id=${uid}`, {
-        method: "GET",
-        headers: {
-          "X-Telegram-Init-Data": initData || "",
-        },
-      });
+      const response = await fetch(
+        `${API_BASE}/api/orders/my-orders?tg_user_id=${uid}`,
+        {
+          method: "GET",
+          headers: {
+            "X-Telegram-Init-Data": initData || "",
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -56,7 +70,6 @@ export default function OrdersPage() {
 
       const data = await response.json();
       setOrders(data.orders || []);
-      
     } catch (err) {
       console.error("Error fetching orders:", err);
       setError("Не удалось загрузить заказы");
@@ -66,32 +79,27 @@ export default function OrdersPage() {
     }
   };
 
-  const getProductImage = (productId) => {
-    const imageMap = {
-      1: "/assets/images/product-1.jpg",
-      2: "/assets/images/product-2.jpg",
-    };
-    return imageMap[productId] || null;
-  };
+  const getProductImage = (productId) => IMAGE_MAP[productId] || null;
 
   const transformOrder = (order) => {
     try {
-      const items = typeof order.items_json === 'string' 
-        ? JSON.parse(order.items_json)
-        : order.items_json || [];
+      const items =
+        typeof order.items_json === "string"
+          ? JSON.parse(order.items_json)
+          : order.items_json || [];
 
       return {
         id: order.order_uid,
         created_at: order.created_at,
         total: order.total,
-        status: order.status || 'pending',
-        items: items.map(item => ({
+        status: order.status || "pending",
+        items: items.map((item) => ({
           id: item.id,
           name: item.name,
           price: item.price,
           qty: item.qty,
-          image: getProductImage(item.id)
-        }))
+          image: getProductImage(item.id),
+        })),
       };
     } catch (e) {
       console.error("Error transforming order:", e);
@@ -99,26 +107,23 @@ export default function OrdersPage() {
         id: order.order_uid,
         created_at: order.created_at,
         total: order.total,
-        status: order.status || 'pending',
-        items: []
+        status: order.status || "pending",
+        items: [],
       };
     }
   };
 
-  // Обработчик клика на картинку товара
   const handleProductClick = (e, productId) => {
-    e.stopPropagation(); // Останавливаем всплытие, чтобы не сработал клик на заказ
+    e.stopPropagation();
     navigate(`/product/${productId}`);
   };
 
-  // Обработчик клика на заказ
   const handleOrderClick = (orderId) => {
     navigate(`/order/${orderId}`);
   };
 
-  // Обработчик клика на кнопку "Посмотреть"
   const handleSeeButtonClick = (e, orderId) => {
-    e.stopPropagation(); // Останавливаем всплытие
+    e.stopPropagation();
     navigate(`/order/${orderId}`);
   };
 
@@ -129,7 +134,7 @@ export default function OrdersPage() {
       <TopBar title="Отправленные заявки" />
 
       {error && <ErrorMessage>{error}</ErrorMessage>}
-      
+
       {loading ? (
         <Empty>Загружаем…</Empty>
       ) : !transformedOrders.length ? (
@@ -141,17 +146,16 @@ export default function OrdersPage() {
               const item = o.items[i];
               return item ? { src: item.image, productId: item.id } : null;
             });
-            
+
             return (
               <Card key={o.id} onClick={() => handleOrderClick(o.id)}>
-                {/* 4 квадрата с белой рамкой */}
                 <ThumbsRow>
                   {thumbs.map((thumb, idx) => (
                     <Thumb key={idx}>
                       {thumb ? (
-                        <img 
-                          src={thumb.src} 
-                          alt="" 
+                        <img
+                          src={thumb.src}
+                          alt=""
                           onClick={(e) => handleProductClick(e, thumb.productId)}
                         />
                       ) : null}
@@ -159,7 +163,6 @@ export default function OrdersPage() {
                   ))}
                 </ThumbsRow>
 
-                {/* Номер и цена в две колонки */}
                 <InfoGrid>
                   <div>
                     <FieldLabel>Заявка №</FieldLabel>
@@ -171,17 +174,12 @@ export default function OrdersPage() {
                   </div>
                 </InfoGrid>
 
-                {/* Статус */}
                 <div>
                   <FieldLabel>Статус</FieldLabel>
                   <StatusPillSvg status={o.status} />
                 </div>
 
-                {/* Кнопка Смотреть */}
-                <SeeBtn 
-                  type="button" 
-                  onClick={(e) => handleSeeButtonClick(e, o.id)}
-                >
+                <SeeBtn type="button" onClick={(e) => handleSeeButtonClick(e, o.id)}>
                   Посмотреть
                 </SeeBtn>
               </Card>
@@ -231,7 +229,7 @@ const Card = styled.div`
   display: grid;
   gap: 12px;
   cursor: pointer;
-  
+
   &:hover {
     background: #1a1a1a;
   }
@@ -249,14 +247,14 @@ const Thumb = styled.div`
   border-radius: 10px;
   overflow: hidden;
   background: transparent;
-  
+
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
     cursor: pointer;
-    
+
     &:hover {
       opacity: 0.8;
     }
@@ -301,11 +299,11 @@ const SeeBtn = styled.button`
   align-items: center;
   padding: 0 14px;
   cursor: pointer;
-  
-  &:active { 
-    transform: translateY(1px); 
+
+  &:active {
+    transform: translateY(1px);
   }
-  
+
   &:hover {
     background: #f0f0f0;
   }
