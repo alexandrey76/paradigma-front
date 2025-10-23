@@ -172,7 +172,7 @@ export default function OrdersPage() {
 
                 <div>
                   <FieldLabel>Статус</FieldLabel>
-                  <StatusPillSvg status={o.status} />
+                  <StatusPillSvg status={o.status} size={250} />
                 </div>
 
                 <SeeBtn
