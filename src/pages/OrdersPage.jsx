@@ -18,6 +18,17 @@ const IMAGE_MAP = {
   4: `${P}/paradigmaportative.jpg`,
 };
 
+const STATUS_TEXT = {
+  pending: "Ожидает подтверждения",
+  confirmed: "Подтверждена",
+  rejected: "Отклонена",
+  created: "Создана",
+  processing: "Обработана",
+  ready_to_ship: "Товар готов к отправке",
+  ready_for_pickup: "Товар готов к получению",
+  done: "Выполнена",
+};
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +37,6 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchUserOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchUserOrders = async () => {
@@ -78,15 +88,11 @@ export default function OrdersPage() {
           ? JSON.parse(order.items_json)
           : order.items_json || [];
 
-      // нормализуем статус: legacy "created" → "pending"
-      let statusRaw = String(order.status || "pending").toLowerCase();
-      if (statusRaw === "created") statusRaw = "pending";
-
       return {
         id: order.order_uid,
         created_at: order.created_at,
         total: order.total,
-        status: statusRaw,
+        status: order.status || "pending",
         items: items.map((item) => ({
           id: item.id,
           name: item.name,
@@ -97,13 +103,11 @@ export default function OrdersPage() {
       };
     } catch (e) {
       console.error("Error transforming order:", e);
-      let statusRaw = String(order.status || "pending").toLowerCase();
-      if (statusRaw === "created") statusRaw = "pending";
       return {
         id: order.order_uid,
         created_at: order.created_at,
         total: order.total,
-        status: statusRaw,
+        status: order.status || "pending",
         items: [],
       };
     }
@@ -172,13 +176,10 @@ export default function OrdersPage() {
 
                 <div>
                   <FieldLabel>Статус</FieldLabel>
-                  <StatusPillSvg status={o.status} size={100} />
+                  <StatusPillSvg status={o.status} />
                 </div>
 
-                <SeeBtn
-                  type="button"
-                  onClick={(e) => handleSeeButtonClick(e, o.id)}
-                >
+                <SeeBtn type="button" onClick={(e) => handleSeeButtonClick(e, o.id)}>
                   Посмотреть
                 </SeeBtn>
               </Card>
@@ -310,6 +311,5 @@ const SeeBtn = styled.button`
 
 /* utils */
 function formatRUB(v) {
-  const num = Number(v ?? 0);
-  return num.toLocaleString("ru-RU") + " руб";
+  return Number(v).toLocaleString("ru-RU") + " руб";
 }
