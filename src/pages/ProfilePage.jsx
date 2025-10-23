@@ -9,7 +9,6 @@ const API_BASE =
   "https://alexandrey76-paradigma-back-c956.twc1.net";
 
 const LOCAL_KEY = "profile.v1";
-const SENT_REQS_KEY = "sentRequests.v1";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -59,15 +58,9 @@ export default function ProfilePage() {
   const [error, setError] = useState("");
   const [editingPhone, setEditingPhone] = useState(false);
 
-  // Количество отправленных заявок из localStorage
-  const sentCount = useMemo(() => {
-    try {
-      const raw = localStorage.getItem(SENT_REQS_KEY);
-      return raw ? Number(raw) : 0; // дефолт — 0
-    } catch {
-      return 0;
-    }
-  }, []);
+  // Реальное количество отправленных заявок с бэкенда
+  const [sentCount, setSentCount] = useState(0);
+  const [countLoading, setCountLoading] = useState(true);
 
   useEffect(() => {
     // Если из ТГ есть аватар — используем
@@ -77,6 +70,52 @@ export default function ProfilePage() {
       if (candidate) setAvatar(candidate);
     }
   }, [tgUser, avatar]);
+
+  // Загружаем количество заявок пользователя
+  useEffect(() => {
+    let aborted = false;
+
+    async function fetchOrdersCount() {
+      try {
+        setCountLoading(true);
+
+        const tg = window.Telegram?.WebApp;
+        const initData = tg?.initData || "";
+        const uid = tgUser?.id;
+
+        if (!uid) {
+          setSentCount(0);
+          return;
+        }
+
+        const resp = await fetch(
+          `${API_BASE}/api/orders/my-orders?tg_user_id=${uid}`,
+          {
+            method: "GET",
+            headers: {
+              "X-Telegram-Init-Data": initData || "",
+            },
+          }
+        );
+
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+        const data = await resp.json();
+        const list = Array.isArray(data?.orders) ? data.orders : [];
+        if (!aborted) setSentCount(list.length);
+      } catch (e) {
+        console.warn("Failed to load orders count:", e);
+        if (!aborted) setSentCount(0);
+      } finally {
+        if (!aborted) setCountLoading(false);
+      }
+    }
+
+    fetchOrdersCount();
+    return () => {
+      aborted = true;
+    };
+  }, [tgUser]);
 
   // Валидация телефона (11 цифр)
   const phoneOk = useMemo(() => {
@@ -283,8 +322,9 @@ export default function ProfilePage() {
             <RowLeft>
               <RowLabel>Отправленные заявки</RowLabel>
               <RowValueSmall>
-                {sentCount}{" "}
-                {pluralize(sentCount, ["заявка", "заявки", "заявок"])}
+                {countLoading ? "—" : sentCount}{" "}
+                {!countLoading &&
+                  pluralize(sentCount, ["заявка", "заявки", "заявок"])}
               </RowValueSmall>
             </RowLeft>
             <Arrow>›</Arrow>
