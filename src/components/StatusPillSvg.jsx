@@ -1,71 +1,49 @@
-// src/components/StatusPillSvg.jsx
-import styled from "styled-components";
+import React from "react";
 
 const PUB = process.env.PUBLIC_URL || "";
 
-// Маппинг статуса -> имя svg-файла в /assets/status
-const ICON_BY_STATUS = {
-  pending: "created",            // ожидание = created.svg
-  confirmed: "confirmed",
-  processing: "processing",
-  shipped: "shipped",
-  ready_for_pickup: "ready_for_pickup",
-  completed: "completed",
-  rejected: "rejected",
+// маппинг статуса -> имя файла из /assets/status
+const FILE_BY_STATUS = {
+  pending: "created.svg",          // ожидание = created
+  created: "created.svg",          // legacy
+  confirmed: "confirmed.svg",
+  processing: "processing.svg",
+  shipped: "shipped.svg",
+  ready_for_pickup: "ready_for_pickup.svg",
+  completed: "completed.svg",
+  rejected: "rejected.svg",
 };
 
-// Человекочитаемое название статусов (если захочешь выводить текст)
+// человекочитаемые подписи (для alt/title)
 const LABEL_BY_STATUS = {
-  pending: "Ожидает",
+  pending: "Создана",
+  created: "Создана",
   confirmed: "Подтверждена",
   processing: "В обработке",
-  shipped: "В доставке",
-  ready_for_pickup: "Готов к получению",
+  shipped: "Заказ передан в доставку",
+  ready_for_pickup: "Заказ готов к получению",
   completed: "Выполнена",
-  rejected: "Отклонена",
+  rejected: "Отменена",
 };
 
 /**
- * Рендерит «пилюлю» статуса: иконка (svg) + опционально подпись.
+ * Показывает ТОЛЬКО svg-иконку статуса (как в макете).
  *
  * Props:
- *  - status: string (обяз.) — одно из:
- *      pending | confirmed | processing | shipped | ready_for_pickup | completed | rejected
- *  - showText?: boolean (по умолчанию true) — показывать ли текст рядом с иконкой
- *  - size?: number (px, по умолчанию 20) — размер иконки
+ *  - status: string (обяз.)
+ *  - height?: number | string = 32  (можешь менять под нужный размер)
+ *  - style?: React.CSSProperties    (если нужно тонко подправить)
+ *  - className?: string
  */
-export default function StatusPillSvg({ status, showText = true, size = 20 }) {
+export default function StatusPillSvg({ status, height = 32, style, className }) {
   const key = String(status || "").toLowerCase();
-  const iconName = ICON_BY_STATUS[key] || "created";
+  const file = FILE_BY_STATUS[key] || FILE_BY_STATUS.pending;
   const label = LABEL_BY_STATUS[key] || "Статус";
 
-  const src = `${PUB}/assets/status/${iconName}.svg`;
+  const src = `${PUB}/assets/status/${file}`;
 
-  return (
-    <Wrap aria-label={label} title={label}>
-      <Icon src={src} alt={label} $size={size} />
-      {showText && <Label>{label}</Label>}
-    </Wrap>
-  );
+  // важное: оставляем ширину авто, чтобы svg масштабировался пропорционально высоте
+  const imgStyle = { display: "inline-block", height, width: "auto", ...style };
+
+  return <img src={src} alt={label} title={label} style={imgStyle} className={className} />;
 }
-
-const Wrap = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border: 1.5px solid #fff;
-  border-radius: 999px;
-  background: #0b0b0b;
-`;
-
-const Icon = styled.img`
-  width: ${(p) => p.$size}px;
-  height: ${(p) => p.$size}px;
-  display: block;
-`;
-
-const Label = styled.span`
-  font-size: 13px;
-  line-height: 1;
-`;
