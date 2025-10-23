@@ -1,11 +1,12 @@
 // src/components/StatusPillSvg.jsx
-import styled from "styled-components";
+import React from "react";
 
 const PUB = process.env.PUBLIC_URL || "";
 
-// Маппинг статуса -> имя svg-файла в /assets/status
+// статус -> имя svg-файла в /assets/status
 const ICON_BY_STATUS = {
-  pending: "created",            // ожидание = created.svg
+  pending: "created",
+  created: "created",              // legacy: трактуем как pending
   confirmed: "confirmed",
   processing: "processing",
   shipped: "shipped",
@@ -14,58 +15,28 @@ const ICON_BY_STATUS = {
   rejected: "rejected",
 };
 
-// Человекочитаемое название статусов (если захочешь выводить текст)
-const LABEL_BY_STATUS = {
-  pending: "Ожидает",
-  confirmed: "Подтверждена",
-  processing: "В обработке",
-  shipped: "В доставке",
-  ready_for_pickup: "Готов к получению",
-  completed: "Выполнена",
-  rejected: "Отклонена",
-};
-
 /**
- * Рендерит «пилюлю» статуса: иконка (svg) + опционально подпись.
+ * Показывает ТОЛЬКО SVG-иконку статуса.
  *
  * Props:
- *  - status: string (обяз.) — одно из:
- *      pending | confirmed | processing | shipped | ready_for_pickup | completed | rejected
- *  - showText?: boolean (по умолчанию true) — показывать ли текст рядом с иконкой
- *  - size?: number (px, по умолчанию 20) — размер иконки
+ *  - status: string (обяз.) — один из:
+ *      pending | created | confirmed | processing | shipped | ready_for_pickup | completed | rejected
+ *  - size?: number (px) — размер стороны иконки, по умолчанию 20
+ *  - title?: string — всплывающая подсказка при наведении (опционально)
  */
-export default function StatusPillSvg({ status, showText = true, size = 20 }) {
+export default function StatusPillSvg({ status, size = 20, title }) {
   const key = String(status || "").toLowerCase();
   const iconName = ICON_BY_STATUS[key] || "created";
-  const label = LABEL_BY_STATUS[key] || "Статус";
-
   const src = `${PUB}/assets/status/${iconName}.svg`;
 
   return (
-    <Wrap aria-label={label} title={label}>
-      <Icon src={src} alt={label} $size={size} />
-      {showText && <Label>{label}</Label>}
-    </Wrap>
+    <img
+      src={src}
+      alt=""
+      width={size}
+      height={size}
+      title={title}
+      style={{ display: "inline-block", verticalAlign: "middle" }}
+    />
   );
 }
-
-const Wrap = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border: 1.5px solid #fff;
-  border-radius: 999px;
-  background: #0b0b0b;
-`;
-
-const Icon = styled.img`
-  width: ${(p) => p.$size}px;
-  height: ${(p) => p.$size}px;
-  display: block;
-`;
-
-const Label = styled.span`
-  font-size: 13px;
-  line-height: 1;
-`;
