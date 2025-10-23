@@ -1,33 +1,71 @@
+// src/components/StatusPillSvg.jsx
 import styled from "styled-components";
 
-const ICONS = {
-  created: "/assets/status/created.svg",
-  processing: "/assets/status/processing.svg",
-  done: "/assets/status/done.svg",
-  ready_to_ship: "/assets/status/ready_to_ship.svg",
-  ready_for_pickup: "/assets/status/ready_for_pickup.svg",
+const PUB = process.env.PUBLIC_URL || "";
+
+// Маппинг статуса -> имя svg-файла в /assets/status
+const ICON_BY_STATUS = {
+  pending: "created",            // ожидание = created.svg
+  confirmed: "confirmed",
+  processing: "processing",
+  shipped: "shipped",
+  ready_for_pickup: "ready_for_pickup",
+  completed: "completed",
+  rejected: "rejected",
 };
 
-export default function StatusPillSvg({ status }) {
-  const src = ICONS[status] || ICONS.created;
-  const isBig = status === "ready_to_ship" || status === "ready_for_pickup";
+// Человекочитаемое название статусов (если захочешь выводить текст)
+const LABEL_BY_STATUS = {
+  pending: "Ожидает",
+  confirmed: "Подтверждена",
+  processing: "В обработке",
+  shipped: "В доставке",
+  ready_for_pickup: "Готов к получению",
+  completed: "Выполнена",
+  rejected: "Отклонена",
+};
 
-  return <Pill $src={src} $big={isBig} aria-label={status} />;
+/**
+ * Рендерит «пилюлю» статуса: иконка (svg) + опционально подпись.
+ *
+ * Props:
+ *  - status: string (обяз.) — одно из:
+ *      pending | confirmed | processing | shipped | ready_for_pickup | completed | rejected
+ *  - showText?: boolean (по умолчанию true) — показывать ли текст рядом с иконкой
+ *  - size?: number (px, по умолчанию 20) — размер иконки
+ */
+export default function StatusPillSvg({ status, showText = true, size = 20 }) {
+  const key = String(status || "").toLowerCase();
+  const iconName = ICON_BY_STATUS[key] || "created";
+  const label = LABEL_BY_STATUS[key] || "Статус";
+
+  const src = `${PUB}/assets/status/${iconName}.svg`;
+
+  return (
+    <Wrap aria-label={label} title={label}>
+      <Icon src={src} alt={label} $size={size} />
+      {showText && <Label>{label}</Label>}
+    </Wrap>
+  );
 }
 
-/* компакт: одинаковая ширина, две высоты по статусу */
-const Pill = styled.div`
-  width: 160px;                          /* одинаковая ширина для всех */
-  height: ${(p) => (p.$big ? 36 : 28)}px;/* big: ready_*  | small: остальные */
-  background-image: url(${(p) => p.$src});
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: left center;
+const Wrap = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1.5px solid #fff;
+  border-radius: 999px;
+  background: #0b0b0b;
+`;
 
+const Icon = styled.img`
+  width: ${(p) => p.$size}px;
+  height: ${(p) => p.$size}px;
   display: block;
-  margin-top: 6px;
+`;
 
-  /* фиксируем «уезд вправо» в любых контейнерах */
-  justify-self: start;
-  align-self: start;
+const Label = styled.span`
+  font-size: 13px;
+  line-height: 1;
 `;
