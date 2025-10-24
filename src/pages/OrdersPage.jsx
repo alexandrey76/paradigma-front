@@ -176,7 +176,7 @@ export default function OrdersPage() {
 
                 <div>
                   <FieldLabel>Статус</FieldLabel>
-                  <StatusPillSvg status={o.status} />
+                  <StatusPillSvg status={o.status} size={24}/>
                 </div>
 
                 <SeeBtn type="button" onClick={(e) => handleSeeButtonClick(e, o.id)}>
