@@ -35,7 +35,7 @@ const LABEL_BY_STATUS = {
  *  - style?: React.CSSProperties    (если нужно тонко подправить)
  *  - className?: string
  */
-export default function StatusPillSvg({ status, width="250px", style, className }) {
+export default function StatusPillSvg({ status, height = 32, style, className }) {
   const key = String(status || "").toLowerCase();
   const file = FILE_BY_STATUS[key] || FILE_BY_STATUS.pending;
   const label = LABEL_BY_STATUS[key] || "Статус";
@@ -43,7 +43,7 @@ export default function StatusPillSvg({ status, width="250px", style, className 
   const src = `${PUB}/assets/status/${file}`;
 
   // важное: оставляем ширину авто, чтобы svg масштабировался пропорционально высоте
-  const imgStyle = { display: "inline-block", height, width: "auto", ...style };
+  const imgStyle = { display: "inline-block", height, width: "250px", ...style };
 
   return <img src={src} alt={label} title={label} style={imgStyle} className={className} />;
 }
