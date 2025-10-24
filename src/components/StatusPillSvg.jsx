@@ -35,7 +35,7 @@ const LABEL_BY_STATUS = {
  *  - style?: React.CSSProperties    (если нужно тонко подправить)
  *  - className?: string
  */
-export default function StatusPillSvg({ status, width = 32, style, className }) {
+export default function StatusPillSvg({ status, width = 200, style, className }) {
   const key = String(status || "").toLowerCase();
   const file = FILE_BY_STATUS[key] || FILE_BY_STATUS.pending;
   const label = LABEL_BY_STATUS[key] || "Статус";
