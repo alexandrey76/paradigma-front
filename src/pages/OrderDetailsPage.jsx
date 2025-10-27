@@ -1,4 +1,3 @@
-// src/pages/OrderDetailsPage.jsx
 import React, { useMemo, useEffect, useState } from "react";
 import styled from "styled-components";
 import { useParams, useNavigate } from "react-router-dom";
@@ -18,6 +17,7 @@ const IMAGE_MAP = {
   4: `${P}/paradigmaportative.jpg`,
 };
 
+// Человекочитаемые подписи
 const LABEL = {
   pending: "Ожидает подтверждения",
   confirmed: "Подтверждена",
@@ -28,6 +28,7 @@ const LABEL = {
   rejected: "Отменена",
 };
 
+// Базовая дорожка без "rejected"
 const BASE_STEPS = [
   "pending",
   "confirmed",
@@ -41,7 +42,7 @@ export default function OrderDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
-  const [timeline, setTimeline] = useState([]);
+  const [timeline, setTimeline] = useState([]); // [{from_status,to_status,changed_at,manager_username}, ...]
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -78,7 +79,10 @@ export default function OrderDetailsPage() {
       const res = await fetch(`${API_BASE}/api/orders/${id}/timeline`);
       const data = await res.json();
       let rows = Array.isArray(data?.timeline) ? data.timeline : [];
-      rows.sort((a, b) => new Date(a.changed_at) - new Date(b.changed_at));
+      // старые → новые
+      rows.sort(
+        (a, b) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime()
+      );
       setTimeline(rows);
     } catch (e) {
       console.warn("timeline fetch error", e);
@@ -116,21 +120,71 @@ export default function OrderDetailsPage() {
     };
   }, [order]);
 
-  // статус -> время первого наступления
+  // карта «статус → время наступления» из реального таймлайна
   const reachedAt = useMemo(() => {
     const map = {};
     for (const row of timeline) {
       const k = String(row.to_status || "").toLowerCase();
-      if (!map[k]) map[k] = row.changed_at;
+      if (!map[k]) map[k] = row.changed_at; // фиксируем первое наступление
     }
+    // создание заказа трактуем как pending на момент created_at
     if (transformedOrder?.created_at && !map.pending) {
       map.pending = transformedOrder.created_at;
     }
     return map;
   }, [timeline, transformedOrder]);
 
-  const showRejectedFirst = "rejected" in reachedAt;
-  const stepsForRender = showRejectedFirst ? ["rejected", ...BASE_STEPS] : BASE_STEPS;
+  const hasRejected = "rejected" in reachedAt;
+
+  // Итоговая дорожка (если отмена — без "pending" после "rejected")
+  const stepsForRender = useMemo(() => {
+    return hasRejected
+      ? ["rejected", ...BASE_STEPS.filter((s) => s !== "pending")]
+      : BASE_STEPS;
+  }, [hasRejected]);
+
+  // Посчитать индекс «самого дальнего» достигнутого шага.
+  const furthestReachedIndex = useMemo(() => {
+    if (!transformedOrder) return 0;
+    if (hasRejected) return 0;
+
+    const statusIdx = stepsForRender.indexOf(transformedOrder.status);
+    let maxIdxByHistory = -1;
+    stepsForRender.forEach((key, idx) => {
+      if (reachedAt[key]) maxIdxByHistory = Math.max(maxIdxByHistory, idx);
+    });
+    const candidate = Math.max(statusIdx, maxIdxByHistory);
+    return Math.max(0, candidate);
+  }, [hasRejected, stepsForRender, transformedOrder, reachedAt]);
+
+  // Время для отображения:
+  // - если есть реальный timestamp — берём его
+  // - если шага нет в истории, но он <= furthestReachedIndex — берём ближайшее предыдущее «реальное» время,
+  //   если и его нет — created_at
+  const displayTimeByStep = useMemo(() => {
+    const out = {};
+    if (!transformedOrder) return out;
+
+    if (hasRejected) {
+      // у отмены показываем только реальное время «rejected»
+      if (reachedAt.rejected) out.rejected = reachedAt.rejected;
+      return out;
+    }
+
+    let lastRealTime = transformedOrder.created_at || null;
+
+    stepsForRender.forEach((key, idx) => {
+      if (reachedAt[key]) {
+        lastRealTime = reachedAt[key];
+        out[key] = reachedAt[key];
+      } else if (idx <= furthestReachedIndex) {
+        out[key] = lastRealTime; // «наследуем» время
+      }
+      // для будущих шагов (idx > furthestReachedIndex) времени нет
+    });
+
+    return out;
+  }, [hasRejected, stepsForRender, reachedAt, furthestReachedIndex, transformedOrder]);
 
   if (loading) {
     return (
@@ -141,7 +195,7 @@ export default function OrderDetailsPage() {
     );
   }
 
-  if (!transformedOrder || error) {
+  if (error || !transformedOrder) {
     return (
       <Page>
         <TopBar title="Заявка" onBack={() => navigate(-1)} />
@@ -162,7 +216,7 @@ export default function OrderDetailsPage() {
         <Divider />
         <Row>
           <LeftMuted>Дата создания:</LeftMuted>
-          <RightStrong>{formatDateLocal(transformedOrder.created_at)}</RightStrong>
+          <RightStrong>{formatDateMSK(transformedOrder.created_at)}</RightStrong>
         </Row>
       </Section>
 
@@ -170,21 +224,18 @@ export default function OrderDetailsPage() {
       <Hairline />
 
       <TimelineUI>
-        {stepsForRender.map((key) => {
+        {stepsForRender.map((key, i) => {
           const label = LABEL[key] || "Статус";
-          const time = reachedAt[key];
-          const reached = Boolean(time);
-          const isRejected = key === "rejected" && reached;
-
+          const reached = hasRejected ? i === 0 : i <= furthestReachedIndex;
+          const showTime = Boolean(displayTimeByStep[key]);
           return (
-            <li
-              key={key}
-              className={`${reached ? "reached" : ""} ${isRejected ? "rejected" : ""}`}
-            >
+            <li key={key} className={reached ? "reached" : ""} data-state={key}>
               <span className="dot" />
               <div className="text">
                 <div className="label">{label}</div>
-                {reached && <div className="time">{formatDateTimeLocal(time)}</div>}
+                {showTime && (
+                  <div className="time">{formatDateTimeMSK(displayTimeByStep[key])}</div>
+                )}
               </div>
             </li>
           );
@@ -237,7 +288,7 @@ export default function OrderDetailsPage() {
   );
 }
 
-/* ===== styled ===== */
+/* =================== styled =================== */
 
 const Page = styled.main`
   min-height: 100dvh;
@@ -326,7 +377,7 @@ const TimelineUI = styled.ul`
     background: linear-gradient(to bottom, #2a2a2a 0 50%, transparent 50% 100%);
   }
 
-  /* достигнутый статус — жёлтая линия/точка */
+  /* активные точки и линия */
   li.reached .dot {
     border-color: #f5b300;
     background: #f5b300;
@@ -338,13 +389,16 @@ const TimelineUI = styled.ul`
     background: linear-gradient(to bottom, #f5b300 0 50%, transparent 50% 100%);
   }
 
-  /* REJECTED — красная точка и красная линия вниз до следующего шага */
-  li.rejected .dot {
-    border-color: #ff4545;
-    background: #ff4545;
+  /* красная точка для отмены */
+  li[data-state="rejected"].reached .dot {
+    border-color: #ff5252;
+    background: #ff5252;
   }
-  li.rejected::before {
-    background: #ff4545;
+  li[data-state="rejected"].reached::before {
+    background: #ff5252;
+  }
+  li[data-state="rejected"].reached:last-child::before {
+    background: linear-gradient(to bottom, #ff5252 0 50%, transparent 50% 100%);
   }
 
   .dot {
@@ -461,37 +515,42 @@ const BottomPad = styled.div`
   height: 80px;
 `;
 
-/* ===== utils: локальная зона пользователя ===== */
-function formatDateLocal(iso) {
+/* ===== utils (MSK) ===== */
+
+function formatDateMSK(iso) {
   try {
-    const d = new Date(iso);
     return new Intl.DateTimeFormat("ru-RU", {
+      timeZone: "Europe/Moscow",
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
-    }).format(d);
+    }).format(new Date(iso));
   } catch {
     return iso;
   }
 }
-function formatDateTimeLocal(iso) {
+
+function formatDateTimeMSK(iso) {
   try {
     const d = new Date(iso);
-    const date = new Intl.DateTimeFormat("ru-RU", {
+    const dd = new Intl.DateTimeFormat("ru-RU", {
+      timeZone: "Europe/Moscow",
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
     }).format(d);
-    const time = new Intl.DateTimeFormat("ru-RU", {
+    const tm = new Intl.DateTimeFormat("ru-RU", {
+      timeZone: "Europe/Moscow",
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
     }).format(d);
-    return `${date} ${time}`;
+    return `${dd} ${tm}`;
   } catch {
     return "";
   }
 }
+
 function formatRUB(v) {
   return `${Number(v).toLocaleString("ru-RU")} руб`;
 }
