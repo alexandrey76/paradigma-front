@@ -79,8 +79,7 @@ export default function OrderDetailsPage() {
       const res = await fetch(`${API_BASE}/api/orders/${id}/timeline`);
       const data = await res.json();
       let rows = Array.isArray(data?.timeline) ? data.timeline : [];
-      // сортируем по времени возрастанию (старые → новые),
-      // чтобы корректно брать "первое наступление" статуса
+      // по возрастанию времени
       rows.sort(
         (a, b) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime()
       );
@@ -121,12 +120,12 @@ export default function OrderDetailsPage() {
     };
   }, [order]);
 
-  // карта «статус → время наступления» из реального таймлайна
+  // карта «статус → время наступления»
   const reachedAt = useMemo(() => {
     const map = {};
     for (const row of timeline) {
       const k = String(row.to_status || "").toLowerCase();
-      if (!map[k]) map[k] = row.changed_at; // фиксируем первое наступление
+      if (!map[k]) map[k] = row.changed_at; // первое наступление
     }
     // создание заказа трактуем как pending на момент created_at
     if (transformedOrder?.created_at && !map.pending) {
@@ -139,9 +138,7 @@ export default function OrderDetailsPage() {
 
   // Итоговый набор шагов сверху-вниз:
   // если есть rejected — добавляем его первым, затем стандартная дорожка
-  const stepsForRender = hasRejected
-    ? ["rejected", ...BASE_STEPS]
-    : BASE_STEPS;
+  const stepsForRender = hasRejected ? ["rejected", ...BASE_STEPS] : BASE_STEPS;
 
   if (loading) {
     return (
@@ -181,12 +178,16 @@ export default function OrderDetailsPage() {
       <Hairline />
 
       <TimelineUI>
-        {stepsForRender.map((key, i) => {
+        {stepsForRender.map((key) => {
           const label = LABEL[key] || "Статус";
           const time = reachedAt[key]; // undefined для будущих шагов
           const reached = Boolean(time);
+          const isRejected = key === "rejected";
           return (
-            <li key={key} className={reached ? "reached" : ""}>
+            <li
+              key={key}
+              className={`${reached ? "reached" : ""} ${isRejected ? "rejected" : ""}`}
+            >
               <span className="dot" />
               <div className="text">
                 <div className="label">{label}</div>
@@ -332,6 +333,7 @@ const TimelineUI = styled.ul`
     background: linear-gradient(to bottom, #2a2a2a 0 50%, transparent 50% 100%);
   }
 
+  /* достигнутые шаги (желтые) */
   li.reached .dot {
     border-color: #f5b300;
     background: #f5b300;
@@ -341,6 +343,12 @@ const TimelineUI = styled.ul`
   }
   li.reached:last-child::before {
     background: linear-gradient(to bottom, #f5b300 0 50%, transparent 50% 100%);
+  }
+
+  /* "Отменена" — красный кружок */
+  li.rejected .dot {
+    border-color: #ff4d4f;
+    background: #ff4d4f;
   }
 
   .dot {
@@ -458,11 +466,6 @@ const BottomPad = styled.div`
 `;
 
 /* ===== utils (MSK) ===== */
-function pad(n) {
-  return n < 10 ? `0${n}` : `${n}`;
-}
-
-// Дата (только день.месяц.год) — в зоне Europe/Moscow
 function formatDateMSK(iso) {
   try {
     return new Intl.DateTimeFormat("ru-RU", {
@@ -476,7 +479,6 @@ function formatDateMSK(iso) {
   }
 }
 
-// Дата+время — в зоне Europe/Moscow
 function formatDateTimeMSK(iso) {
   try {
     const d = new Date(iso);
