@@ -1,3 +1,4 @@
+// src/pages/OrderDetailsPage.jsx
 import React, { useMemo, useEffect, useState } from "react";
 import styled from "styled-components";
 import { useParams, useNavigate } from "react-router-dom";
@@ -31,6 +32,15 @@ const LABEL = {
 // Базовая дорожка без "rejected"
 const BASE_STEPS = [
   "pending",
+  "confirmed",
+  "processing",
+  "shipped",
+  "ready_for_pickup",
+  "completed",
+];
+
+// Когда есть rejected — pending не показываем
+const STEPS_NO_PENDING = [
   "confirmed",
   "processing",
   "shipped",
@@ -79,7 +89,8 @@ export default function OrderDetailsPage() {
       const res = await fetch(`${API_BASE}/api/orders/${id}/timeline`);
       const data = await res.json();
       let rows = Array.isArray(data?.timeline) ? data.timeline : [];
-      // по возрастанию времени
+      // сортируем по времени возрастанию (старые → новые),
+      // чтобы корректно брать "первое наступление" статуса
       rows.sort(
         (a, b) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime()
       );
@@ -120,12 +131,12 @@ export default function OrderDetailsPage() {
     };
   }, [order]);
 
-  // карта «статус → время наступления»
+  // карта «статус → время наступления» из реального таймлайна
   const reachedAt = useMemo(() => {
     const map = {};
     for (const row of timeline) {
       const k = String(row.to_status || "").toLowerCase();
-      if (!map[k]) map[k] = row.changed_at; // первое наступление
+      if (!map[k]) map[k] = row.changed_at; // фиксируем первое наступление
     }
     // создание заказа трактуем как pending на момент created_at
     if (transformedOrder?.created_at && !map.pending) {
@@ -137,8 +148,10 @@ export default function OrderDetailsPage() {
   const hasRejected = "rejected" in reachedAt;
 
   // Итоговый набор шагов сверху-вниз:
-  // если есть rejected — добавляем его первым, затем стандартная дорожка
-  const stepsForRender = hasRejected ? ["rejected", ...BASE_STEPS] : BASE_STEPS;
+  // если есть rejected — добавляем его первым и НЕ показываем pending
+  const stepsForRender = hasRejected
+    ? ["rejected", ...STEPS_NO_PENDING]
+    : BASE_STEPS;
 
   if (loading) {
     return (
@@ -182,11 +195,13 @@ export default function OrderDetailsPage() {
           const label = LABEL[key] || "Статус";
           const time = reachedAt[key]; // undefined для будущих шагов
           const reached = Boolean(time);
-          const isRejected = key === "rejected";
           return (
             <li
               key={key}
-              className={`${reached ? "reached" : ""} ${isRejected ? "rejected" : ""}`}
+              className={[
+                reached ? "reached" : "",
+                key === "rejected" && reached ? "rejected" : "",
+              ].join(" ").trim()}
             >
               <span className="dot" />
               <div className="text">
@@ -333,7 +348,7 @@ const TimelineUI = styled.ul`
     background: linear-gradient(to bottom, #2a2a2a 0 50%, transparent 50% 100%);
   }
 
-  /* достигнутые шаги (желтые) */
+  /* Достигнутые шаги — жёлтая линия/точка */
   li.reached .dot {
     border-color: #f5b300;
     background: #f5b300;
@@ -345,10 +360,16 @@ const TimelineUI = styled.ul`
     background: linear-gradient(to bottom, #f5b300 0 50%, transparent 50% 100%);
   }
 
-  /* "Отменена" — красный кружок */
-  li.rejected .dot {
-    border-color: #ff4d4f;
-    background: #ff4d4f;
+  /* Если достигнутый шаг — rejected, точка красная */
+  li.reached.rejected .dot {
+    border-color: #e74c3c;
+    background: #e74c3c;
+  }
+  li.reached.rejected::before {
+    background: #e74c3c;
+  }
+  li.reached.rejected:last-child::before {
+    background: linear-gradient(to bottom, #e74c3c 0 50%, transparent 50% 100%);
   }
 
   .dot {
@@ -466,6 +487,8 @@ const BottomPad = styled.div`
 `;
 
 /* ===== utils (MSK) ===== */
+
+// Дата (только день.месяц.год) — в зоне Europe/Moscow
 function formatDateMSK(iso) {
   try {
     return new Intl.DateTimeFormat("ru-RU", {
@@ -479,6 +502,7 @@ function formatDateMSK(iso) {
   }
 }
 
+// Дата+время — в зоне Europe/Moscow
 function formatDateTimeMSK(iso) {
   try {
     const d = new Date(iso);
