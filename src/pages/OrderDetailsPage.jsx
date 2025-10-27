@@ -18,7 +18,6 @@ const IMAGE_MAP = {
   4: `${P}/paradigmaportative.jpg`,
 };
 
-// Человекочитаемые подписи
 const LABEL = {
   pending: "Ожидает подтверждения",
   confirmed: "Подтверждена",
@@ -29,18 +28,8 @@ const LABEL = {
   rejected: "Отменена",
 };
 
-// Базовая дорожка без "rejected"
 const BASE_STEPS = [
   "pending",
-  "confirmed",
-  "processing",
-  "shipped",
-  "ready_for_pickup",
-  "completed",
-];
-
-// Когда есть rejected — pending не показываем
-const STEPS_NO_PENDING = [
   "confirmed",
   "processing",
   "shipped",
@@ -52,7 +41,7 @@ export default function OrderDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
-  const [timeline, setTimeline] = useState([]); // [{from_status,to_status,changed_at,manager_username}, ...]
+  const [timeline, setTimeline] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -89,11 +78,7 @@ export default function OrderDetailsPage() {
       const res = await fetch(`${API_BASE}/api/orders/${id}/timeline`);
       const data = await res.json();
       let rows = Array.isArray(data?.timeline) ? data.timeline : [];
-      // сортируем по времени возрастанию (старые → новые),
-      // чтобы корректно брать "первое наступление" статуса
-      rows.sort(
-        (a, b) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime()
-      );
+      rows.sort((a, b) => new Date(a.changed_at) - new Date(b.changed_at));
       setTimeline(rows);
     } catch (e) {
       console.warn("timeline fetch error", e);
@@ -131,27 +116,21 @@ export default function OrderDetailsPage() {
     };
   }, [order]);
 
-  // карта «статус → время наступления» из реального таймлайна
+  // статус -> время первого наступления
   const reachedAt = useMemo(() => {
     const map = {};
     for (const row of timeline) {
       const k = String(row.to_status || "").toLowerCase();
-      if (!map[k]) map[k] = row.changed_at; // фиксируем первое наступление
+      if (!map[k]) map[k] = row.changed_at;
     }
-    // создание заказа трактуем как pending на момент created_at
     if (transformedOrder?.created_at && !map.pending) {
       map.pending = transformedOrder.created_at;
     }
     return map;
   }, [timeline, transformedOrder]);
 
-  const hasRejected = "rejected" in reachedAt;
-
-  // Итоговый набор шагов сверху-вниз:
-  // если есть rejected — добавляем его первым и НЕ показываем pending
-  const stepsForRender = hasRejected
-    ? ["rejected", ...STEPS_NO_PENDING]
-    : BASE_STEPS;
+  const showRejectedFirst = "rejected" in reachedAt;
+  const stepsForRender = showRejectedFirst ? ["rejected", ...BASE_STEPS] : BASE_STEPS;
 
   if (loading) {
     return (
@@ -162,7 +141,7 @@ export default function OrderDetailsPage() {
     );
   }
 
-  if (error || !transformedOrder) {
+  if (!transformedOrder || error) {
     return (
       <Page>
         <TopBar title="Заявка" onBack={() => navigate(-1)} />
@@ -183,7 +162,7 @@ export default function OrderDetailsPage() {
         <Divider />
         <Row>
           <LeftMuted>Дата создания:</LeftMuted>
-          <RightStrong>{formatDateMSK(transformedOrder.created_at)}</RightStrong>
+          <RightStrong>{formatDateLocal(transformedOrder.created_at)}</RightStrong>
         </Row>
       </Section>
 
@@ -193,20 +172,19 @@ export default function OrderDetailsPage() {
       <TimelineUI>
         {stepsForRender.map((key) => {
           const label = LABEL[key] || "Статус";
-          const time = reachedAt[key]; // undefined для будущих шагов
+          const time = reachedAt[key];
           const reached = Boolean(time);
+          const isRejected = key === "rejected" && reached;
+
           return (
             <li
               key={key}
-              className={[
-                reached ? "reached" : "",
-                key === "rejected" && reached ? "rejected" : "",
-              ].join(" ").trim()}
+              className={`${reached ? "reached" : ""} ${isRejected ? "rejected" : ""}`}
             >
               <span className="dot" />
               <div className="text">
                 <div className="label">{label}</div>
-                {reached && <div className="time">{formatDateTimeMSK(time)}</div>}
+                {reached && <div className="time">{formatDateTimeLocal(time)}</div>}
               </div>
             </li>
           );
@@ -259,7 +237,7 @@ export default function OrderDetailsPage() {
   );
 }
 
-/* =================== styled =================== */
+/* ===== styled ===== */
 
 const Page = styled.main`
   min-height: 100dvh;
@@ -348,7 +326,7 @@ const TimelineUI = styled.ul`
     background: linear-gradient(to bottom, #2a2a2a 0 50%, transparent 50% 100%);
   }
 
-  /* Достигнутые шаги — жёлтая линия/точка */
+  /* достигнутый статус — жёлтая линия/точка */
   li.reached .dot {
     border-color: #f5b300;
     background: #f5b300;
@@ -360,16 +338,13 @@ const TimelineUI = styled.ul`
     background: linear-gradient(to bottom, #f5b300 0 50%, transparent 50% 100%);
   }
 
-  /* Если достигнутый шаг — rejected, точка красная */
-  li.reached.rejected .dot {
-    border-color: #e74c3c;
-    background: #e74c3c;
+  /* REJECTED — красная точка и красная линия вниз до следующего шага */
+  li.rejected .dot {
+    border-color: #ff4545;
+    background: #ff4545;
   }
-  li.reached.rejected::before {
-    background: #e74c3c;
-  }
-  li.reached.rejected:last-child::before {
-    background: linear-gradient(to bottom, #e74c3c 0 50%, transparent 50% 100%);
+  li.rejected::before {
+    background: #ff4545;
   }
 
   .dot {
@@ -486,44 +461,37 @@ const BottomPad = styled.div`
   height: 80px;
 `;
 
-/* ===== utils (MSK) ===== */
-
-// Дата (только день.месяц.год) — в зоне Europe/Moscow
-function formatDateMSK(iso) {
+/* ===== utils: локальная зона пользователя ===== */
+function formatDateLocal(iso) {
   try {
+    const d = new Date(iso);
     return new Intl.DateTimeFormat("ru-RU", {
-      timeZone: "Europe/Moscow",
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
-    }).format(new Date(iso));
+    }).format(d);
   } catch {
     return iso;
   }
 }
-
-// Дата+время — в зоне Europe/Moscow
-function formatDateTimeMSK(iso) {
+function formatDateTimeLocal(iso) {
   try {
     const d = new Date(iso);
-    const dd = new Intl.DateTimeFormat("ru-RU", {
-      timeZone: "Europe/Moscow",
+    const date = new Intl.DateTimeFormat("ru-RU", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
     }).format(d);
-    const tm = new Intl.DateTimeFormat("ru-RU", {
-      timeZone: "Europe/Moscow",
+    const time = new Intl.DateTimeFormat("ru-RU", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
     }).format(d);
-    return `${dd} ${tm}`;
+    return `${date} ${time}`;
   } catch {
     return "";
   }
 }
-
 function formatRUB(v) {
   return `${Number(v).toLocaleString("ru-RU")} руб`;
 }
