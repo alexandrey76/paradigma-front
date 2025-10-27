@@ -17,25 +17,29 @@ const IMAGE_MAP = {
   4: `${P}/paradigmaportative.jpg`,
 };
 
-const STEPS = [
-  { key: "pending", label: "Ожидает подтверждения" },
-  { key: "confirmed", label: "Подтверждена" },
-  { key: "processing", label: "Обработана" },
-  { key: "ready_to_ship", label: "Товар готов к отправке" },
-  { key: "ready_for_pickup", label: "Товар готов к получению" },
-  { key: "done", label: "Выполнена" },
-  { key: "rejected", label: "Отклонена" },
-];
+// Человекочитаемые подписи статусов
+const STATUS_LABEL = {
+  pending: "Ожидает подтверждения",
+  confirmed: "Подтверждена",
+  processing: "Обработана",
+  shipped: "Товар передан в доставку",
+  ready_for_pickup: "Товар готов к получению",
+  completed: "Выполнена",
+  rejected: "Отменена",
+};
 
 export default function OrderDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
+  const [timeline, setTimeline] = useState([]); // <- реальная история из БД
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     fetchOrderDetails();
+    fetchTimeline();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchOrderDetails = async () => {
@@ -54,9 +58,7 @@ export default function OrderDetailsPage() {
       });
 
       if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error("Заявка не найдена");
-        }
+        if (response.status === 404) throw new Error("Заявка не найдена");
         throw new Error(`Ошибка загрузки: HTTP ${response.status}`);
       }
 
@@ -67,6 +69,25 @@ export default function OrderDetailsPage() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTimeline = async () => {
+    try {
+      const resp = await fetch(`${API_BASE}/api/orders/${id}/timeline`);
+      const data = await resp.json();
+      let rows = Array.isArray(data?.timeline) ? data.timeline : [];
+
+      // Сортировка: новое сверху (чтобы "Отменена" была над "Ожидает...")
+      rows.sort(
+        (a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime()
+      );
+
+      // Если есть rejected — это финальное состояние, просто показываем всю историю (отменённая будет сверху)
+      setTimeline(rows);
+    } catch (e) {
+      console.warn("timeline fetch error", e);
+      setTimeline([]);
     }
   };
 
@@ -110,30 +131,6 @@ export default function OrderDetailsPage() {
     }
   }, [order]);
 
-  const activeIndex = useMemo(() => {
-    if (!transformedOrder) return 0;
-    const idx = STEPS.findIndex((s) => s.key === transformedOrder.status);
-    return idx < 0 ? 0 : idx;
-  }, [transformedOrder]);
-
-  const getStepTime = (i) => {
-    if (!transformedOrder) return "";
-    const base = new Date(transformedOrder.created_at);
-    const timeOffsets = {
-      pending: 0,
-      confirmed: 30,
-      processing: 60,
-      ready_to_ship: 120,
-      ready_for_pickup: 180,
-      done: 240,
-      rejected: 30,
-    };
-    const currentStep = STEPS[i].key;
-    const offset = timeOffsets[currentStep] || i * 30;
-    const t = new Date(base.getTime() + offset * 60 * 1000);
-    return formatDateTime(t);
-  };
-
   if (loading) {
     return (
       <Page>
@@ -172,18 +169,29 @@ export default function OrderDetailsPage() {
       <Hairline />
 
       <Timeline>
-        {STEPS.map((s, i) => {
-          const reached = i <= activeIndex;
-          return (
-            <li key={s.key} className={reached ? "reached" : ""}>
-              <span className="dot" />
-              <div className="text">
-                <div className="label">{s.label}</div>
-                {reached && <div className="time">{getStepTime(i)}</div>}
-              </div>
-            </li>
-          );
-        })}
+        {timeline.length === 0 ? (
+          <li>
+            <span className="dot" />
+            <div className="text">
+              <div className="label">{STATUS_LABEL.pending}</div>
+              <div className="time">{formatDateTime(new Date(order.created_at))}</div>
+            </div>
+          </li>
+        ) : (
+          timeline.map((row, i) => {
+            const label =
+              STATUS_LABEL[String(row.to_status).toLowerCase()] || "Статус";
+            return (
+              <li key={`${row.changed_at}-${i}`} className="reached">
+                <span className="dot" />
+                <div className="text">
+                  <div className="label">{label}</div>
+                  <div className="time">{formatDateTime(row.changed_at)}</div>
+                </div>
+              </li>
+            );
+          })
+        )}
       </Timeline>
 
       <SectionHeader>Товары</SectionHeader>
@@ -474,8 +482,9 @@ function formatDate(iso) {
     return iso;
   }
 }
-function formatDateTime(d) {
+function formatDateTime(isoOrDate) {
   try {
+    const d = typeof isoOrDate === "string" ? new Date(isoOrDate) : isoOrDate;
     const dd = pad(d.getDate());
     const mm = pad(d.getMonth() + 1);
     const yyyy = d.getFullYear();
