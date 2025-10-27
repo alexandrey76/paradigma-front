@@ -17,8 +17,8 @@ const IMAGE_MAP = {
   4: `${P}/paradigmaportative.jpg`,
 };
 
-// Человекочитаемые подписи статусов
-const STATUS_LABEL = {
+// Человекочитаемые подписи
+const LABEL = {
   pending: "Ожидает подтверждения",
   confirmed: "Подтверждена",
   processing: "Обработана",
@@ -28,114 +28,126 @@ const STATUS_LABEL = {
   rejected: "Отменена",
 };
 
+// Базовая дорожка без "rejected"
+const BASE_STEPS = [
+  "pending",
+  "confirmed",
+  "processing",
+  "shipped",
+  "ready_for_pickup",
+  "completed",
+];
+
 export default function OrderDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
-  const [timeline, setTimeline] = useState([]); // <- реальная история из БД
+  const [timeline, setTimeline] = useState([]); // [{from_status,to_status,changed_at,manager_username}, ...]
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetchOrderDetails();
+    fetchOrder();
     fetchTimeline();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const fetchOrderDetails = async () => {
+  async function fetchOrder() {
     try {
       setLoading(true);
       setError("");
-
       const tg = window.Telegram?.WebApp;
       const initData = tg?.initData || "";
 
-      const response = await fetch(`${API_BASE}/api/orders/${id}`, {
-        method: "GET",
-        headers: {
-          "X-Telegram-Init-Data": initData,
-        },
+      const res = await fetch(`${API_BASE}/api/orders/${id}`, {
+        headers: { "X-Telegram-Init-Data": initData || "" },
       });
-
-      if (!response.ok) {
-        if (response.status === 404) throw new Error("Заявка не найдена");
-        throw new Error(`Ошибка загрузки: HTTP ${response.status}`);
+      if (!res.ok) {
+        throw new Error(res.status === 404 ? "Заявка не найдена" : `HTTP ${res.status}`);
       }
-
-      const data = await response.json();
+      const data = await res.json();
       setOrder(data.order);
-    } catch (err) {
-      console.error("Error fetching order details:", err);
-      setError(err.message);
+    } catch (e) {
+      setError(e.message || String(e));
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const fetchTimeline = async () => {
+  async function fetchTimeline() {
     try {
-      const resp = await fetch(`${API_BASE}/api/orders/${id}/timeline`);
-      const data = await resp.json();
+      const res = await fetch(`${API_BASE}/api/orders/${id}/timeline`);
+      const data = await res.json();
       let rows = Array.isArray(data?.timeline) ? data.timeline : [];
-
-      // Сортировка: новое сверху (чтобы "Отменена" была над "Ожидает...")
+      // сортируем по времени возрастанию (старые → новые),
+      // чтобы корректно брать "первое наступление" статуса
       rows.sort(
-        (a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime()
+        (a, b) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime()
       );
-
-      // Если есть rejected — это финальное состояние, просто показываем всю историю (отменённая будет сверху)
       setTimeline(rows);
     } catch (e) {
       console.warn("timeline fetch error", e);
       setTimeline([]);
     }
-  };
+  }
 
   const getProductImage = (productId) => IMAGE_MAP[productId] || null;
 
   const transformedOrder = useMemo(() => {
     if (!order) return null;
 
+    let items;
     try {
-      const items =
+      items =
         typeof order.items_json === "string"
           ? JSON.parse(order.items_json)
           : order.items_json || [];
-
-      return {
-        id: order.order_uid,
-        created_at: order.created_at,
-        total: order.total,
-        delivery: 0,
-        discount: 0,
-        status: order.status || "pending",
-        items: items.map((item) => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          qty: item.qty,
-          image: getProductImage(item.id),
-        })),
-      };
-    } catch (e) {
-      console.error("Error transforming order:", e);
-      return {
-        id: order.order_uid,
-        created_at: order.created_at,
-        total: order.total,
-        delivery: 0,
-        discount: 0,
-        status: order.status || "pending",
-        items: [],
-      };
+    } catch {
+      items = [];
     }
+
+    return {
+      id: order.order_uid,
+      created_at: order.created_at,
+      total: order.total,
+      status: order.status || "pending",
+      items: items.map((i) => ({
+        id: i.id,
+        name: i.name,
+        price: i.price,
+        qty: i.qty,
+        image: getProductImage(i.id),
+      })),
+    };
   }, [order]);
+
+  // карта «статус → время наступления» из реального таймлайна
+  const reachedAt = useMemo(() => {
+    const map = {};
+    for (const row of timeline) {
+      const k = String(row.to_status || "").toLowerCase();
+      if (!map[k]) map[k] = row.changed_at; // фиксируем первое наступление
+    }
+    // создание заказа трактуем как pending на момент created_at
+    if (transformedOrder?.created_at && !map.pending) {
+      map.pending = transformedOrder.created_at;
+    }
+    return map;
+  }, [timeline, transformedOrder]);
+
+  const hasRejected = "rejected" in reachedAt;
+
+  // Итоговый набор шагов сверху-вниз:
+  // если есть rejected — добавляем его первым, затем стандартная дорожка
+  const stepsForRender = hasRejected
+    ? ["rejected", ...BASE_STEPS]
+    : BASE_STEPS;
 
   if (loading) {
     return (
       <Page>
         <TopBar title="Заявка" onBack={() => navigate(-1)} />
-        <Empty>Загружаем...</Empty>
+        <Empty>Загружаем…</Empty>
       </Page>
     );
   }
@@ -161,38 +173,29 @@ export default function OrderDetailsPage() {
         <Divider />
         <Row>
           <LeftMuted>Дата создания:</LeftMuted>
-          <RightStrong>{formatDate(transformedOrder.created_at)}</RightStrong>
+          <RightStrong>{formatDateMSK(transformedOrder.created_at)}</RightStrong>
         </Row>
       </Section>
 
       <SectionHeader>Статус заявки:</SectionHeader>
       <Hairline />
 
-      <Timeline>
-        {timeline.length === 0 ? (
-          <li>
-            <span className="dot" />
-            <div className="text">
-              <div className="label">{STATUS_LABEL.pending}</div>
-              <div className="time">{formatDateTime(new Date(order.created_at))}</div>
-            </div>
-          </li>
-        ) : (
-          timeline.map((row, i) => {
-            const label =
-              STATUS_LABEL[String(row.to_status).toLowerCase()] || "Статус";
-            return (
-              <li key={`${row.changed_at}-${i}`} className="reached">
-                <span className="dot" />
-                <div className="text">
-                  <div className="label">{label}</div>
-                  <div className="time">{formatDateTime(row.changed_at)}</div>
-                </div>
-              </li>
-            );
-          })
-        )}
-      </Timeline>
+      <TimelineUI>
+        {stepsForRender.map((key, i) => {
+          const label = LABEL[key] || "Статус";
+          const time = reachedAt[key]; // undefined для будущих шагов
+          const reached = Boolean(time);
+          return (
+            <li key={key} className={reached ? "reached" : ""}>
+              <span className="dot" />
+              <div className="text">
+                <div className="label">{label}</div>
+                {reached && <div className="time">{formatDateTimeMSK(time)}</div>}
+              </div>
+            </li>
+          );
+        })}
+      </TimelineUI>
 
       <SectionHeader>Товары</SectionHeader>
       <Hairline />
@@ -230,24 +233,8 @@ export default function OrderDetailsPage() {
           <span>Сумма товаров:</span>
           <b>{formatRUB(transformedOrder.total)}</b>
         </SumRow>
-        <SumRow>
-          <span>Доставка:</span>
-          <b>
-            {transformedOrder.delivery
-              ? formatRUB(transformedOrder.delivery)
-              : "Бесплатно"}
-          </b>
-        </SumRow>
-
         <TotalRow>
-          Итого:{" "}
-          <b>
-            {formatRUB(
-              transformedOrder.total -
-                (transformedOrder.discount || 0) +
-                (transformedOrder.delivery || 0)
-            )}
-          </b>
+          Итого: <b>{formatRUB(transformedOrder.total)}</b>
         </TotalRow>
       </SummarySection>
 
@@ -256,7 +243,7 @@ export default function OrderDetailsPage() {
   );
 }
 
-/* ===== styled ===== */
+/* =================== styled =================== */
 
 const Page = styled.main`
   min-height: 100dvh;
@@ -313,7 +300,7 @@ const RightStrong = styled.span`
   font-size: 14px;
 `;
 
-const Timeline = styled.ul`
+const TimelineUI = styled.ul`
   list-style: none;
   margin: 0 0 8px 0;
   padding: 6px 0 0 0;
@@ -470,31 +457,47 @@ const BottomPad = styled.div`
   height: 80px;
 `;
 
-/* ===== utils ===== */
+/* ===== utils (MSK) ===== */
 function pad(n) {
   return n < 10 ? `0${n}` : `${n}`;
 }
-function formatDate(iso) {
+
+// Дата (только день.месяц.год) — в зоне Europe/Moscow
+function formatDateMSK(iso) {
   try {
-    const d = new Date(iso);
-    return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+    return new Intl.DateTimeFormat("ru-RU", {
+      timeZone: "Europe/Moscow",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(new Date(iso));
   } catch {
     return iso;
   }
 }
-function formatDateTime(isoOrDate) {
+
+// Дата+время — в зоне Europe/Moscow
+function formatDateTimeMSK(iso) {
   try {
-    const d = typeof isoOrDate === "string" ? new Date(isoOrDate) : isoOrDate;
-    const dd = pad(d.getDate());
-    const mm = pad(d.getMonth() + 1);
-    const yyyy = d.getFullYear();
-    const hh = pad(d.getHours());
-    const mi = pad(d.getMinutes());
-    return `${dd}.${mm}.${yyyy} ${hh}:${mi}`;
+    const d = new Date(iso);
+    const dd = new Intl.DateTimeFormat("ru-RU", {
+      timeZone: "Europe/Moscow",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(d);
+    const tm = new Intl.DateTimeFormat("ru-RU", {
+      timeZone: "Europe/Moscow",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(d);
+    return `${dd} ${tm}`;
   } catch {
     return "";
   }
 }
+
 function formatRUB(v) {
   return `${Number(v).toLocaleString("ru-RU")} руб`;
 }
