@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 
 export default function AgeGate({ open, onClose, persist = false }) {
-  const [agree, setAgree] = useState(true);
+  const [agree, setAgree] = useState(false);
   const [mode, setMode] = useState("form"); // "form" | "denied"
 
   const PUB = process.env.PUBLIC_URL || "";
