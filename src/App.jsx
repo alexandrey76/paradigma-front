@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useEffect, useState, useRef } from "react"; // ★ useRef
+import React, { useEffect, useState, useRef } from "react";
 import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
 import GlobalStyle from "./styles/GlobalStyle";
@@ -16,7 +16,7 @@ import AgeGate from "./components/AgeGate";
 import PrivacyPage from "./pages/PrivacPage";
 import OrderDetailsPage from "./pages/OrderDetailsPage";
 import ConsentPage from "./pages/ConsentPage";
-import { ensureUserOnServer } from "./api/userApi"; // ★
+import { ensureUserOnServer } from "./api/userApi";
 
 /* ====== Настройки прелоадера ====== */
 const PRELOADER_VIDEO = "/assets/video/Preloader.mp4";
@@ -25,7 +25,7 @@ const FADE_MS = 500;
 const MINIMUM_DISPLAY_TIME = 1500;
 const EXTRA_DELAY = 800;
 
-/* ====== Компонент прелоадера (локально) ====== */
+/* ====== Прелоадер ====== */
 function PreloaderOverlay({ videoSrc, fadeOut, onTransitionEnd }) {
   return (
     <div
@@ -52,23 +52,16 @@ function PreloaderOverlay({ videoSrc, fadeOut, onTransitionEnd }) {
         muted
         playsInline
         preload="auto"
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          background: "transparent",
-        }}
+        style={{ width: "100%", height: "100%", objectFit: "cover", background: "transparent" }}
       />
     </div>
   );
 }
 
-/* ====== Сброс скролла при смене роутов: мгновенно, без отключения плавности в остальном ====== */
+/* ====== Сброс скролла ====== */
 function ScrollReset() {
   const { pathname, hash } = useLocation();
-
   useEffect(() => {
-    // если есть якорь — скроллим к нему мгновенно
     if (hash) {
       const el = document.querySelector(hash);
       if (el) {
@@ -86,46 +79,34 @@ function ScrollReset() {
         return;
       }
     }
-
-    // обычный переход: мгновенно наверх
     const html = document.documentElement;
     const body = document.body;
     const prevHtml = html.style.scrollBehavior;
     const prevBody = body.style.scrollBehavior;
-
     html.style.scrollBehavior = "auto";
     body.style.scrollBehavior = "auto";
     window.scrollTo(0, 0);
-
-    // вернуть прежние значения на следующий кадр
     const id = requestAnimationFrame(() => {
       html.style.scrollBehavior = prevHtml;
       body.style.scrollBehavior = prevBody;
     });
-
     return () => cancelAnimationFrame(id);
   }, [pathname, hash]);
-
   return null;
 }
 
 /* ====== Telegram guard ====== */
 function useTelegramGuard() {
   const { pathname } = useLocation();
-
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
     if (!tg) return;
-
     try {
       tg.ready?.();
       tg.expand?.();
-      if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
-      if (tg.enableClosingConfirmation) tg.enableClosingConfirmation();
-
-      const onViewport = () => {
-        if (!tg.isExpanded && tg.expand) tg.expand();
-      };
+      tg.disableVerticalSwipes?.();
+      tg.enableClosingConfirmation?.();
+      const onViewport = () => !tg.isExpanded && tg.expand?.();
       tg.onEvent?.("viewportChanged", onViewport);
       return () => tg.offEvent?.("viewportChanged", onViewport);
     } catch (e) {
@@ -134,7 +115,7 @@ function useTelegramGuard() {
   }, [pathname]);
 }
 
-/* ====== Shell с маршрутизацией ====== */
+/* ====== Shell ====== */
 function AppShell() {
   useTelegramGuard();
   const location = useLocation();
@@ -143,18 +124,16 @@ function AppShell() {
   const noNavBarPages = ["/privacy-policy", "/consent"];
   const showNavBar = !noNavBarPages.includes(location.pathname);
 
-  // ★ авторегистрация пользователя на сервере (один раз)
+  // авторегистрация пользователя на сервере (один раз)
   const ensuredRef = useRef(false);
   useEffect(() => {
     if (ensuredRef.current) return;
-
     const tg = window?.Telegram?.WebApp;
     const initData = tg?.initData;
     if (!initData) {
       ensuredRef.current = true;
       return;
     }
-
     ensureUserOnServer()
       .catch((e) => console.warn("ensureUser error:", e?.message || e))
       .finally(() => {
@@ -173,9 +152,7 @@ function AppShell() {
           background: "#000",
         }}
       >
-        {/* Мгновенный сброс скролла при смене страницы */}
         <ScrollReset />
-
         <Routes>
           <Route index element={<HomePage />} />
           <Route path="/" element={<HomePage />} />
@@ -191,7 +168,6 @@ function AppShell() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
-
       {showNavBar && <NavBar />}
     </>
   );
@@ -206,15 +182,17 @@ export default function App() {
   // Age gate
   const [ageOpen, setAgeOpen] = useState(false);
 
+  // Показывать agegate КАЖДЫЙ запуск + очищаем старые ключи localStorage
   useEffect(() => {
     try {
-      const ok = localStorage.getItem("age_verified") === "1";
-      if (!ok) setAgeOpen(true);
-    } catch {
-      setAgeOpen(true);
-    }
+      ["age_verified", "age_gate", "agegate.accepted", "age_gate_v1", "age_gate_v2"].forEach((k) =>
+        localStorage.removeItem(k)
+      );
+    } catch {}
+    setAgeOpen(true);
   }, []);
 
+  // Прелоадер
   useEffect(() => {
     let mounted = true;
     let loadHandler = null;
@@ -230,18 +208,15 @@ export default function App() {
     });
 
     const fontsReady = document.fonts ? document.fonts.ready : Promise.resolve();
-
     const safety = new Promise((resolve) => {
       timeoutId = setTimeout(resolve, SAFETY_TIMEOUT);
     });
 
     Promise.race([Promise.all([waitLoad, fontsReady]), safety]).then(() => {
       if (!mounted) return;
-
       const elapsedTime = Date.now() - startTime;
       const remainingTime = Math.max(0, MINIMUM_DISPLAY_TIME - elapsedTime);
       const totalDelay = remainingTime + EXTRA_DELAY;
-
       timeoutId = setTimeout(() => {
         if (!mounted) return;
         setFadeOut(true);
@@ -256,17 +231,11 @@ export default function App() {
   }, [startTime]);
 
   const handlePreloaderTransitionEnd = () => {
-    if (fadeOut) {
-      setShowPreloader(false);
-    }
+    if (fadeOut) setShowPreloader(false);
   };
 
-  const handleAgeClose = () => {
-    try {
-      localStorage.setItem("age_verified", "1");
-    } catch {}
-    setAgeOpen(false);
-  };
+  // Закрыть agegate (ничего не пишем в localStorage — показываем каждый запуск)
+  const handleAgeClose = () => setAgeOpen(false);
 
   return (
     <CartProvider>
@@ -274,7 +243,7 @@ export default function App() {
         <AppShell />
 
         {/* Age gate поверх всего (если открыт) */}
-        <AgeGate open={ageOpen} onClose={handleAgeClose} />
+        <AgeGate open={ageOpen} onClose={handleAgeClose} persist={false} />
 
         {/* Прелоадер поверх контента */}
         {showPreloader && (
