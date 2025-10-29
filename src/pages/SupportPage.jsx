@@ -1,5 +1,4 @@
-// src/pages/SupportPage.jsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
@@ -17,20 +16,49 @@ export default function SupportPage() {
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("+7");
-  const [question, setQuestion] = useState(""); // большое поле для вопроса
+  const [question, setQuestion] = useState("");
   const [pref, setPref] = useState("write"); // write | call
-  const [agree1, setAgree1] = useState(false); // обязательное согласие
-  const [agree2, setAgree2] = useState(false); // необязательное
+  const [agree1, setAgree1] = useState(false);
+  const [agree2, setAgree2] = useState(false);
 
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
- 
-  const phoneOk = useMemo(() => {
-    const digits = phone.replace(/\D/g, ""); // только цифры
-    return digits.length === 11; // строго 11 цифр
-  }, [phone]);
+  // ---- автонаполнение имени и телефона ----
+  useEffect(() => {
+    const tg = window?.Telegram?.WebApp;
+    const u = tg?.initDataUnsafe?.user;
 
+    // имя из Telegram (редактируемое)
+    if (u?.first_name && !name) {
+      setName(u.first_name);
+    }
+
+    // телефон из профиля на бэке (если есть)
+    (async () => {
+      try {
+        const initData = tg?.initData || "";
+        const res = await fetch(`${API_BASE}/api/profile`, {
+          headers: { "X-Telegram-Init-Data": initData },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const raw = String(data?.profile?.user_phone || "").trim();
+        const digits = raw.replace(/\D/g, "");
+        if (digits.length === 11) {
+          setPhone(formatPhoneFromDigits(digits));
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const phoneOk = useMemo(() => {
+    const digits = phone.replace(/\D/g, "");
+    return digits.length === 11;
+  }, [phone]);
 
   const canSend =
     name.trim().length > 0 &&
@@ -50,13 +78,12 @@ export default function SupportPage() {
       const initData = tgwa?.initData || "";
       const u = tgwa?.initDataUnsafe?.user;
 
-      // payload — отправляем вопрос как question
       const payload = {
         type: "support_request",
         name: name.trim(),
         phone,
         question: question.trim(),
-        preferred_contact: pref, // write | call
+        preferred_contact: pref,
         agreements: { privacy: agree1, promo: agree2 },
         tg_context: {
           user_id: u?.id ?? null,
@@ -86,7 +113,6 @@ export default function SupportPage() {
         throw new Error(msg);
       }
 
-      // Попытка отправить данные также в Telegram WebApp (если активен)
       try {
         tgwa?.sendData?.(
           JSON.stringify({
@@ -109,35 +135,20 @@ export default function SupportPage() {
     }
   }
 
-  // Форматтер телефона: принимает строку (пользователь вводит цифры/символы) и возвращает формат
+  // Форматирование телефона к виду +7 (xxx) xxx-xx-xx
   function formatPhoneFromDigits(raw) {
-    // оставляем только цифры
     let digits = raw.replace(/\D/g, "");
-    // если пользователь набирает без кода — подставляем 7 (Россия)
     if (!digits.startsWith("7")) {
       if (digits.startsWith("8")) digits = "7" + digits.slice(1);
       else digits = "7" + digits;
     }
-    // digits теперь начинается с 7...
-    // Формируем: +7 (xxx) xxx-xx-xx
-    const d = digits; // alias
+    const d = digits;
     let out = "+7";
-    if (d.length >= 2) {
-      const a = d.slice(1, 4); // первые 3
-      out += " (" + a;
-    }
-    if (d.length >= 5) {
-      const b = d.slice(4, 7);
-      out += ") " + b;
-    } else if (d.length > 4) {
-      out += ") " + d.slice(4);
-    }
-    if (d.length >= 8) {
-      out += "-" + d.slice(7, 9);
-    }
-    if (d.length >= 10) {
-      out += "-" + d.slice(9, 11);
-    }
+    if (d.length >= 2) out += " (" + d.slice(1, 4);
+    if (d.length >= 5) out += ") " + d.slice(4, 7);
+    else if (d.length > 4) out += ") " + d.slice(4);
+    if (d.length >= 8) out += "-" + d.slice(7, 9);
+    if (d.length >= 10) out += "-" + d.slice(9, 11);
     return out;
   }
 
@@ -147,10 +158,7 @@ export default function SupportPage() {
 
       <Card as="form" onSubmit={onSubmit}>
         <Head>
-          <IconImg
-            src={`${PUB}/assets/images/feedback.svg`}
-            alt="Поддержка"
-          />
+          <IconImg src={`${PUB}/assets/images/feedback.svg`} alt="Поддержка" />
         </Head>
 
         <Field>
@@ -166,12 +174,7 @@ export default function SupportPage() {
         <Field>
           <Input
             value={phone}
-            onChange={(e) => {
-              // принимаем ввод, форматируем
-              const raw = e.target.value;
-              const formatted = formatPhoneFromDigits(raw);
-              setPhone(formatted);
-            }}
+            onChange={(e) => setPhone(formatPhoneFromDigits(e.target.value))}
             placeholder="+7 (___) ___-__-__"
             inputMode="tel"
           />
