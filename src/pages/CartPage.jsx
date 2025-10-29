@@ -171,7 +171,14 @@ export default function CartPage() {
                     <QtyBox>
                       <button
                         type="button"
-                        onClick={() => setQty(i.id, Math.max(1, i.qty - 1))}
+                        onClick={() => {
+                          if (i.qty <=1){
+                            removeItem(i.id);
+                          }
+                          else {
+                            setQty(i.id, Math.max(1, i.qty - 1))
+                          }
+                        }}
                         aria-label="Уменьшить"
                       >
                         −
