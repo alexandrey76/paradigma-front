@@ -118,7 +118,7 @@ const ProductImage = styled.img`
 const InfoRow = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;   /* фиксируем цену по верху */
   margin-top: 8px;
   gap: 8px;
 `;
@@ -127,16 +127,28 @@ const PriceBlock = styled.div`
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1 1 auto;            /* чтобы занимал всё свободное место слева */
+  min-width: 0;              /* не раздувать ряд длинным текстом */
 `;
 
 const Price = styled.div`
   font-weight: 800;
   font-size: 16px;
+  white-space: nowrap;       /* цена не переносится */
 `;
 
 const Name = styled.div`
   font-size: 14px;
   color: #ccc;
+
+  /* фиксируем место под 2 строки названия */
+  --lh: 1.2;
+  line-height: var(--lh);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;     /* максимум 2 строки */
+  overflow: hidden;
+  min-height: calc(2 * var(--lh) * 1em); /* чтобы карточки были одинаковыми */
 `;
 
 const CartBtnWrap = styled.button`
