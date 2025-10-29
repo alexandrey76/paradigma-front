@@ -157,16 +157,12 @@ export default function OrderDetailsPage() {
     return Math.max(0, candidate);
   }, [hasRejected, stepsForRender, transformedOrder, reachedAt]);
 
-  // Время для отображения:
-  // - если есть реальный timestamp — берём его
-  // - если шага нет в истории, но он <= furthestReachedIndex — берём ближайшее предыдущее «реальное» время,
-  //   если и его нет — created_at
+  // Время для отображения (в локальной TZ пользователя)
   const displayTimeByStep = useMemo(() => {
     const out = {};
     if (!transformedOrder) return out;
 
     if (hasRejected) {
-      // у отмены показываем только реальное время «rejected»
       if (reachedAt.rejected) out.rejected = reachedAt.rejected;
       return out;
     }
@@ -180,7 +176,6 @@ export default function OrderDetailsPage() {
       } else if (idx <= furthestReachedIndex) {
         out[key] = lastRealTime; // «наследуем» время
       }
-      // для будущих шагов (idx > furthestReachedIndex) времени нет
     });
 
     return out;
@@ -216,7 +211,7 @@ export default function OrderDetailsPage() {
         <Divider />
         <Row>
           <LeftMuted>Дата создания:</LeftMuted>
-          <RightStrong>{formatDateMSK(transformedOrder.created_at)}</RightStrong>
+          <RightStrong>{formatDateLocal(transformedOrder.created_at)}</RightStrong>
         </Row>
       </Section>
 
@@ -234,7 +229,7 @@ export default function OrderDetailsPage() {
               <div className="text">
                 <div className="label">{label}</div>
                 {showTime && (
-                  <div className="time">{formatDateTimeMSK(displayTimeByStep[key])}</div>
+                  <div className="time">{formatDateTimeLocal(displayTimeByStep[key])}</div>
                 )}
               </div>
             </li>
@@ -515,32 +510,35 @@ const BottomPad = styled.div`
   height: 80px;
 `;
 
-/* ===== utils (MSK) ===== */
+/* ===== utils: локальная TZ пользователя ===== */
 
-function formatDateMSK(iso) {
+const USER_TZ =
+  Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+
+function formatDateLocal(iso) {
   try {
     return new Intl.DateTimeFormat("ru-RU", {
-      timeZone: "Europe/Moscow",
+      // timeZone: USER_TZ, // можно не указывать — по умолчанию локальная
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
     }).format(new Date(iso));
   } catch {
-    return iso;
+    return iso ?? "";
   }
 }
 
-function formatDateTimeMSK(iso) {
+function formatDateTimeLocal(iso) {
   try {
     const d = new Date(iso);
     const dd = new Intl.DateTimeFormat("ru-RU", {
-      timeZone: "Europe/Moscow",
+      // timeZone: USER_TZ,
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
     }).format(d);
     const tm = new Intl.DateTimeFormat("ru-RU", {
-      timeZone: "Europe/Moscow",
+      // timeZone: USER_TZ,
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
