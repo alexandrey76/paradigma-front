@@ -1,5 +1,5 @@
 // src/pages/HomePage.jsx
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import useEmblaCarousel from "embla-carousel-react";
@@ -9,9 +9,14 @@ import { useCart } from "../context/CartContext";
 
 const PUB = process.env.PUBLIC_URL || "";
 
+// что показываем и что копируем
+const PHONE_DISPLAY = "+7 (991) 185-11-01";
+const PHONE_COPY = "+79911851101";
+
 export default function HomePage() {
   const navigate = useNavigate();
   const { cart, addItem, getItemQuantity } = useCart();
+  const [copied, setCopied] = useState(false);
 
   const [emblaRef] = useEmblaCarousel({
     align: "start",
@@ -37,6 +42,29 @@ export default function HomePage() {
     } catch (e) {
       console.error("Failed to add to cart:", e);
       alert(`Не удалось добавить в корзину: ${e.message || e}`);
+    }
+  };
+
+  const copyPhone = async () => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(PHONE_COPY);
+      } else {
+        // Фоллбэк для старых браузеров
+        const ta = document.createElement("textarea");
+        ta.value = PHONE_COPY;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      console.warn("Clipboard copy failed", e);
+      alert("Скопируйте номер вручную: " + PHONE_COPY);
     }
   };
 
@@ -172,9 +200,15 @@ export default function HomePage() {
           <FooterRight>
             <PhoneBlock>
               <PhoneLabel>Телефон:</PhoneLabel>
-              <PhoneNumber href="tel:+79911851101">
-                +7 (991) 185-11-01
-              </PhoneNumber>
+              {/* Было: <PhoneNumber href="tel:+79911851101"> ... */}
+              <PhoneNumberButton
+                type="button"
+                onClick={copyPhone}
+                aria-live="polite"
+              >
+                {PHONE_DISPLAY}
+              </PhoneNumberButton>
+              {copied && <CopiedNote>Номер скопирован</CopiedNote>}
             </PhoneBlock>
             <SocialBlock>
               <SocialLabel>Социальные сети:</SocialLabel>
@@ -221,7 +255,6 @@ export default function HomePage() {
     </Page>
   );
 }
-
 
 /* ===================== styled ===================== */
 
@@ -491,14 +524,27 @@ const PhoneBlock = styled.div`
 const PhoneLabel = styled.div`
   font-size: 12px;
 `;
-const PhoneNumber = styled.a`
+const PhoneNumberButton = styled.button`
   font-size: 15px;
   font-weight: 600;
-  text-decoration: none;
   color: #000;
-  display: block;
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
   margin-top: 2px;
+
+  &:active {
+    opacity: 0.8;
+  }
 `;
+const CopiedNote = styled.div`
+  margin-top: 6px;
+  font-size: 12px;
+  color: #0a7d24;
+`;
+
 const SocialBlock = styled.div`
   display: flex;
   flex-direction: column;
