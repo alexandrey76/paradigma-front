@@ -1,5 +1,4 @@
-// src/pages/ProfilePage.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import TopBar from "../components/TopBar";
@@ -13,7 +12,6 @@ const LOCAL_KEY = "profile.v1";
 export default function ProfilePage() {
   const navigate = useNavigate();
 
-  // Данные Telegram WebApp (если запущено в ТГ)
   const tgUser = useMemo(() => {
     try {
       return window.Telegram?.WebApp?.initDataUnsafe?.user || null;
@@ -22,7 +20,6 @@ export default function ProfilePage() {
     }
   }, []);
 
-  // Локально сохранённые данные (fallback)
   const saved = useMemo(() => {
     try {
       const raw = localStorage.getItem(LOCAL_KEY);
@@ -32,15 +29,12 @@ export default function ProfilePage() {
     }
   }, []);
 
-  // Имя
   const defaultName =
     (tgUser &&
-      `${tgUser.first_name || ""}${
-        tgUser.last_name ? " " + tgUser.last_name : ""
-      }`.trim()) ||
-    saved?.name;
+      `${tgUser.first_name || ""}${tgUser.last_name ? " " + tgUser.last_name : ""}`.trim()) ||
+    saved?.name ||
+    "";
 
-  // Аватар
   const defaultAvatar =
     (tgUser &&
       (tgUser.photo_url || tgUser.avatar_url || tgUser.picture || null)) ||
@@ -49,101 +43,103 @@ export default function ProfilePage() {
 
   const [name] = useState(defaultName);
   const [avatar, setAvatar] = useState(defaultAvatar);
-  const [phone, setPhone] = useState(saved?.phone || "+7 (800) 555 - 35 - 35");
-  const [gender, setGender] = useState(
-    saved?.gender || (tgUser?.gender ? tgUser.gender : "") || ""
-  ); // 'male' | 'female' | ''
+  const [phone, setPhone] = useState(saved?.phone || "+7");
+  const [gender, setGender] = useState(saved?.gender || (tgUser?.gender ? tgUser.gender : "") || "");
 
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [editingPhone, setEditingPhone] = useState(false);
 
-  // Реальное количество отправленных заявок с бэкенда
   const [sentCount, setSentCount] = useState(0);
   const [countLoading, setCountLoading] = useState(true);
 
-  useEffect(() => {
-    // Если из ТГ есть аватар — используем
-    if (tgUser && !avatar) {
-      const candidate =
-        tgUser.photo_url || tgUser.avatar_url || tgUser.picture || null;
-      if (candidate) setAvatar(candidate);
-    }
-  }, [tgUser, avatar]);
+  // начальные значения для вычисления "грязности"
+  const initialPhoneRef = useRef(phone);
+  const initialGenderRef = useRef(gender);
 
-  // Загружаем количество заявок пользователя
+  // подгрузим профиль с бэка (phone/sex)
+  useEffect(() => {
+    (async () => {
+      try {
+        const tg = window.Telegram?.WebApp;
+        const initData = tg?.initData || "";
+        const resp = await fetch(`${API_BASE}/api/profile`, {
+          headers: { "X-Telegram-Init-Data": initData || "" },
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          const p = data?.profile || {};
+          const srvPhone = p.user_phone || saved?.phone || phone;
+          const srvGender = p.sex || saved?.gender || gender;
+
+          setPhone(formatPhoneInputRaw(String(srvPhone || "+7").replace(/\D/g, "")));
+          setGender(srvGender || "");
+
+          // зафиксируем начальные
+          initialPhoneRef.current = formatPhoneInputRaw(String(srvPhone || "+7").replace(/\D/g, ""));
+          initialGenderRef.current = srvGender || "";
+        }
+      } catch {
+        // тихо игнорим
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // загрузка количества заявок
   useEffect(() => {
     let aborted = false;
-
     async function fetchOrdersCount() {
       try {
         setCountLoading(true);
-
         const tg = window.Telegram?.WebApp;
         const initData = tg?.initData || "";
         const uid = tgUser?.id;
+        if (!uid) { setSentCount(0); return; }
 
-        if (!uid) {
-          setSentCount(0);
-          return;
-        }
-
-        const resp = await fetch(
-          `${API_BASE}/api/orders/my-orders?tg_user_id=${uid}`,
-          {
-            method: "GET",
-            headers: {
-              "X-Telegram-Init-Data": initData || "",
-            },
-          }
-        );
-
+        const resp = await fetch(`${API_BASE}/api/orders/my-orders?tg_user_id=${uid}`, {
+          method: "GET",
+          headers: { "X-Telegram-Init-Data": initData || "" },
+        });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
         const data = await resp.json();
         const list = Array.isArray(data?.orders) ? data.orders : [];
         if (!aborted) setSentCount(list.length);
-      } catch (e) {
-        console.warn("Failed to load orders count:", e);
+      } catch {
         if (!aborted) setSentCount(0);
       } finally {
         if (!aborted) setCountLoading(false);
       }
     }
-
     fetchOrdersCount();
-    return () => {
-      aborted = true;
-    };
+    return () => { aborted = true; };
   }, [tgUser]);
 
-  // Валидация телефона (11 цифр)
+  // валидация телефона
   const phoneOk = useMemo(() => {
     const digits = phone.replace(/\D/g, "");
     return digits.length === 11;
   }, [phone]);
 
-  const canSave = phoneOk;
+  // вычисляем "грязность"
+  const isDirty = useMemo(() => {
+    const p0 = initialPhoneRef.current || "";
+    const g0 = initialGenderRef.current || "";
+    return (phone !== p0) || (gender !== g0);
+  }, [phone, gender]);
 
-  // Форматирование телефона
+  const canSave = phoneOk && isDirty && !sending;
+
+  // форматирование телефона
   function formatPhoneInputRaw(rawDigits) {
-    let v = rawDigits.replace(/\D/g, "");
+    let v = String(rawDigits || "").replace(/\D/g, "");
     if (v.startsWith("8")) v = "7" + v.slice(1);
     if (!v.startsWith("7")) v = "7" + v;
-
     let out = "+" + v.charAt(0);
-    if (v.length > 1) {
-      out += " (" + v.slice(1, 4);
-    }
-    if (v.length >= 5) {
-      out += ") " + v.slice(4, 7);
-    }
-    if (v.length >= 8) {
-      out += " - " + v.slice(7, 9);
-    }
-    if (v.length >= 10) {
-      out += " - " + v.slice(9, 11);
-    }
+    if (v.length > 1) out += " (" + v.slice(1, 4);
+    if (v.length >= 5) out += ") " + v.slice(4, 7);
+    if (v.length >= 8) out += " - " + v.slice(7, 9);
+    if (v.length >= 10) out += " - " + v.slice(9, 11);
     return out;
   }
 
@@ -160,9 +156,7 @@ export default function ProfilePage() {
       const el = document.getElementById("profile-phone-input");
       el?.focus();
       const len = el?.value?.length || 0;
-      try {
-        el.setSelectionRange(len, len);
-      } catch {}
+      try { el.setSelectionRange(len, len); } catch {}
     }, 30);
   }
 
@@ -174,50 +168,46 @@ export default function ProfilePage() {
 
   async function handleSave(e) {
     e?.preventDefault?.();
-    if (!canSave) {
-      setError("Введите корректный телефон");
-      return;
-    }
+    if (!canSave) return;
+
     setSending(true);
     setError("");
 
-    const payload = {
-      name,
-      phone,
-      gender,
-      avatar,
-    };
+    const payload = { name, phone, gender, avatar };
 
     try {
       // локально
       localStorage.setItem(LOCAL_KEY, JSON.stringify(payload));
 
-      // на бэк (не критично, если не получится)
+      // на бэк
       try {
         const tg = window.Telegram?.WebApp;
         const initData = tg?.initData || "";
-        await fetch(`${API_BASE}/api/profile`, {
+        const resp = await fetch(`${API_BASE}/api/profile`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "X-Telegram-Init-Data": initData || "",
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ phone, gender }),
         });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       } catch (netErr) {
         console.warn("Profile save network error:", netErr);
       }
 
+      // сбрасываем dirty
+      initialPhoneRef.current = phone;
+      initialGenderRef.current = gender;
+
       alert("Данные сохранены");
     } catch (err) {
-      console.error(err);
       setError(String(err.message || err));
     } finally {
       setSending(false);
     }
   }
 
-  // склонение "заявка/заявки/заявок"
   function pluralize(n, [one, few, many]) {
     const v = Math.abs(n) % 100;
     const v1 = v % 10;
@@ -250,16 +240,13 @@ export default function ProfilePage() {
             </Avatar>
 
             <FieldTitle>
-              <FieldTitleText>{name}</FieldTitleText>
-              <FieldSubText>
-                {tgUser?.username ? `@${tgUser.username}` : ""}
-              </FieldSubText>
+              <FieldTitleText>{name || "Пользователь"}</FieldTitleText>
+              <FieldSubText>{tgUser?.username ? `@${tgUser.username}` : ""}</FieldSubText>
             </FieldTitle>
           </AvatarRow>
 
           <Divider />
 
-          {/* Номер телефона */}
           <ClickableRow onClick={() => !editingPhone && startEditPhone()}>
             <RowLeft>
               <RowLabel>Номер телефона</RowLabel>
@@ -283,7 +270,6 @@ export default function ProfilePage() {
 
           <Divider />
 
-          {/* Пол */}
           <FieldRow>
             <RowLeft>
               <RowLabel>Пол</RowLabel>
@@ -317,14 +303,12 @@ export default function ProfilePage() {
 
           <Divider />
 
-          {/* Отправленные заявки */}
           <ClickableRow onClick={() => navigate("/orders")}>
             <RowLeft>
               <RowLabel>Отправленные заявки</RowLabel>
               <RowValueSmall>
                 {countLoading ? "—" : sentCount}{" "}
-                {!countLoading &&
-                  pluralize(sentCount, ["заявка", "заявки", "заявок"])}
+                {!countLoading && pluralize(sentCount, ["заявка", "заявки", "заявок"])}
               </RowValueSmall>
             </RowLeft>
             <Arrow>›</Arrow>
@@ -333,7 +317,7 @@ export default function ProfilePage() {
           {error && <ErrorText>{error}</ErrorText>}
 
           <SaveRow>
-            <SaveBtn type="submit" disabled={!canSave || sending}>
+            <SaveBtn type="submit" disabled={!canSave}>
               {sending ? "Сохраняем…" : "Сохранить"}
             </SaveBtn>
           </SaveRow>
