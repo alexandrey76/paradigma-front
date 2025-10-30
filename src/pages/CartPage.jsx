@@ -23,9 +23,7 @@ function parseConfig(raw = "") {
   for (let line of lines) {
     let s = line.trim();
     if (!s) continue;
-    // убрать заголовок "Комплектация:"
     if (/^комплектац(ия|ии):?$/i.test(s)) continue;
-    // убрать ведущие маркеры "•", "-" и лишние пробелы
     s = s.replace(/^[-•]\s*/u, "");
     out.push(s);
   }
@@ -49,6 +47,38 @@ export default function CartPage() {
     [total]
   );
 
+  // ===== helper для красивого попапа в Telegram =====
+  const showSuccess = (msg) => {
+    const tg = window?.Telegram?.WebApp;
+    if (tg?.showPopup) {
+      tg.showPopup({
+        title: "Готово!",
+        message: msg,
+        buttons: [{ type: "close" }],
+      });
+    } else if (tg?.showAlert) {
+      tg.showAlert(msg);
+    } else {
+      // fallback в обычный alert
+      alert(msg);
+    }
+  };
+
+  const showError = (msg) => {
+    const tg = window?.Telegram?.WebApp;
+    if (tg?.showPopup) {
+      tg.showPopup({
+        title: "Ошибка",
+        message: msg,
+        buttons: [{ type: "close" }],
+      });
+    } else if (tg?.showAlert) {
+      tg.showAlert(msg);
+    } else {
+      alert(msg);
+    }
+  };
+
   const handleSubmit = async () => {
     setError("");
 
@@ -58,8 +88,9 @@ export default function CartPage() {
     const uid = u?.id || null;
 
     if (!uid) {
-      setError("Не удалось определить пользователя Telegram");
-      alert("Не удалось определить пользователя Telegram");
+      const msg = "Не удалось определить пользователя Telegram";
+      setError(msg);
+      showError(msg);
       return;
     }
 
@@ -67,8 +98,9 @@ export default function CartPage() {
       setSending(true);
 
       if (!cart.length) {
-        setError("Корзина пуста");
-        alert("Корзина пуста");
+        const msg = "Корзина пуста";
+        setError(msg);
+        showError(msg);
         return;
       }
 
@@ -120,13 +152,15 @@ export default function CartPage() {
         console.log("Cart clear failed, but order was created:", err);
       }
 
-      alert(
-        `Заявка №${data.order_id} отправлена! Менеджер свяжется с вами в ближайшее время.`
+      // 👇 тут вместо window.alert
+      showSuccess(
+        `Заявка №${data.order_id} отправлена!\nМенеджер свяжется с вами в ближайшее время.`
       );
     } catch (err) {
       console.error("Request error:", err);
-      setError(String(err.message || err));
-      alert(`Ошибка отправки: ${err.message || err}`);
+      const msg = String(err.message || err);
+      setError(msg);
+      showError(`Ошибка отправки: ${msg}`);
     } finally {
       setSending(false);
     }
@@ -165,20 +199,18 @@ export default function CartPage() {
                       onClick={() => removeItem(i.id)}
                       aria-label="Удалить"
                     >
-                      <img src={`${PUB}/assets/images/trashBin.svg`} alt="" />
+                      <img
+                        src={`${PUB}/assets/images/trashBin.svg`}
+                        alt=""
+                      />
                     </DeleteBtn>
 
                     <QtyBox>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (i.qty <=1){
-                            removeItem(i.id);
-                          }
-                          else {
-                            setQty(i.id, Math.max(1, i.qty - 1))
-                          }
-                        }}
+                        onClick={() =>
+                          setQty(i.id, Math.max(0, i.qty - 1)) // если 1 -> 0, удалится в контексте
+                        }
                         aria-label="Уменьшить"
                       >
                         −
@@ -311,17 +343,11 @@ const QtyBox = styled.div`
   height: clamp(34px, 8vw, 40px);
   border-radius: 10px;
   border: 2px solid #fff;
-
   display: grid;
-  grid-template-columns:
-    clamp(28px, 7vw, 34px)
-    1fr
-    clamp(28px, 7vw, 34px);
+  grid-template-columns: clamp(28px, 7vw, 34px) 1fr clamp(28px, 7vw, 34px);
   align-items: center;
-
   column-gap: 6px;
   padding: 0 6px;
-
   width: 100%;
   max-width: 120px;
   box-sizing: border-box;
@@ -361,7 +387,6 @@ const Name = styled.div`
   font-weight: 600;
 `;
 
-/* Новый заголовок и список конфигурации */
 const ConfigTitle = styled.div`
   margin-top: 6px;
   font-weight: 700;
@@ -375,7 +400,7 @@ const ConfigList = styled.ul`
 
   li {
     position: relative;
-    padding-left: 18px;      /* ← текст ровно правее точки */
+    padding-left: 18px;
     color: #d6d6d6;
     font-size: clamp(13px, 3.4vw, 15px);
     line-height: 1.35;
@@ -384,7 +409,7 @@ const ConfigList = styled.ul`
   li::before {
     content: "";
     position: absolute;
-    left: 6px;               /* положение самой точки */
+    left: 6px;
     top: 0.6em;
     width: 4px;
     height: 4px;
@@ -400,7 +425,6 @@ const BottomBar = styled.div`
   padding: 12px var(--side-pad, 16px);
   border-top: 2px solid #f5b300;
   background: #000;
-
   display: flex;
   flex-direction: column;
   align-items: flex-end;
