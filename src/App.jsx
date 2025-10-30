@@ -1,6 +1,12 @@
 // src/App.jsx
 import React, { useEffect, useState, useRef } from "react";
-import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+  HashRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
 import GlobalStyle from "./styles/GlobalStyle";
 
@@ -17,6 +23,10 @@ import PrivacyPage from "./pages/PrivacPage";
 import OrderDetailsPage from "./pages/OrderDetailsPage";
 import ConsentPage from "./pages/ConsentPage";
 import { ensureUserOnServer } from "./api/userApi";
+
+/* ====== версия фронта ====== */
+// меняешь ЭТО при деплое
+const BUILD_VERSION = "2025-10-30-01";
 
 /* ====== Настройки прелоадера ====== */
 const PRELOADER_VIDEO = "/assets/video/Preloader.mp4";
@@ -52,7 +62,12 @@ function PreloaderOverlay({ videoSrc, fadeOut, onTransitionEnd }) {
         muted
         playsInline
         preload="auto"
-        style={{ width: "100%", height: "100%", objectFit: "cover", background: "transparent" }}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          background: "transparent",
+        }}
       />
     </div>
   );
@@ -147,7 +162,9 @@ function AppShell() {
       <div
         style={{
           minHeight: "100svh",
-          paddingBottom: showNavBar ? `calc(${NAVBAR_HEIGHT}px + env(safe-area-inset-bottom))` : "0",
+          paddingBottom: showNavBar
+            ? `calc(${NAVBAR_HEIGHT}px + env(safe-area-inset-bottom))`
+            : "0",
           boxSizing: "border-box",
           background: "#000",
         }}
@@ -182,14 +199,50 @@ export default function App() {
   // Age gate
   const [ageOpen, setAgeOpen] = useState(false);
 
-  // Показывать agegate КАЖДЫЙ запуск + очищаем старые ключи localStorage
+  // показываем agegate каждый запуск
   useEffect(() => {
     try {
-      ["age_verified", "age_gate", "agegate.accepted", "age_gate_v1", "age_gate_v2"].forEach((k) =>
-        localStorage.removeItem(k)
-      );
+      [
+        "age_verified",
+        "age_gate",
+        "agegate.accepted",
+        "age_gate_v1",
+        "age_gate_v2",
+      ].forEach((k) => localStorage.removeItem(k));
     } catch {}
     setAgeOpen(true);
+  }, []);
+
+  // ====== АВТООБНОВЛЕНИЕ ПО ВЕРСИИ ======
+  useEffect(() => {
+    let timerId;
+
+    const checkVersion = async () => {
+      try {
+        const base = process.env.PUBLIC_URL || "";
+        const res = await fetch(`${base}/version.json?ts=${Date.now()}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const serverVersion = data?.version;
+        if (serverVersion && serverVersion !== BUILD_VERSION) {
+          // есть новая версия — жёсткий перезагруз
+          window.location.reload(true);
+        }
+      } catch (e) {
+        // молчим
+      }
+    };
+
+    // сразу при старте
+    checkVersion();
+    // и дальше периодически
+    timerId = setInterval(checkVersion, 30000);
+
+    return () => {
+      if (timerId) clearInterval(timerId);
+    };
   }, []);
 
   // Прелоадер
@@ -234,7 +287,6 @@ export default function App() {
     if (fadeOut) setShowPreloader(false);
   };
 
-  // Закрыть agegate (ничего не пишем в localStorage — показываем каждый запуск)
   const handleAgeClose = () => setAgeOpen(false);
 
   return (
@@ -242,7 +294,7 @@ export default function App() {
       <HashRouter>
         <AppShell />
 
-        {/* Age gate поверх всего (если открыт) */}
+        {/* Age gate поверх всего */}
         <AgeGate open={ageOpen} onClose={handleAgeClose} persist={false} />
 
         {/* Прелоадер поверх контента */}
