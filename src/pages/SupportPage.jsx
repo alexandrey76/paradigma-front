@@ -1,3 +1,4 @@
+// src/pages/SupportPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
@@ -8,8 +9,6 @@ const API_BASE =
   "https://alexandrey76-paradigma-back-c956.twc1.net";
 
 const PUB = process.env.PUBLIC_URL || "";
-const CHECK_ON = `${PUB}/assets/images/check_on.svg`;
-const CHECK_OFF = `${PUB}/assets/images/check_off.svg`;
 
 export default function SupportPage() {
   const navigate = useNavigate();
@@ -18,23 +17,21 @@ export default function SupportPage() {
   const [phone, setPhone] = useState("+7");
   const [question, setQuestion] = useState("");
   const [pref, setPref] = useState("write"); // write | call
-  const [agree1, setAgree1] = useState(false);
-  const [agree2, setAgree2] = useState(false);
 
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
-  // ---- автонаполнение имени и телефона ----
+  // ---------- автонаполнение ----------
   useEffect(() => {
     const tg = window?.Telegram?.WebApp;
     const u = tg?.initDataUnsafe?.user;
 
-    // имя из Telegram (редактируемое)
+    // имя из Telegram (можно править)
     if (u?.first_name && !name) {
       setName(u.first_name);
     }
 
-    // телефон из профиля на бэке (если есть)
+    // телефон из бэка (если есть)
     (async () => {
       try {
         const initData = tg?.initData || "";
@@ -60,11 +57,42 @@ export default function SupportPage() {
     return digits.length === 11;
   }, [phone]);
 
+  // теперь можно отправлять без галок
   const canSend =
     name.trim().length > 0 &&
     question.trim().length > 0 &&
-    agree1 &&
     (pref === "write" || (pref === "call" && phoneOk));
+
+  // --------- helpers для попапов ----------
+  const showSuccess = (msg) => {
+    const tg = window?.Telegram?.WebApp;
+    if (tg?.showPopup) {
+      tg.showPopup({
+        title: "Готово!",
+        message: msg,
+        buttons: [{ type: "close" }],
+      });
+    } else if (tg?.showAlert) {
+      tg.showAlert(msg);
+    } else {
+      alert(msg);
+    }
+  };
+
+  const showError = (msg) => {
+    const tg = window?.Telegram?.WebApp;
+    if (tg?.showPopup) {
+      tg.showPopup({
+        title: "Ошибка",
+        message: msg,
+        buttons: [{ type: "close" }],
+      });
+    } else if (tg?.showAlert) {
+      tg.showAlert(msg);
+    } else {
+      alert(msg);
+    }
+  };
 
   async function onSubmit(e) {
     e?.preventDefault?.();
@@ -84,7 +112,8 @@ export default function SupportPage() {
         phone,
         question: question.trim(),
         preferred_contact: pref,
-        agreements: { privacy: agree1, promo: agree2 },
+        // галок нет — шлём пустой объект
+        agreements: {},
         tg_context: {
           user_id: u?.id ?? null,
           username: u?.username ?? null,
@@ -113,6 +142,7 @@ export default function SupportPage() {
         throw new Error(msg);
       }
 
+      // (опц.) шлём в миниапп
       try {
         tgwa?.sendData?.(
           JSON.stringify({
@@ -125,17 +155,19 @@ export default function SupportPage() {
         );
       } catch {}
 
-      alert("Заявка отправлена. Мы свяжемся с вами!");
+      showSuccess("Заявка отправлена. Мы свяжемся с вами!");
       navigate(-1);
     } catch (e) {
       console.error(e);
-      setError(String(e.message || e));
+      const msg = String(e.message || e);
+      setError(msg);
+      showError(msg);
     } finally {
       setSending(false);
     }
   }
 
-  // Форматирование телефона к виду +7 (xxx) xxx-xx-xx
+  // формат к +7 (xxx) xxx-xx-xx
   function formatPhoneFromDigits(raw) {
     let digits = raw.replace(/\D/g, "");
     if (!digits.startsWith("7")) {
@@ -216,31 +248,6 @@ export default function SupportPage() {
           </RadioLabel>
         </RowRadio>
 
-        <CheckItem>
-          <input
-            type="checkbox"
-            checked={agree1}
-            onChange={(e) => setAgree1(e.target.checked)}
-          />
-          <span className="mark" />
-          <span className="text">
-            Я даю согласие на обработку своих персональных данных в соответствии с
-            политикой конфиденциальности
-          </span>
-        </CheckItem>
-
-        <CheckItem>
-          <input
-            type="checkbox"
-            checked={agree2}
-            onChange={(e) => setAgree2(e.target.checked)}
-          />
-          <span className="mark" />
-          <span className="text">
-            Я даю согласие на получение рекламной и информационной рассылки
-          </span>
-        </CheckItem>
-
         {error && <ErrorText>{error}</ErrorText>}
 
         <Submit type="submit" disabled={!canSend || sending}>
@@ -297,6 +304,7 @@ const Field = styled.div`
     color: #eedfdfff;
   }
 `;
+
 const Input = styled.input`
   height: 42px;
   border-radius: 10px;
@@ -380,46 +388,6 @@ const RadioMark = styled.span`
   ${RadioHidden}:checked + & {
     border-color: #ffffff;
     background: #ffffff;
-  }
-`;
-
-const CheckItem = styled.label`
-  display: grid;
-  grid-template-columns: 18px 1fr;
-  gap: 10px;
-  align-items: start;
-  cursor: pointer;
-  user-select: none;
-  margin: 10px 0;
-
-  input {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-
-  .mark {
-    width: 18px;
-    height: 18px;
-    background: url(${CHECK_OFF}) center/contain no-repeat;
-    margin-top: 2px;
-    transition: filter 0.15s ease;
-  }
-
-  .text {
-    font-size: 14px;
-    line-height: 1.35;
-    color: #bdbdbd;
-    transition: color 0.15s ease, font-weight 0.15s ease;
-  }
-
-  input:checked + .mark {
-    background-image: url(${CHECK_ON});
-  }
-  input:checked ~ .text {
-    color: #ffffff;
-    font-weight: 600;
   }
 `;
 
