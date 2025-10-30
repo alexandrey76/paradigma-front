@@ -26,7 +26,11 @@ import { ensureUserOnServer } from "./api/userApi";
 
 /* ====== версия фронта ====== */
 // меняешь ЭТО при деплое
-const BUILD_VERSION = "2025-10-30-05";
+const BUILD_VERSION = "2025-10-30-06";
+
+/* ====== AgeGate настройки ====== */
+const AGE_KEY = "age_gate_last_pass";
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /* ====== Настройки прелоадера ====== */
 const PRELOADER_VIDEO = "/assets/video/Preloader.mp4";
@@ -196,21 +200,29 @@ export default function App() {
   const [fadeOut, setFadeOut] = useState(false);
   const [startTime] = useState(Date.now());
 
-  // Age gate
+  // Age gate (раз в неделю)
   const [ageOpen, setAgeOpen] = useState(false);
 
-  // показываем agegate каждый запуск
   useEffect(() => {
     try {
-      [
-        "age_verified",
-        "age_gate",
-        "agegate.accepted",
-        "age_gate_v1",
-        "age_gate_v2",
-      ].forEach((k) => localStorage.removeItem(k));
-    } catch {}
-    setAgeOpen(true);
+      const raw = localStorage.getItem(AGE_KEY);
+      const now = Date.now();
+      if (!raw) {
+        // ни разу не подтверждали — показать
+        setAgeOpen(true);
+      } else {
+        const ts = Number(raw);
+        if (!Number.isFinite(ts) || now - ts > WEEK_MS) {
+          // больше недели — показать снова
+          setAgeOpen(true);
+        } else {
+          setAgeOpen(false);
+        }
+      }
+    } catch {
+      // если localStorage упал — показать
+      setAgeOpen(true);
+    }
   }, []);
 
   // ====== АВТООБНОВЛЕНИЕ ПО ВЕРСИИ ======
@@ -227,7 +239,6 @@ export default function App() {
         const data = await res.json();
         const serverVersion = data?.version;
         if (serverVersion && serverVersion !== BUILD_VERSION) {
-          // есть новая версия — жёсткий перезагруз
           window.location.reload(true);
         }
       } catch (e) {
@@ -235,9 +246,7 @@ export default function App() {
       }
     };
 
-    // сразу при старте
     checkVersion();
-    // и дальше периодически
     timerId = setInterval(checkVersion, 30000);
 
     return () => {
@@ -287,14 +296,20 @@ export default function App() {
     if (fadeOut) setShowPreloader(false);
   };
 
-  const handleAgeClose = () => setAgeOpen(false);
+  // подтвердил возраст
+  const handleAgeClose = () => {
+    try {
+      localStorage.setItem(AGE_KEY, String(Date.now()));
+    } catch {}
+    setAgeOpen(false);
+  };
 
   return (
     <CartProvider>
       <HashRouter>
         <AppShell />
 
-        {/* Age gate поверх всего */}
+        {/* Age gate поверх всего (раз в неделю) */}
         <AgeGate open={ageOpen} onClose={handleAgeClose} persist={false} />
 
         {/* Прелоадер поверх контента */}
