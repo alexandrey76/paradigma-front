@@ -1,4 +1,4 @@
-// src/components/NavBar.jsx  (стилизация компонента)
+// src/components/NavBar.jsx
 import { Link, useLocation } from "react-router-dom";
 import styled from "styled-components";
 import { useCart } from "../context/CartContext";
@@ -19,11 +19,14 @@ export default function NavBar() {
           <CatalogIcon />
         </IconLink>
 
+        {/* корзина */}
         <CartWrapper>
           <IconLink to="/cart" $active={pathname.startsWith("/cart")}>
             <CartIcon />
           </IconLink>
-          {totalQty > 0 && <CartBadge>{totalQty > 9 ? "9+" : totalQty}</CartBadge>}
+          {totalQty > 0 && (
+            <CartBadge>{totalQty > 9 ? "9+" : totalQty}</CartBadge>
+          )}
         </CartWrapper>
 
         <IconLink to="/profile" $active={pathname.startsWith("/profile")}>
@@ -48,12 +51,10 @@ const Wrap = styled.div`
   display: flex;
   justify-content: center;
   pointer-events: none;
-  
-  /* Безопасные отступы для современных устройств */
   padding: 0 var(--side-pad, 16px);
   padding-bottom: env(safe-area-inset-bottom);
   box-sizing: border-box;
-`
+`;
 
 const Bar = styled.nav`
   pointer-events: auto;
@@ -79,11 +80,12 @@ const IconLink = styled(Link)`
   text-decoration: none;
   padding: 6px;
   box-sizing: border-box;
-
-  /* фон проявляется если кнопка активна — ты используешь svg с фоном, поэтому можно оставить прозрачным */
   background: ${(p) =>
-    p.$active ? "linear-gradient(180deg, #906606 0%, #7b5a09 100%)" : "transparent"};
-  box-shadow: ${(p) => (p.$active ? "inset 0 3px 8px rgba(0,0,0,0.35)" : "none")};
+    p.$active
+      ? "linear-gradient(180deg, #906606 0%, #7b5a09 100%)"
+      : "transparent"};
+  box-shadow: ${(p) =>
+    p.$active ? "inset 0 3px 8px rgba(0,0,0,0.35)" : "none"};
 
   img {
     width: 26px;
@@ -106,13 +108,20 @@ const CartWrapper = styled.div`
   place-items: center;
 `;
 
+/*
+  Логика:
+  - точка (50%, 50%) — это центр иконки корзины (она по центру ячейки)
+  - дальше чуть двигаем вправо и вверх
+  - так бейдж всегда "липнет" к верхнему правому углу иконки, а не контейнера
+*/
 const CartBadge = styled.div`
   position: absolute;
-  top: 11px;
-  right: 16px;
-  width: 16px;
+  top: 50%;
+  left: 50%;
+  transform: translate(6px, -18px);
+  min-width: 16px;
   height: 16px;
-  padding: 0 5px;
+  padding: 0 4px;
   border-radius: 999px;
   background: #f5b300;
   border: 2px solid #fff;
@@ -126,8 +135,28 @@ const CartBadge = styled.div`
 `;
 
 /* ====== иконки ====== */
-function LogoIcon() { return <img src="/assets/images/barLogo.svg" alt="logo" width={26} height={26} />; }
-function CartIcon() { return <img src="/assets/images/barCart.svg" alt="cart" width={26} height={26} />; }
-function UserIcon() { return <img src="/assets/images/barProfile.svg" alt="profile" width={26} height={26} />; }
-function ChatIcon() { return <img src="/assets/images/barChat.svg" alt="chat" width={26} height={26} />; }
-function CatalogIcon() { return <img src="/assets/images/barCatalog.svg" alt="catalog" width={26} height={26} />; }
+function LogoIcon() {
+  return (
+    <img src="/assets/images/barLogo.svg" alt="logo" width={26} height={26} />
+  );
+}
+function CartIcon() {
+  return (
+    <img src="/assets/images/barCart.svg" alt="cart" width={26} height={26} />
+  );
+}
+function UserIcon() {
+  return (
+    <img src="/assets/images/barProfile.svg" alt="profile" width={26} height={26} />
+  );
+}
+function ChatIcon() {
+  return (
+    <img src="/assets/images/barChat.svg" alt="chat" width={26} height={26} />
+  );
+}
+function CatalogIcon() {
+  return (
+    <img src="/assets/images/barCatalog.svg" alt="catalog" width={26} height={26} />
+  );
+}

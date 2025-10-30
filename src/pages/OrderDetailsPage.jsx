@@ -21,7 +21,7 @@ const IMAGE_MAP = {
 const LABEL = {
   pending: "Ожидает подтверждения",
   confirmed: "Подтверждена",
-  processing: "Обработана",
+  processing: "В обработке",
   shipped: "Товар передан в доставку",
   ready_for_pickup: "Товар готов к получению",
   completed: "Выполнена",

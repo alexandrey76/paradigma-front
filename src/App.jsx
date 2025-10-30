@@ -26,7 +26,7 @@ import { ensureUserOnServer } from "./api/userApi";
 
 /* ====== версия фронта ====== */
 // меняешь ЭТО при деплое
-const BUILD_VERSION = "2025-10-30-01";
+const BUILD_VERSION = "2025-10-30-02";
 
 /* ====== Настройки прелоадера ====== */
 const PRELOADER_VIDEO = "/assets/video/Preloader.mp4";
