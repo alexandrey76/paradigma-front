@@ -1,3 +1,4 @@
+// src/pages/ProfilePage.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
@@ -31,7 +32,9 @@ export default function ProfilePage() {
 
   const defaultName =
     (tgUser &&
-      `${tgUser.first_name || ""}${tgUser.last_name ? " " + tgUser.last_name : ""}`.trim()) ||
+      `${tgUser.first_name || ""}${
+        tgUser.last_name ? " " + tgUser.last_name : ""
+      }`.trim()) ||
     saved?.name ||
     "";
 
@@ -44,7 +47,9 @@ export default function ProfilePage() {
   const [name] = useState(defaultName);
   const [avatar, setAvatar] = useState(defaultAvatar);
   const [phone, setPhone] = useState(saved?.phone || "+7");
-  const [gender, setGender] = useState(saved?.gender || (tgUser?.gender ? tgUser.gender : "") || "");
+  const [gender, setGender] = useState(
+    saved?.gender || (tgUser?.gender ? tgUser.gender : "") || ""
+  );
 
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -53,9 +58,40 @@ export default function ProfilePage() {
   const [sentCount, setSentCount] = useState(0);
   const [countLoading, setCountLoading] = useState(true);
 
-  // начальные значения для вычисления "грязности"
+  // начальные значения для "грязности"
   const initialPhoneRef = useRef(phone);
   const initialGenderRef = useRef(gender);
+
+  // ---------- helpers для попапов ----------
+  const showSuccess = (msg) => {
+    const tg = window?.Telegram?.WebApp;
+    if (tg?.showPopup) {
+      tg.showPopup({
+        title: "Готово!",
+        message: msg,
+        buttons: [{ type: "close" }],
+      });
+    } else if (tg?.showAlert) {
+      tg.showAlert(msg);
+    } else {
+      alert(msg);
+    }
+  };
+
+  const showError = (msg) => {
+    const tg = window?.Telegram?.WebApp;
+    if (tg?.showPopup) {
+      tg.showPopup({
+        title: "Ошибка",
+        message: msg,
+        buttons: [{ type: "close" }],
+      });
+    } else if (tg?.showAlert) {
+      tg.showAlert(msg);
+    } else {
+      alert(msg);
+    }
+  };
 
   // подгрузим профиль с бэка (phone/sex)
   useEffect(() => {
@@ -72,15 +108,19 @@ export default function ProfilePage() {
           const srvPhone = p.user_phone || saved?.phone || phone;
           const srvGender = p.sex || saved?.gender || gender;
 
-          setPhone(formatPhoneInputRaw(String(srvPhone || "+7").replace(/\D/g, "")));
+          setPhone(
+            formatPhoneInputRaw(String(srvPhone || "+7").replace(/\D/g, ""))
+          );
           setGender(srvGender || "");
 
           // зафиксируем начальные
-          initialPhoneRef.current = formatPhoneInputRaw(String(srvPhone || "+7").replace(/\D/g, ""));
+          initialPhoneRef.current = formatPhoneInputRaw(
+            String(srvPhone || "+7").replace(/\D/g, "")
+          );
           initialGenderRef.current = srvGender || "";
         }
       } catch {
-        // тихо игнорим
+        // игнор
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,12 +135,18 @@ export default function ProfilePage() {
         const tg = window.Telegram?.WebApp;
         const initData = tg?.initData || "";
         const uid = tgUser?.id;
-        if (!uid) { setSentCount(0); return; }
+        if (!uid) {
+          setSentCount(0);
+          return;
+        }
 
-        const resp = await fetch(`${API_BASE}/api/orders/my-orders?tg_user_id=${uid}`, {
-          method: "GET",
-          headers: { "X-Telegram-Init-Data": initData || "" },
-        });
+        const resp = await fetch(
+          `${API_BASE}/api/orders/my-orders?tg_user_id=${uid}`,
+          {
+            method: "GET",
+            headers: { "X-Telegram-Init-Data": initData || "" },
+          }
+        );
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
         const list = Array.isArray(data?.orders) ? data.orders : [];
@@ -112,7 +158,9 @@ export default function ProfilePage() {
       }
     }
     fetchOrdersCount();
-    return () => { aborted = true; };
+    return () => {
+      aborted = true;
+    };
   }, [tgUser]);
 
   // валидация телефона
@@ -125,7 +173,7 @@ export default function ProfilePage() {
   const isDirty = useMemo(() => {
     const p0 = initialPhoneRef.current || "";
     const g0 = initialGenderRef.current || "";
-    return (phone !== p0) || (gender !== g0);
+    return phone !== p0 || gender !== g0;
   }, [phone, gender]);
 
   const canSave = phoneOk && isDirty && !sending;
@@ -156,7 +204,9 @@ export default function ProfilePage() {
       const el = document.getElementById("profile-phone-input");
       el?.focus();
       const len = el?.value?.length || 0;
-      try { el.setSelectionRange(len, len); } catch {}
+      try {
+        el.setSelectionRange(len, len);
+      } catch {}
     }, 30);
   }
 
@@ -200,9 +250,12 @@ export default function ProfilePage() {
       initialPhoneRef.current = phone;
       initialGenderRef.current = gender;
 
-      alert("Данные сохранены");
+      // вместо alert:
+      showSuccess("Данные сохранены");
     } catch (err) {
-      setError(String(err.message || err));
+      const msg = String(err.message || err);
+      setError(msg);
+      showError(msg);
     } finally {
       setSending(false);
     }
@@ -241,7 +294,9 @@ export default function ProfilePage() {
 
             <FieldTitle>
               <FieldTitleText>{name || "Пользователь"}</FieldTitleText>
-              <FieldSubText>{tgUser?.username ? `@${tgUser.username}` : ""}</FieldSubText>
+              <FieldSubText>
+                {tgUser?.username ? `@${tgUser.username}` : ""}
+              </FieldSubText>
             </FieldTitle>
           </AvatarRow>
 
@@ -308,7 +363,8 @@ export default function ProfilePage() {
               <RowLabel>Отправленные заявки</RowLabel>
               <RowValueSmall>
                 {countLoading ? "—" : sentCount}{" "}
-                {!countLoading && pluralize(sentCount, ["заявка", "заявки", "заявок"])}
+                {!countLoading &&
+                  pluralize(sentCount, ["заявка", "заявки", "заявок"])}
               </RowValueSmall>
             </RowLeft>
             <Arrow>›</Arrow>
@@ -334,7 +390,8 @@ const Page = styled.main`
   background: #000;
   color: #fff;
   padding: 12px var(--side-pad, 16px) calc(110px + env(safe-area-inset-bottom));
-  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto,
+    sans-serif;
 `;
 
 const Container = styled.div`
