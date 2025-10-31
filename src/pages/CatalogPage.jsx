@@ -81,8 +81,7 @@ const PageWrapper = styled.div`
   background: #000;
   min-height: 100vh;
   color: #fff;
-
-  /* берём глобальный отступ, НЕ переопределяем */
+  /* тот же отступ, что и на других страницах */
   padding: 12px var(--side-pad, 16px) 16px;
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 `;
@@ -93,11 +92,11 @@ const Grid = styled.div`
   grid-template-columns: repeat(2, 1fr);
 `;
 
+/* главный фикс — убрали padding: 8px; */
 const Card = styled.div`
   background: transparent;
   border-radius: 8px;
   overflow: hidden;
-  padding: 8px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -107,11 +106,12 @@ const ProductImage = styled.img`
   width: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
-  border: 2px solid #ffffffff;
+  border: 2px solid #ffffff;
   border-radius: 6px;
   display: block;
 `;
 
+/* а отступы вниз даём уже тут */
 const InfoRow = styled.div`
   display: flex;
   justify-content: space-between;
@@ -155,6 +155,7 @@ const CartBtnWrap = styled.button`
   display: inline-grid;
   place-items: center;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 
   img {
     width: var(--icon-size);
