@@ -401,7 +401,7 @@ const Container = styled.div`
 `;
 
 const Card = styled.section`
-  border: 2px solid rgba(255, 255, 255, 0.06);
+  border: 2px solid rgba(231, 223, 223, 0.06);
   border-radius: 14px;
   padding: 14px;
   background: #0b0b0b;

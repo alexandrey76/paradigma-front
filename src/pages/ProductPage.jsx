@@ -1,3 +1,4 @@
+// src/pages/ProductPage.jsx
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import styled from "styled-components";
@@ -5,12 +6,15 @@ import useEmblaCarousel from "embla-carousel-react";
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
 import TopBar from "../components/TopBar";
+import { hapticImpact } from "../utils/haptics"; // 👈 добавили
 
 const PUB = process.env.PUBLIC_URL || "";
 
 export default function ProductPage() {
   const { id } = useParams();
-  const { addItem } = useCart();
+
+  // теперь берём и количество
+  const { addItem, getItemQuantity } = useCart();
 
   const product = useMemo(
     () => products.find((p) => p.id === Number(id)),
@@ -24,7 +28,7 @@ export default function ProductPage() {
     return [...vids, ...imgs];
   }, [product]);
 
-  // Комплектация: парсим поле configuration
+  // Комплектация
   const configItems = useMemo(() => {
     const raw0 = product?.configuration || "";
     const noFence = raw0.replace(/```/g, "");
@@ -89,12 +93,38 @@ export default function ProductPage() {
   const prev = () => emblaApi && emblaApi.scrollPrev();
   const next = () => emblaApi && emblaApi.scrollNext();
 
-  const onAdd = async () => {
+  // сколько сейчас в корзине этого товара
+  const qtyInCart =
+    typeof getItemQuantity === "function" ? getItemQuantity(product.id) : 0;
+
+  const handleAdd = async () => {
+    // лёгкая отдача на "добавить"
+    hapticImpact("light");
     try {
       await addItem(product, 1);
     } catch (e) {
       console.error("Failed to add to cart:", e);
       alert(`Не удалось добавить в корзину: ${e.message || e}`);
+    }
+  };
+
+  const handleInc = async () => {
+    // чуть посильнее на "+"
+    hapticImpact("medium");
+    try {
+      await addItem(product, 1);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDec = async () => {
+    // тоже "medium" на "-"
+    hapticImpact("medium");
+    try {
+      await addItem(product, -1);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -105,7 +135,7 @@ export default function ProductPage() {
 
         <Title>{product.name}</Title>
 
-        {/* MEDIA: свайп-карусель */}
+        {/* MEDIA */}
         <MediaBox>
           <Viewport ref={emblaRef}>
             <Slides>
@@ -165,17 +195,27 @@ export default function ProductPage() {
 
         <PriceRow>
           <Price>{(product.price ?? 0).toLocaleString("ru-RU")} ₽</Price>
-          <AddBtn onClick={onAdd}>В корзину</AddBtn>
+
+          {/* КНОПКА / СЧЁТЧИК */}
+          {qtyInCart > 0 ? (
+            <QtyBox>
+              <QtyBtn onClick={handleDec}>-</QtyBtn>
+              <QtyText>{qtyInCart} шт.</QtyText>
+              <QtyBtn onClick={handleInc}>+</QtyBtn>
+            </QtyBox>
+          ) : (
+            <AddBtn onClick={handleAdd}>Добавить в корзину</AddBtn>
+          )}
         </PriceRow>
 
-        {/* Описание — просто текстом над набором */}
+        {/* описание */}
         {product.description && (
           <p style={{ margin: "8px 0 0", color: "#d6d6d6", lineHeight: 1.5 }}>
             {product.description}
           </p>
         )}
 
-        {/* Набор (теперь из configuration) */}
+        {/* комплектация */}
         {configItems.length > 0 && (
           <SpecBlock>
             <SpecTitle>Набор:</SpecTitle>
@@ -334,20 +374,50 @@ const Price = styled.div`
   font-weight: 900;
   font-size: 24px;
 `;
+
 const AddBtn = styled.button`
   border: 2px solid #f5b300;
-  background: #f5b300;
-  color: #000;
-  border-radius: 10px;
-  padding: 10px 14px;
+  background: #000;
+  color: #fff;
+  border-radius: 8px;
+  padding: 10px 16px;
   font-weight: 700;
   font-size: 14px;
   cursor: pointer;
-  transition: transform 0.15s ease, background 0.2s ease, color 0.2s ease;
+  min-width: 160px;
+  text-align: center;
+  transition: transform 0.15s ease, background 0.2s ease;
 
   &:active {
-    transform: scale(0.95);
+    transform: scale(0.97);
   }
+`;
+
+const QtyBox = styled.div`
+  display: grid;
+  grid-template-columns: auto auto auto;
+  gap: 14px;
+  align-items: center;
+  border: 2px solid #f5b300;
+  background: #000;
+  border-radius: 8px;
+  padding: 8px 14px;
+  min-width: 160px;
+`;
+const QtyBtn = styled.button`
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+`;
+const QtyText = styled.div`
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  text-align: center;
 `;
 
 const SpecBlock = styled.section`

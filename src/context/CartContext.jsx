@@ -6,7 +6,7 @@ import {
   addServerCartItem,
   updateServerCartQty,
   deleteServerCartItem,
-  cartDelta // ★ ADD: импортируем cartDelta
+  cartDelta, // уже был
 } from "../api/cartApi";
 import products from "../data/products";
 
@@ -16,16 +16,16 @@ export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Функция для получения данных товара по ID
+  // получить товар по ID из локального справочника
   const getProductById = (productId) => {
-    return products.find(product => product.id === productId);
+    return products.find((product) => product.id === productId);
   };
 
-  // Функция для обогащения данных товара
+  // обогащаем серверные позиции данными из products.js
   const enrichCartItem = (serverItem) => {
     const productId = Number(serverItem.product_key);
     const productData = getProductById(productId);
-    
+
     return {
       id: productId,
       name: productData?.name || serverItem.name || `Товар ${productId}`,
@@ -37,44 +37,49 @@ export function CartProvider({ children }) {
   };
 
   const total = useMemo(
-    () => cart.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.qty) || 0), 0),
+    () =>
+      cart.reduce(
+        (s, i) => s + (Number(i.price) || 0) * (Number(i.qty) || 0),
+        0
+      ),
     [cart]
   );
 
   const totalItems = useMemo(
-    () => cart.reduce((total, item) => total + item.qty, 0),
+    () => cart.reduce((sum, item) => sum + item.qty, 0),
     [cart]
   );
 
-  // Сохраняем локально для оффлайна
+  // сохраняем локально
   useEffect(() => {
     localStorage.setItem("cart_v1", JSON.stringify(cart));
   }, [cart]);
 
-  // ПРИ СТАРТЕ — всегда стянуть корзину с сервера
+  // при старте тянем корзину с бэка
   useEffect(() => {
     const loadCartFromServer = async () => {
       const { tg_user_id } = getTgContext();
-      
+
       if (!tg_user_id) {
         console.info("[cart] no tg_user_id — работаем только локально");
         setIsLoading(false);
         return;
       }
-      
+
       try {
         console.log("[cart] Loading cart from server for user:", tg_user_id);
         const serverItems = await fetchServerCart();
-        
-        // Обогащаем данные товарами из products.js
-        const serverCartNormalized = serverItems.map(enrichCartItem);
 
-        console.log("[cart] Server cart loaded:", serverCartNormalized.length, "items");
+        const serverCartNormalized = serverItems.map(enrichCartItem);
+        console.log(
+          "[cart] Server cart loaded:",
+          serverCartNormalized.length,
+          "items"
+        );
         setCart(serverCartNormalized);
-        
       } catch (e) {
         console.warn("[cart] fetchServerCart failed:", e);
-        // Если не удалось загрузить с сервера, пробуем загрузить из localStorage
+        // если с сервера не вышло — достаём локально
         try {
           const localCart = localStorage.getItem("cart_v1");
           if (localCart) {
@@ -92,7 +97,7 @@ export function CartProvider({ children }) {
     loadCartFromServer();
   }, []);
 
-  // Хелпер для безопасного вызова API
+  // безопасный вызов API
   async function safeApiCall(promise, label) {
     try {
       return await promise;
@@ -102,60 +107,81 @@ export function CartProvider({ children }) {
     }
   }
 
-  // Добавить товар (qty относительно текущего)
+  // ====== ГЛАВНОЕ: добавить/убавить товар дельтой ======
   async function addItem(product, inc = 1) {
     const id = Number(product?.id);
-    if (!id || inc <= 0) return;
+    // если нет id или 0 дельта — делать нечего
+    if (!id || !inc) return;
 
-    // Получаем полные данные товара
+    // возьмём нормальные данные товара
     const productData = getProductById(id) || product;
 
-    // 1) Обновляем локальное состояние
+    // 1) обновляем локальный стейт
     setCart((prev) => {
       const idx = prev.findIndex((x) => x.id === id);
+
+      // товара ещё нет
       if (idx === -1) {
-        return [...prev, { 
-          id, 
-          name: productData.name, 
-          price: productData.price || 0, 
-          qty: inc, 
-          images: productData.images || [],
-          description: productData.description || "",
-        }];
-      } else {
+        // и прилетел минус — ничего не делаем
+        if (inc < 0) return prev;
+        // иначе создаём
+        return [
+          ...prev,
+          {
+            id,
+            name: productData?.name || `Товар ${id}`,
+            price: Number(productData?.price) || 0,
+            qty: inc,
+            images: productData?.images || [],
+            description: productData?.description || "",
+          },
+        ];
+      }
+
+      // товар есть — меняем количество
+      const current = prev[idx];
+      const nextQty = (Number(current.qty) || 0) + Number(inc);
+
+      // стало 0 или меньше — удаляем позицию
+      if (nextQty <= 0) {
         const copy = [...prev];
-        copy[idx] = { ...copy[idx], qty: copy[idx].qty + inc };
+        copy.splice(idx, 1);
         return copy;
       }
+
+      // иначе обновляем qty
+      const copy = [...prev];
+      copy[idx] = { ...current, qty: nextQty };
+      return copy;
     });
 
-    // 2) Синхронизируем с сервером
+    // 2) синхронизируем с сервером
     const { tg_user_id } = getTgContext();
     if (!tg_user_id) return;
 
+    // пробуем через cartDelta — он у тебя уже есть
     await safeApiCall(
-      addServerCartItem(productData, inc),
-      "addItem"
+      cartDelta({ product: productData, delta: inc }),
+      "delta"
     );
   }
 
-  // Установить абсолютное количество
+  // установить абсолютное количество
   async function setQty(id, qty) {
     id = Number(id);
     qty = Number(qty);
 
-    // Находим текущий товар в корзине чтобы получить его данные
-    const currentItem = cart.find(item => item.id === id);
+    const currentItem = cart.find((item) => item.id === id);
     if (!currentItem) {
       console.warn(`[cart] Product ${id} not found in cart`);
       return;
     }
 
-    // 1) Обновляем локальное состояние
+    // 1) локально
     setCart((prev) => {
       const idx = prev.findIndex((x) => x.id === id);
       if (idx === -1) return prev;
-      
+
       if (qty <= 0) {
         return prev.filter((x) => x.id !== id);
       } else {
@@ -165,63 +191,65 @@ export function CartProvider({ children }) {
       }
     });
 
-    // 2) Синхронизируем с сервером
+    // 2) на бэк
     const { tg_user_id } = getTgContext();
     if (!tg_user_id) return;
-  
-    // ★ FIXED: передаем полные данные товара используя cartDelta
+
     const productData = getProductById(id) || currentItem;
-    
+
     if (qty <= 0) {
       await safeApiCall(deleteServerCartItem(id), "delete");
     } else {
-      await safeApiCall(cartDelta({ product: productData, setQty: qty }), "updateQty");
+      await safeApiCall(
+        cartDelta({ product: productData, setQty: qty }),
+        "updateQty"
+      );
     }
   }
 
-  // Удалить товар
+  // удалить товар
   async function removeItem(id) {
     id = Number(id);
-
-    // Находим текущий товар в корзине чтобы получить его данные
-    const currentItem = cart.find(item => item.id === id);
+    const currentItem = cart.find((item) => item.id === id);
     if (!currentItem) return;
 
-    // 1) Обновляем локальное состояние
+    // 1) локально
     setCart((prev) => prev.filter((x) => x.id !== id));
 
-    // 2) Синхронизируем с сервером
+    // 2) на бэк
     const { tg_user_id } = getTgContext();
     if (!tg_user_id) return;
-  
-    // ★ FIXED: передаем полные данные товара используя cartDelta
+
     const productData = getProductById(id) || currentItem;
-    await safeApiCall(cartDelta({ product: productData, setQty: 0 }), "removeItem");
+    await safeApiCall(
+      cartDelta({ product: productData, setQty: 0 }),
+      "removeItem"
+    );
   }
 
-  // Очистить корзину
+  // очистить
   async function clearCart() {
     const { tg_user_id } = getTgContext();
-    
-    // 1) Очищаем локальное состояние
+
+    // локально
     setCart([]);
-    
-    // 2) Синхронизируем с сервером - удаляем все товары
+
+    // на бэк
     if (tg_user_id && cart.length > 0) {
-      const deletePromises = cart.map(item =>
+      const deletePromises = cart.map((item) =>
         safeApiCall(deleteServerCartItem(item.id), "clearCartItem")
       );
       await Promise.allSettled(deletePromises);
     }
   }
 
-  // Получить количество конкретного товара
+  // кол-во конкретного товара
   function getItemQuantity(productId) {
-    const item = cart.find(item => item.id === productId);
+    const item = cart.find((item) => item.id === productId);
     return item ? item.qty : 0;
   }
 
-  // Принудительно синхронизировать корзину с сервером
+  // ручная синхронизация
   async function syncCart() {
     const { tg_user_id } = getTgContext();
     if (!tg_user_id) return;
@@ -229,12 +257,13 @@ export function CartProvider({ children }) {
     try {
       setIsLoading(true);
       const serverItems = await fetchServerCart();
-      
-      // Обогащаем данные товарами из products.js
       const serverCartNormalized = serverItems.map(enrichCartItem);
-
       setCart(serverCartNormalized);
-      console.log("[cart] Cart synced with server:", serverCartNormalized.length, "items");
+      console.log(
+        "[cart] Cart synced with server:",
+        serverCartNormalized.length,
+        "items"
+      );
     } catch (e) {
       console.warn("[cart] Sync failed:", e);
     } finally {
@@ -243,14 +272,14 @@ export function CartProvider({ children }) {
   }
 
   const value = useMemo(
-    () => ({ 
-      cart, 
-      total, 
+    () => ({
+      cart,
+      total,
       totalItems,
       isLoading,
-      addItem, 
-      setQty, 
-      removeItem, 
+      addItem,
+      setQty,
+      removeItem,
       clearCart,
       getItemQuantity,
       syncCart,
@@ -258,13 +287,15 @@ export function CartProvider({ children }) {
     [cart, total, totalItems, isLoading]
   );
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  return (
+    <CartContext.Provider value={value}>{children}</CartContext.Provider>
+  );
 }
 
 export function useCart() {
   const context = useContext(CartContext);
   if (!context) {
-    throw new Error('useCart must be used within a CartProvider');
+    throw new Error("useCart must be used within a CartProvider");
   }
   return context;
 }

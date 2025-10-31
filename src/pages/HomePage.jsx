@@ -542,7 +542,7 @@ const PhoneNumberButton = styled.button`
 const CopiedNote = styled.div`
   margin-top: 6px;
   font-size: 12px;
-  color: #0a7d24;
+  color: #000000ff;
 `;
 
 const SocialBlock = styled.div`
