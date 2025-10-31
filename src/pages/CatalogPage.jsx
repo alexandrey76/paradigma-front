@@ -77,11 +77,12 @@ export default function CatalogPage() {
 
 /* ===================== styled ===================== */
 
+/* ===================== styled ===================== */
+
 const PageWrapper = styled.div`
   background: #000;
   min-height: 100vh;
   color: #fff;
-  /* тот же отступ, что и на других страницах */
   padding: 12px var(--side-pad, 16px) 16px;
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 `;
@@ -92,11 +93,11 @@ const Grid = styled.div`
   grid-template-columns: repeat(2, 1fr);
 `;
 
-/* главный фикс — убрали padding: 8px; */
 const Card = styled.div`
   background: transparent;
   border-radius: 8px;
-  overflow: hidden;
+  /* ВАЖНО: даём выходить бейджу наружу */
+  overflow: visible;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -111,7 +112,6 @@ const ProductImage = styled.img`
   display: block;
 `;
 
-/* а отступы вниз даём уже тут */
 const InfoRow = styled.div`
   display: flex;
   justify-content: space-between;
@@ -167,8 +167,8 @@ const CartBtnWrap = styled.button`
 
 const CartBadge = styled.span`
   position: absolute;
-  top: -4px;
-  right: -4px;
+  top: -6px;    /* чуть выше, чтобы точно не цеплять рамку */
+  right: -6px;
   width: 16px;
   height: 16px;
   border-radius: 50%;
@@ -183,3 +183,4 @@ const CartBadge = styled.span`
   line-height: 1;
   pointer-events: none;
 `;
+
