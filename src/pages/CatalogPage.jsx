@@ -1,6 +1,6 @@
 // src/pages/CatalogPage.jsx
 import React, { useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import styled from "styled-components";
 
 import products from "../data/products";
@@ -9,13 +9,9 @@ import TopBar from "../components/TopBar";
 
 const PUB = process.env.PUBLIC_URL || "";
 
-/* ===================== page ===================== */
-
 export default function CatalogPage() {
-  const navigate = useNavigate();
-  const { cart, addItem, getItemQuantity } = useCart();
+  const { addItem, getItemQuantity } = useCart();
 
-  // Используем метод из CartContext вместо ручного поиска
   const getQty = useCallback(
     (id) => getItemQuantity(id),
     [getItemQuantity]
@@ -28,7 +24,6 @@ export default function CatalogPage() {
 
   const onAdd = async (product) => {
     try {
-      // Используем addItem из контекста - он сам синхронизирует с сервером
       await addItem(product, 1);
     } catch (e) {
       console.error("Failed to add to cart:", e);
@@ -62,8 +57,8 @@ export default function CatalogPage() {
                 </PriceBlock>
 
                 <CartBtnWrap
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
+                  onClick={(e) => {
+                    e.stopPropagation();
                     onAdd(p);
                   }}
                   aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
@@ -86,7 +81,9 @@ const PageWrapper = styled.div`
   background: #000;
   min-height: 100vh;
   color: #fff;
-  padding: 16px;
+
+  /* берём глобальный отступ, НЕ переопределяем */
+  padding: 12px var(--side-pad, 16px) 16px;
   font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 `;
 
@@ -118,7 +115,7 @@ const ProductImage = styled.img`
 const InfoRow = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;   /* фиксируем цену по верху */
+  align-items: flex-start;
   margin-top: 8px;
   gap: 8px;
 `;
@@ -127,28 +124,26 @@ const PriceBlock = styled.div`
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1 1 auto;            /* чтобы занимал всё свободное место слева */
-  min-width: 0;              /* не раздувать ряд длинным текстом */
+  flex: 1 1 auto;
+  min-width: 0;
 `;
 
 const Price = styled.div`
   font-weight: 800;
   font-size: 16px;
-  white-space: nowrap;       /* цена не переносится */
+  white-space: nowrap;
 `;
 
 const Name = styled.div`
   font-size: 14px;
   color: #ccc;
-
-  /* фиксируем место под 2 строки названия */
   --lh: 1.2;
   line-height: var(--lh);
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;     /* максимум 2 строки */
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  min-height: calc(2 * var(--lh) * 1em); /* чтобы карточки были одинаковыми */
+  min-height: calc(2 * var(--lh) * 1em);
 `;
 
 const CartBtnWrap = styled.button`
