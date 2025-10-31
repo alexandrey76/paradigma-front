@@ -495,7 +495,6 @@ const SumRow = styled.div`
 
 const TotalRow = styled.div`
   margin-top: 8px;
-  border-top: 2px solid #f5b300;
   padding-top: 10px;
   font-size: 16px;
   font-weight: 700;

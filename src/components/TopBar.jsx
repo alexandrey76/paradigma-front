@@ -16,8 +16,8 @@ export default function TopBar({ title, svgSrc, svgAlt }) {
     const handleTouchEnd = (e) => {
       if (touchStartX.current === null) return;
       const diff = e.changedTouches[0].clientX - touchStartX.current;
-      
       touchStartX.current = null;
+      // если захочешь вернуть свайп-назад — тут можно diff > 60 && navigate(-1)
     };
 
     window.addEventListener("touchstart", handleTouchStart);
@@ -52,10 +52,12 @@ const Bar = styled.div`
   display: flex;
   align-items: center;
   background: #fff;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 6px 12px;
-  margin: 8px 10px;
-  height: 42px; /* 🔹 компактнее */
+  /* 🔽 те же боковые отступы, что и у контента */
+  margin: 8px var(--side-pad, 16px);
+  height: 42px;
+  box-sizing: border-box;
 `;
 
 const BackButton = styled.button`
@@ -63,13 +65,12 @@ const BackButton = styled.button`
   border: none;
   cursor: pointer;
   margin-right: 8px;
-
-  /* хорошая зона нажатия, но не огромная */
   width: 36px;
   height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
+  -webkit-tap-highlight-color: transparent;
 
   img {
     width: 12px;

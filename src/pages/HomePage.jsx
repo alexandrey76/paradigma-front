@@ -214,7 +214,7 @@ export default function HomePage() {
               <SocialLabel>Социальные сети:</SocialLabel>
               <SocialRow>
                 <a
-                  href="https://t.me/+FUNSyKGQhfQzZmY6"
+                  href="https://t.me/c/2783108300/19"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
