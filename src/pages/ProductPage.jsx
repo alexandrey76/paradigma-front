@@ -1,26 +1,32 @@
 // src/pages/ProductPage.jsx
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import React, {
+  useMemo,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { useParams } from "react-router-dom";
 import styled from "styled-components";
 import useEmblaCarousel from "embla-carousel-react";
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
 import TopBar from "../components/TopBar";
-import { hapticImpact } from "../utils/haptics"; // 👈 добавили
 
 const PUB = process.env.PUBLIC_URL || "";
+const COMMON_BUTTON_HEIGHT = "44px";
 
 export default function ProductPage() {
   const { id } = useParams();
+  const { addItem, getItemQuantity, setQty } = useCart();
 
-  // теперь берём и количество
-  const { addItem, getItemQuantity } = useCart();
-
+  // товар
   const product = useMemo(
     () => products.find((p) => p.id === Number(id)),
     [id]
   );
 
+  // медиа
   const media = useMemo(() => {
     if (!product) return [];
     const vids = (product.videos || []).map((mp4) => ({ type: "video", mp4 }));
@@ -28,7 +34,7 @@ export default function ProductPage() {
     return [...vids, ...imgs];
   }, [product]);
 
-  // Комплектация
+  // комплектация
   const configItems = useMemo(() => {
     const raw0 = product?.configuration || "";
     const noFence = raw0.replace(/```/g, "");
@@ -40,14 +46,31 @@ export default function ProductPage() {
       .map((s) => s.replace(/^[-•]\s*/, "").trim());
   }, [product]);
 
+  // карусель
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: false,
     dragFree: false,
     align: "center",
     containScroll: "trimSnaps",
   });
-
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // анимации
+  const [addPressed, setAddPressed] = useState(false);
+  const [decPressed, setDecPressed] = useState(false);
+  const [incPressed, setIncPressed] = useState(false);
+
+  // сколько в корзине
+  const qtyInCart =
+    product && typeof getItemQuantity === "function"
+      ? getItemQuantity(product.id)
+      : 0;
+
+  // всегда актуальное кол-во (для быстрого спама по "-")
+  const qtyRef = useRef(qtyInCart);
+  useEffect(() => {
+    qtyRef.current = qtyInCart;
+  }, [qtyInCart]);
 
   const pauseAllVideosExcept = useCallback(
     (index) => {
@@ -83,34 +106,54 @@ export default function ProductPage() {
     };
   }, [emblaApi, onSelect]);
 
+  // при смене товара — листаем в начало
   useEffect(() => {
-    setSelectedIndex(0);
-    if (emblaApi) emblaApi.scrollTo(0, true);
+    if (emblaApi) {
+      setSelectedIndex(0);
+      emblaApi.scrollTo(0, true);
+    }
   }, [id, emblaApi]);
 
-  if (!product) return <EmptyWrap>Товар не найден</EmptyWrap>;
+  // хаптика
+  const haptic = () => {
+    try {
+      if (window.Telegram?.WebApp?.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.impactOccurred("medium");
+      } else if ("vibrate" in navigator) {
+        navigator.vibrate(15);
+      }
+    } catch {}
+  };
 
-  const prev = () => emblaApi && emblaApi.scrollPrev();
-  const next = () => emblaApi && emblaApi.scrollNext();
+  // 1 handler = 1 вызов действия
+  const makePointerPress = (setPressed, action) => ({
+    onPointerDown: (e) => {
+      e.preventDefault();
+      setPressed(true);
+    },
+    onPointerUp: (e) => {
+      e.preventDefault();
+      setPressed(false);
+      action?.();
+    },
+    onPointerLeave: () => setPressed(false),
+    onPointerCancel: () => setPressed(false),
+  });
 
-  // сколько сейчас в корзине этого товара
-  const qtyInCart =
-    typeof getItemQuantity === "function" ? getItemQuantity(product.id) : 0;
-
-  const handleAdd = async () => {
-    // лёгкая отдача на "добавить"
-    hapticImpact("light");
+  // действия
+  const doAddFirst = async () => {
+    if (!product) return;
+    haptic();
     try {
       await addItem(product, 1);
     } catch (e) {
       console.error("Failed to add to cart:", e);
-      alert(`Не удалось добавить в корзину: ${e.message || e}`);
     }
   };
 
-  const handleInc = async () => {
-    // чуть посильнее на "+"
-    hapticImpact("medium");
+  const doInc = async () => {
+    if (!product) return;
+    haptic();
     try {
       await addItem(product, 1);
     } catch (e) {
@@ -118,21 +161,37 @@ export default function ProductPage() {
     }
   };
 
-  const handleDec = async () => {
-    // тоже "medium" на "-"
-    hapticImpact("medium");
+  const doDec = async () => {
+    if (!product) return;
+    haptic();
     try {
-      await addItem(product, -1);
+      const current = qtyRef.current || 0;
+      const next = Math.max(0, current - 1); // не ниже 0
+      await setQty(product.id, next);
     } catch (e) {
       console.error(e);
     }
   };
+
+  // рендер "товара нет" — после всех хуков
+  if (!product) {
+    return (
+      <FullBleed>
+        <Page>
+          <TopBar svgSrc="./assets/images/topLogo.svg" />
+          <EmptyWrap>Товар не найден</EmptyWrap>
+        </Page>
+      </FullBleed>
+    );
+  }
+
+  const prev = () => emblaApi && emblaApi.scrollPrev();
+  const next = () => emblaApi && emblaApi.scrollNext();
 
   return (
     <FullBleed>
       <Page>
         <TopBar svgSrc="./assets/images/topLogo.svg" />
-
         <Title>{product.name}</Title>
 
         {/* MEDIA */}
@@ -159,7 +218,6 @@ export default function ProductPage() {
                         playsInline
                         preload="metadata"
                         onPointerDown={(e) => e.stopPropagation()}
-                        onTouchStart={(e) => e.stopPropagation()}
                       >
                         <source src={m.mp4} type="video/mp4" />
                       </Vid>
@@ -196,15 +254,31 @@ export default function ProductPage() {
         <PriceRow>
           <Price>{(product.price ?? 0).toLocaleString("ru-RU")} ₽</Price>
 
-          {/* КНОПКА / СЧЁТЧИК */}
           {qtyInCart > 0 ? (
             <QtyBox>
-              <QtyBtn onClick={handleDec}>-</QtyBtn>
+              <QtyBtn
+                {...makePointerPress(setDecPressed, doDec)}
+                $pressed={decPressed}
+                aria-label="Уменьшить количество"
+              >
+                <span className="btn-icon">–</span>
+              </QtyBtn>
               <QtyText>{qtyInCart} шт.</QtyText>
-              <QtyBtn onClick={handleInc}>+</QtyBtn>
+              <QtyBtn
+                {...makePointerPress(setIncPressed, doInc)}
+                $pressed={incPressed}
+                aria-label="Увеличить количество"
+              >
+                <span className="btn-icon">+</span>
+              </QtyBtn>
             </QtyBox>
           ) : (
-            <AddBtn onClick={handleAdd}>Добавить в корзину</AddBtn>
+            <AddBtn
+              {...makePointerPress(setAddPressed, doAddFirst)}
+              $pressed={addPressed}
+            >
+              Добавить в корзину
+            </AddBtn>
           )}
         </PriceRow>
 
@@ -376,34 +450,41 @@ const Price = styled.div`
 `;
 
 const AddBtn = styled.button`
+  height: ${COMMON_BUTTON_HEIGHT};
   border: 2px solid #f5b300;
   background: #000;
   color: #fff;
-  border-radius: 8px;
-  padding: 10px 16px;
+  border-radius: 10px;
+  padding: 0 16px;
   font-weight: 700;
   font-size: 14px;
   cursor: pointer;
   min-width: 160px;
   text-align: center;
-  transition: transform 0.15s ease, background 0.2s ease;
-
-  &:active {
-    transform: scale(0.97);
-  }
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  box-shadow: ${(p) =>
+    p.$pressed ? "0 0 0 rgba(0,0,0,0)" : "0 3px 8px rgba(0,0,0,.25)"};
+  transform: ${(p) => (p.$pressed ? "scale(.965)" : "scale(1)")};
+  -webkit-tap-highlight-color: transparent;
 `;
 
 const QtyBox = styled.div`
+  height: ${COMMON_BUTTON_HEIGHT};
   display: grid;
   grid-template-columns: auto auto auto;
-  gap: 14px;
+  gap: 12px;
   align-items: center;
   border: 2px solid #f5b300;
   background: #000;
-  border-radius: 8px;
-  padding: 8px 14px;
+  border-radius: 10px;
+  padding: 0 10px;
   min-width: 160px;
+  box-sizing: border-box;
 `;
+
 const QtyBtn = styled.button`
   background: transparent;
   border: none;
@@ -412,7 +493,22 @@ const QtyBtn = styled.button`
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 110ms ease-out;
+  transform: ${(p) => (p.$pressed ? "scale(.9)" : "scale(1)")};
+  width: 46px;
+  height: 100%;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  touch-action: manipulation;
+
+  .btn-icon {
+    pointer-events: none;
+  }
 `;
+
 const QtyText = styled.div`
   color: #fff;
   font-weight: 700;

@@ -1,62 +1,44 @@
 // src/utils/haptics.js
 
-// базовый хелпер
-function getTgHaptic() {
+// лёгкая вибра
+export function vibrateLight() {
   try {
-    return window?.Telegram?.WebApp?.HapticFeedback || null;
-  } catch {
-    return null;
-  }
+    if (window?.Telegram?.WebApp?.HapticFeedback) {
+      window.Telegram.WebApp.HapticFeedback.impactOccurred("light");
+      return;
+    }
+    if ("vibrate" in navigator) {
+      navigator.vibrate(15);
+    }
+  } catch (e) {}
 }
 
 /**
- * Короткий удар (light | medium | heavy | rigid | soft)
+ * Хаптика + добавление класса для анимации
+ * @param {HTMLElement} el
+ * @param {Object} opts
  */
-export function hapticImpact(type = "light") {
-  const h = getTgHaptic();
-  if (!h?.impactOccurred) return;
-  try {
-    h.impactOccurred(type);
-  } catch {
-    /* ignore */
-  }
-}
+export function tap(el, opts = {}) {
+  vibrateLight();
 
-/**
- * Выбор/переключение
- */
-export function hapticSelection() {
-  const h = getTgHaptic();
-  if (!h?.selectionChanged) return;
-  try {
-    h.selectionChanged();
-  } catch {
-    /* ignore */
-  }
-}
+  if (!el) return;
 
-/**
- * Уведомление об успехе
- */
-export function hapticSuccess() {
-  const h = getTgHaptic();
-  if (!h?.notificationOccurred) return;
-  try {
-    h.notificationOccurred("success");
-  } catch {
-    /* ignore */
-  }
-}
+  const cls = opts.className || "tap-press";
+  const duration = opts.duration || 160;
 
-/**
- * Уведомление об ошибке
- */
-export function hapticError() {
-  const h = getTgHaptic();
-  if (!h?.notificationOccurred) return;
-  try {
-    h.notificationOccurred("error");
-  } catch {
-    /* ignore */
+  // если анимация ещё идёт — перезапустим
+  if (el.__tapTimeout) {
+    clearTimeout(el.__tapTimeout);
+    el.classList.remove(cls);
+    // форсим перерисовку, чтобы анимация могла стартануть снова
+    // eslint-disable-next-line no-unused-expressions
+    void el.offsetWidth;
   }
+
+  el.classList.add(cls);
+
+  el.__tapTimeout = setTimeout(() => {
+    el.classList.remove(cls);
+    el.__tapTimeout = null;
+  }, duration);
 }
