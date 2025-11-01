@@ -246,7 +246,7 @@ const Thumb = styled.div`
   border: 1.5px solid #fff;
   border-radius: 10px;
   overflow: hidden;
-  background: #ac0f0fff;
+  background: transparent;
 
   img {
     width: 100%;

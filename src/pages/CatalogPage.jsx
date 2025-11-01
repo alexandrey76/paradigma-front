@@ -33,7 +33,7 @@ export default function CatalogPage() {
 
   return (
     <PageWrapper>
-      <TopBar title="Каталог товаров" />
+      <TopBar title="Каталог товаров" hideBack />
 
       <Grid>
         {products.map((p) => {

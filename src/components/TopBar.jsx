@@ -1,22 +1,12 @@
 // src/components/TopBar.jsx
 import React, { useEffect, useRef } from "react";
 import styled from "styled-components";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
-export default function TopBar({ title, svgSrc, svgAlt }) {
+export default function TopBar({ title, svgSrc, svgAlt, hideBack = false }) {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
   const touchStartX = useRef(null);
 
-  // страницы, где стрелка НЕ нужна (туда можно попасть снизу)
-  const hideBack =
-    pathname === "/" ||
-    pathname === "/catalog" ||
-    pathname === "/cart" ||
-    pathname === "/profile" ||
-    pathname === "/support";
-
-  /* ===== свайп-назад (пока пустой, но оставим) ===== */
   useEffect(() => {
     const handleTouchStart = (e) => {
       touchStartX.current = e.touches[0].clientX;
@@ -36,13 +26,14 @@ export default function TopBar({ title, svgSrc, svgAlt }) {
 
   return (
     <Bar>
-      <BackButton
-        onClick={() => !hideBack && navigate(-1)}
-        aria-label={hideBack ? undefined : "Назад"}
-        $hidden={hideBack}
-      >
-        <img src="/assets/images/backArrow.svg" alt="" />
-      </BackButton>
+      {!hideBack ? (
+        <BackButton onClick={() => navigate(-1)} aria-label="Назад">
+          <img src="/assets/images/backArrow.svg" alt="Назад" />
+        </BackButton>
+      ) : (
+        // пустой «спейсер», чтобы центр не прыгал
+        <BackSpacer aria-hidden="true" />
+      )}
 
       {title ? (
         <Title>{title}</Title>
@@ -58,8 +49,10 @@ export default function TopBar({ title, svgSrc, svgAlt }) {
 /* ---------- styled ---------- */
 
 const Bar = styled.div`
+  position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;   /* центрируем содержимое */
   background: #fff;
   border-radius: 10px;
   padding: 6px 12px;
@@ -69,25 +62,22 @@ const Bar = styled.div`
   box-sizing: border-box;
 `;
 
+const BACK_SIZE = 36;
+
 const BackButton = styled.button`
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   background: transparent;
   border: none;
   cursor: pointer;
-  margin-right: 8px;
-  width: 36px;
-  height: 36px;
+  width: ${BACK_SIZE}px;
+  height: ${BACK_SIZE}px;
   display: flex;
   align-items: center;
   justify-content: center;
   -webkit-tap-highlight-color: transparent;
-  outline: none;
-
-  ${(p) =>
-    p.$hidden &&
-    `
-    visibility: hidden;
-    pointer-events: none;
-  `}
 
   img {
     width: 12px;
@@ -96,15 +86,26 @@ const BackButton = styled.button`
   }
 
   &:active {
-    transform: scale(0.94);
-    background: transparent;
+    transform: translateY(-50%) scale(0.94);
   }
+`;
+
+// такой же по размеру, как кнопка — только невидимый
+const BackSpacer = styled.div`
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: ${BACK_SIZE}px;
+  height: ${BACK_SIZE}px;
 `;
 
 const Title = styled.div`
   font-weight: 700;
   font-size: 14px;
   color: #000;
+  text-align: center;
+  line-height: 1.2;
 `;
 
 const SvgIcon = styled.div`

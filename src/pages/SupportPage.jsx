@@ -186,7 +186,7 @@ export default function SupportPage() {
 
   return (
     <Page>
-      <TopBar title="Поддержка" />
+      <TopBar title="Поддержка" hideBack />
 
       <Card as="form" onSubmit={onSubmit}>
         <Head>

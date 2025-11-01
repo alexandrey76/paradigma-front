@@ -272,7 +272,7 @@ export default function ProfilePage() {
 
   return (
     <Page>
-      <TopBar title="Личный кабинет" />
+      <TopBar title="Личный кабинет" hideBack />
 
       <Container>
         <Card as="form" onSubmit={handleSave}>

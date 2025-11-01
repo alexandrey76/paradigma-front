@@ -168,7 +168,7 @@ export default function CartPage() {
 
   return (
     <Page>
-      <TopBar title="Корзина" />
+      <TopBar title="Корзина" hideBack />
       {!cart?.length ? (
         <EmptyWrap>Корзина пуста</EmptyWrap>
       ) : (

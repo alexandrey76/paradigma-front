@@ -26,7 +26,7 @@ import { ensureUserOnServer } from "./api/userApi";
 
 /* ====== версия фронта ====== */
 // меняешь ЭТО при деплое
-const BUILD_VERSION = "2025-10-31-07";
+const BUILD_VERSION = "2025-11-01-01";
 
 /* ====== AgeGate настройки ====== */
 const AGE_KEY = "age_gate_last_pass";
