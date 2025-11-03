@@ -131,14 +131,14 @@ export default function OrdersPage() {
 
   return (
     <Page>
-      <TopBar title="Отправленные заявки" />
+      <TopBar title="Отправленные заказы" />
 
       {error && <ErrorMessage>{error}</ErrorMessage>}
 
       {loading ? (
         <Empty>Загружаем…</Empty>
       ) : !transformedOrders.length ? (
-        <Empty>Заявок пока нет</Empty>
+        <Empty>Заказов пока нет</Empty>
       ) : (
         <List>
           {transformedOrders.map((o) => {
@@ -165,7 +165,7 @@ export default function OrdersPage() {
 
                 <InfoGrid>
                   <div>
-                    <FieldLabel>Заявка №</FieldLabel>
+                    <FieldLabel>Заказ №</FieldLabel>
                     <FieldValue>{o.id}</FieldValue>
                   </div>
                   <div style={{ textAlign: "right" }}>

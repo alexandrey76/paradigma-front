@@ -126,7 +126,7 @@ export default function ProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // загрузка количества заявок
+  // загрузка количества заказов
   useEffect(() => {
     let aborted = false;
     async function fetchOrdersCount() {
@@ -360,11 +360,11 @@ export default function ProfilePage() {
 
           <ClickableRow onClick={() => navigate("/orders")}>
             <RowLeft>
-              <RowLabel>Отправленные заявки</RowLabel>
+              <RowLabel>Отправленные заказы</RowLabel>
               <RowValueSmall>
                 {countLoading ? "—" : sentCount}{" "}
                 {!countLoading &&
-                  pluralize(sentCount, ["заявка", "заявки", "заявок"])}
+                  pluralize(sentCount, ["заказ", "заказы", "заказов"])}
               </RowValueSmall>
             </RowLeft>
             <Arrow>›</Arrow>

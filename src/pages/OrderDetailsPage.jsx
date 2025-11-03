@@ -22,8 +22,8 @@ const LABEL = {
   pending: "Ожидает подтверждения",
   confirmed: "Подтверждена",
   processing: "В обработке",
-  shipped: "Товар передан в доставку",
-  ready_for_pickup: "Товар готов к получению",
+  shipped: "Заказ передан в доставку",
+  ready_for_pickup: "Заказ готов к получению",
   completed: "Выполнена",
   rejected: "Отменена",
 };
@@ -63,7 +63,7 @@ export default function OrderDetailsPage() {
         headers: { "X-Telegram-Init-Data": initData || "" },
       });
       if (!res.ok) {
-        throw new Error(res.status === 404 ? "Заявка не найдена" : `HTTP ${res.status}`);
+        throw new Error(res.status === 404 ? "Заказ не найден" : `HTTP ${res.status}`);
       }
       const data = await res.json();
       setOrder(data.order);
@@ -184,7 +184,7 @@ export default function OrderDetailsPage() {
   if (loading) {
     return (
       <Page>
-        <TopBar title="Заявка" onBack={() => navigate(-1)} />
+        <TopBar title="Заказ" onBack={() => navigate(-1)} />
         <Empty>Загружаем…</Empty>
       </Page>
     );
@@ -193,19 +193,19 @@ export default function OrderDetailsPage() {
   if (error || !transformedOrder) {
     return (
       <Page>
-        <TopBar title="Заявка" onBack={() => navigate(-1)} />
-        <Empty>{error || "Заявка не найдена"}</Empty>
+        <TopBar title="Заказ" onBack={() => navigate(-1)} />
+        <Empty>{error || "Заказ не найден"}</Empty>
       </Page>
     );
   }
 
   return (
     <Page>
-      <TopBar title="Заявка" onBack={() => navigate(-1)} />
+      <TopBar title="Заказ" onBack={() => navigate(-1)} />
 
       <Section>
         <Row>
-          <LeftMuted>Заявка №</LeftMuted>
+          <LeftMuted>Заказ №</LeftMuted>
           <RightStrong>{transformedOrder.id}</RightStrong>
         </Row>
         <Divider />
@@ -215,7 +215,7 @@ export default function OrderDetailsPage() {
         </Row>
       </Section>
 
-      <SectionHeader>Статус заявки:</SectionHeader>
+      <SectionHeader>Статус заказа:</SectionHeader>
       <Hairline />
 
       <TimelineUI>

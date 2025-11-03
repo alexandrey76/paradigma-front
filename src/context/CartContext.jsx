@@ -1,5 +1,11 @@
 // src/context/CartContext.jsx
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   getTgContext,
   fetchServerCart,
@@ -31,7 +37,8 @@ export function CartProvider({ children }) {
       name: productData?.name || serverItem.name || `Товар ${productId}`,
       price: Number(productData?.price) || Number(serverItem.price) || 0,
       qty: Number(serverItem.qty) || 0,
-      images: productData?.images || [serverItem.meta?.image].filter(Boolean) || [],
+      images:
+        productData?.images || [serverItem.meta?.image].filter(Boolean) || [],
       description: productData?.description || "",
     };
   };
@@ -60,12 +67,20 @@ export function CartProvider({ children }) {
     const loadCartFromServer = async () => {
       const { tg_user_id } = getTgContext();
 
+      // ======== случая ТГ-юзера нет =========
       if (!tg_user_id) {
         console.info("[cart] no tg_user_id — работаем только локально");
         setIsLoading(false);
+
+        // важно: сообщаем App, что корзину больше ждать не надо
+        try {
+          window.__APP_CART_READY__ = true;
+          window.dispatchEvent(new Event("app:cart-ready"));
+        } catch {}
         return;
       }
 
+      // ======== обычный случай: юзер есть =========
       try {
         console.log("[cart] Loading cart from server for user:", tg_user_id);
         const serverItems = await fetchServerCart();
@@ -91,6 +106,12 @@ export function CartProvider({ children }) {
         }
       } finally {
         setIsLoading(false);
+
+        // СЮДА ГЛАВНОЕ: корзина инициализировалась (успех или фолбэк) — даём сигнал
+        try {
+          window.__APP_CART_READY__ = true;
+          window.dispatchEvent(new Event("app:cart-ready"));
+        } catch {}
       }
     };
 
@@ -107,7 +128,7 @@ export function CartProvider({ children }) {
     }
   }
 
-  // ====== ГЛАВНОЕ: добавить/убавить товар дельтой ======
+  // ====== добавить/убавить товар дельтой ======
   async function addItem(product, inc = 1) {
     const id = Number(product?.id);
     // если нет id или 0 дельта — делать нечего
@@ -159,7 +180,6 @@ export function CartProvider({ children }) {
     const { tg_user_id } = getTgContext();
     if (!tg_user_id) return;
 
-    // пробуем через cartDelta — он у тебя уже есть
     await safeApiCall(
       cartDelta({ product: productData, delta: inc }),
       "delta"

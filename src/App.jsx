@@ -25,12 +25,14 @@ import ConsentPage from "./pages/ConsentPage";
 import { ensureUserOnServer } from "./api/userApi";
 
 /* ====== версия фронта ====== */
-// меняешь ЭТО при деплое
-const BUILD_VERSION = "2025-11-01-01";
+const BUILD_VERSION = "2025-11-03-01";
 
 /* ====== AgeGate настройки ====== */
 const AGE_KEY = "age_gate_last_pass";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+// 👇 пока тестируем — пусть всегда показывается
+const AGEGATE_FORCE_ALWAYS = true;
 
 /* ====== Настройки прелоадера ====== */
 const PRELOADER_VIDEO = "/assets/video/Preloader.mp4";
@@ -200,27 +202,35 @@ export default function App() {
   const [fadeOut, setFadeOut] = useState(false);
   const [startTime] = useState(Date.now());
 
-  // Age gate (раз в неделю)
+  // Age gate
   const [ageOpen, setAgeOpen] = useState(false);
 
   useEffect(() => {
+    // тестовый режим — всегда показываем
+    if (AGEGATE_FORCE_ALWAYS) {
+      try {
+        localStorage.removeItem(AGE_KEY);
+        localStorage.removeItem("age_verified");
+      } catch {}
+      setAgeOpen(true);
+      return;
+    }
+
+    // прод-режим — раз в неделю
     try {
       const raw = localStorage.getItem(AGE_KEY);
       const now = Date.now();
       if (!raw) {
-        // ни разу не подтверждали — показать
         setAgeOpen(true);
       } else {
         const ts = Number(raw);
         if (!Number.isFinite(ts) || now - ts > WEEK_MS) {
-          // больше недели — показать снова
           setAgeOpen(true);
         } else {
           setAgeOpen(false);
         }
       }
     } catch {
-      // если localStorage упал — показать
       setAgeOpen(true);
     }
   }, []);
@@ -309,7 +319,7 @@ export default function App() {
       <HashRouter>
         <AppShell />
 
-        {/* Age gate поверх всего (раз в неделю) */}
+        {/* Age gate поверх всего */}
         <AgeGate open={ageOpen} onClose={handleAgeClose} persist={false} />
 
         {/* Прелоадер поверх контента */}

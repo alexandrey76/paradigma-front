@@ -154,7 +154,7 @@ export default function CartPage() {
 
       // 👇 тут вместо window.alert
       showSuccess(
-        `Заявка №${data.order_id} отправлена!\nМенеджер свяжется с вами в ближайшее время.`
+        `Заказ №${data.order_id} отправлен!\nМенеджер свяжется с вами в ближайшее время.`
       );
     } catch (err) {
       console.error("Request error:", err);
@@ -251,7 +251,7 @@ export default function CartPage() {
               Итого: <b>{formattedTotal} ₽</b>
             </Total>
             <SendBtn onClick={handleSubmit} disabled={sending}>
-              {sending ? "Отправляем…" : "Оставить заявку"}
+              {sending ? "Отправляем…" : "Сделать заказ"}
             </SendBtn>
           </BottomBar>
         </>

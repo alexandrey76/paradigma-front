@@ -169,9 +169,9 @@ const Btn = styled.button`
 `;
 
 const BtnPrimary = styled(Btn)`
-  background: ${(p) => (p.disabled ? "#f5d67a" : "#f5b300")};
+  background: ${(p) => (p.disabled ? "#9e9d99ff" : "#f5b300")};
   color: #000;
-  border-color: ${(p) => (p.disabled ? "#7bb0ff" : "#f5b300")};
+  border-color: ${(p) => (p.disabled ? "#9e9d99ff" : "#f5b300")};
 `;
 
 const BtnSecondary = styled(Btn)`
