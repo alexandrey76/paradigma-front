@@ -52,7 +52,7 @@ export default function CatalogPage() {
 
               <InfoRow>
                 <PriceBlock>
-                  <Price>{(p.price ?? 0).toLocaleString("ru-RU")} руб</Price>
+                  <Price>{(p.price ?? 0).toLocaleString("ru-RU")} ₽</Price>
                   <Name>{p.name}</Name>
                 </PriceBlock>
 

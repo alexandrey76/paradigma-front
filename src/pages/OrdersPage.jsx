@@ -311,5 +311,5 @@ const SeeBtn = styled.button`
 
 /* utils */
 function formatRUB(v) {
-  return Number(v).toLocaleString("ru-RU") + " руб";
+  return Number(v).toLocaleString("ru-RU") + " ₽";
 }

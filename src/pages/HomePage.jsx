@@ -146,7 +146,7 @@ export default function HomePage() {
                     <CardBottomRow>
                       <PriceBlock>
                         <Price>
-                          {(p.price ?? 0).toLocaleString("ru-RU")} руб
+                          {(p.price ?? 0).toLocaleString("ru-RU")} ₽
                         </Price>
                         <Name>{p.name}</Name>
                       </PriceBlock>

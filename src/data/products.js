@@ -74,27 +74,27 @@ const products = [
     ],
   },
 
-  {
-    id: 4,
-    name: "Paradigma Portative",
-    description:
-      "Paradigma Portative — мобильный кальян нового поколения. Компактный корпус делают его идеальным спутником в поездках, на отдыхе и в машине.",
-    configuration: `
-Комплектация:
-• Электронный кальян Paradigma Portative
-• Кейс для хранения и переноски
-• Чаша (1 шт.)
-• Шланг
-• Зарядное устройство
-• Инструкция
-`,
-    price: 18500,
-    images: [
-      `${P}/paradigmaportative.jpg`,
-      `${P}/paradigmaportative2.jpg`,
-      `${P}/paradigmaportative3.jpg`,
-    ],
-  },
+//   {
+//     id: 4,
+//     name: "Paradigma Portative",
+//     description:
+//       "Paradigma Portative — мобильный кальян нового поколения. Компактный корпус делают его идеальным спутником в поездках, на отдыхе и в машине.",
+//     configuration: `
+// Комплектация:
+// • Электронный кальян Paradigma Portative
+// • Кейс для хранения и переноски
+// • Чаша (1 шт.)
+// • Шланг
+// • Зарядное устройство
+// • Инструкция
+// `,
+//     price: 18500,
+//     images: [
+//       `${P}/paradigmaportative.jpg`,
+//       `${P}/paradigmaportative2.jpg`,
+//       `${P}/paradigmaportative3.jpg`,
+//     ],
+//   },
 ];
 
 export default products;

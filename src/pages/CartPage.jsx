@@ -228,7 +228,7 @@ export default function CartPage() {
                 </LeftCol>
 
                 <ItemInfo onClick={() => navigate(`/product/${i.id}`)}>
-                  <Price>{i.price.toLocaleString("ru-RU")} руб</Price>
+                  <Price>{i.price.toLocaleString("ru-RU")} ₽</Price>
                   <Name>{i.name}</Name>
 
                   {!!cfgLines.length && (

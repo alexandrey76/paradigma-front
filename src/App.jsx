@@ -25,14 +25,14 @@ import ConsentPage from "./pages/ConsentPage";
 import { ensureUserOnServer } from "./api/userApi";
 
 /* ====== версия фронта ====== */
-const BUILD_VERSION = "2025-11-03-01";
+const BUILD_VERSION = "2025-11-10-01";
 
 /* ====== AgeGate настройки ====== */
 const AGE_KEY = "age_gate_last_pass";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-// 👇 пока тестируем — пусть всегда показывается
-const AGEGATE_FORCE_ALWAYS = true;
+
+const AGEGATE_FORCE_ALWAYS = false;
 
 /* ====== Настройки прелоадера ====== */
 const PRELOADER_VIDEO = "/assets/video/Preloader.mp4";

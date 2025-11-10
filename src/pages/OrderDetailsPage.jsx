@@ -549,5 +549,5 @@ function formatDateTimeLocal(iso) {
 }
 
 function formatRUB(v) {
-  return `${Number(v).toLocaleString("ru-RU")} руб`;
+  return `${Number(v).toLocaleString("ru-RU")} ₽`;
 }
