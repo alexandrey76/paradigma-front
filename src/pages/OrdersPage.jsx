@@ -83,30 +83,46 @@ export default function OrdersPage() {
 
   const transformOrder = (order) => {
     try {
-      const items =
+      const rawItems =
         typeof order.items_json === "string"
           ? JSON.parse(order.items_json)
           : order.items_json || [];
 
+      const items = rawItems.map((item) => {
+        const price = Number(item.price) || 0;
+        const qty = Number(item.qty) || 0;
+        return {
+          id: item.id,
+          name: item.name,
+          price,
+          qty,
+          image: getProductImage(item.id),
+        };
+      });
+
+      // итоговая сумма – ТОЛЬКО из БД, если она есть
+      const dbTotal = Number(
+        order.total_from_db ?? order.total ?? NaN
+      );
+      const fallbackTotal = items.reduce(
+        (s, it) => s + it.price * it.qty,
+        0
+      );
+      const total = Number.isFinite(dbTotal) ? dbTotal : fallbackTotal;
+
       return {
         id: order.order_uid,
         created_at: order.created_at,
-        total: order.total,
+        total,
         status: order.status || "pending",
-        items: items.map((item) => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          qty: item.qty,
-          image: getProductImage(item.id),
-        })),
+        items,
       };
     } catch (e) {
       console.error("Error transforming order:", e);
       return {
         id: order.order_uid,
         created_at: order.created_at,
-        total: order.total,
+        total: Number(order.total) || 0,
         status: order.status || "pending",
         items: [],
       };
@@ -176,10 +192,13 @@ export default function OrdersPage() {
 
                 <div>
                   <FieldLabel>Статус</FieldLabel>
-                  <StatusPillSvg status={o.status} size={10}/>
+                  <StatusPillSvg status={o.status} size={10} />
                 </div>
 
-                <SeeBtn type="button" onClick={(e) => handleSeeButtonClick(e, o.id)}>
+                <SeeBtn
+                  type="button"
+                  onClick={(e) => handleSeeButtonClick(e, o.id)}
+                >
                   Посмотреть
                 </SeeBtn>
               </Card>

@@ -42,7 +42,7 @@ export default function OrderDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
-  const [timeline, setTimeline] = useState([]); // [{from_status,to_status,changed_at,manager_username}, ...]
+  const [timeline, setTimeline] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -63,7 +63,9 @@ export default function OrderDetailsPage() {
         headers: { "X-Telegram-Init-Data": initData || "" },
       });
       if (!res.ok) {
-        throw new Error(res.status === 404 ? "Заказ не найден" : `HTTP ${res.status}`);
+        throw new Error(
+          res.status === 404 ? "Заказ не найден" : `HTTP ${res.status}`
+        );
       }
       const data = await res.json();
       setOrder(data.order);
@@ -79,9 +81,10 @@ export default function OrderDetailsPage() {
       const res = await fetch(`${API_BASE}/api/orders/${id}/timeline`);
       const data = await res.json();
       let rows = Array.isArray(data?.timeline) ? data.timeline : [];
-      // старые → новые
       rows.sort(
-        (a, b) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime()
+        (a, b) =>
+          new Date(a.changed_at).getTime() -
+          new Date(b.changed_at).getTime()
       );
       setTimeline(rows);
     } catch (e) {
@@ -95,39 +98,59 @@ export default function OrderDetailsPage() {
   const transformedOrder = useMemo(() => {
     if (!order) return null;
 
-    let items;
+    let itemsRaw;
     try {
-      items =
+      itemsRaw =
         typeof order.items_json === "string"
           ? JSON.parse(order.items_json)
           : order.items_json || [];
     } catch {
-      items = [];
+      itemsRaw = [];
     }
+
+    const items = itemsRaw.map((i) => {
+      const price = Number(i.price) || 0;
+      const qty = Number(i.qty) || 0;
+      const lineTotalRaw =
+        i.line_total ?? i.total ?? i.sum ?? NaN;
+      const lineTotal = Number.isFinite(Number(lineTotalRaw))
+        ? Number(lineTotalRaw)
+        : price * qty;
+
+      return {
+        id: i.id,
+        name: i.name,
+        price,
+        qty,
+        lineTotal,
+        image: getProductImage(i.id),
+      };
+    });
+
+    const dbTotal = Number(
+      order.total_from_db ?? order.total ?? NaN
+    );
+    const fallbackTotal = items.reduce(
+      (s, it) => s + it.lineTotal,
+      0
+    );
+    const total = Number.isFinite(dbTotal) ? dbTotal : fallbackTotal;
 
     return {
       id: order.order_uid,
       created_at: order.created_at,
-      total: order.total,
+      total,
       status: order.status || "pending",
-      items: items.map((i) => ({
-        id: i.id,
-        name: i.name,
-        price: i.price,
-        qty: i.qty,
-        image: getProductImage(i.id),
-      })),
+      items,
     };
   }, [order]);
 
-  // карта «статус → время наступления» из реального таймлайна
   const reachedAt = useMemo(() => {
     const map = {};
     for (const row of timeline) {
       const k = String(row.to_status || "").toLowerCase();
-      if (!map[k]) map[k] = row.changed_at; // фиксируем первое наступление
+      if (!map[k]) map[k] = row.changed_at;
     }
-    // создание заказа трактуем как pending на момент created_at
     if (transformedOrder?.created_at && !map.pending) {
       map.pending = transformedOrder.created_at;
     }
@@ -136,14 +159,14 @@ export default function OrderDetailsPage() {
 
   const hasRejected = "rejected" in reachedAt;
 
-  // Итоговая дорожка (если отмена — без "pending" после "rejected")
-  const stepsForRender = useMemo(() => {
-    return hasRejected
-      ? ["rejected", ...BASE_STEPS.filter((s) => s !== "pending")]
-      : BASE_STEPS;
-  }, [hasRejected]);
+  const stepsForRender = useMemo(
+    () =>
+      hasRejected
+        ? ["rejected", ...BASE_STEPS.filter((s) => s !== "pending")]
+        : BASE_STEPS,
+    [hasRejected]
+  );
 
-  // Посчитать индекс «самого дальнего» достигнутого шага.
   const furthestReachedIndex = useMemo(() => {
     if (!transformedOrder) return 0;
     if (hasRejected) return 0;
@@ -157,7 +180,6 @@ export default function OrderDetailsPage() {
     return Math.max(0, candidate);
   }, [hasRejected, stepsForRender, transformedOrder, reachedAt]);
 
-  // Время для отображения (в локальной TZ пользователя)
   const displayTimeByStep = useMemo(() => {
     const out = {};
     if (!transformedOrder) return out;
@@ -174,7 +196,7 @@ export default function OrderDetailsPage() {
         lastRealTime = reachedAt[key];
         out[key] = reachedAt[key];
       } else if (idx <= furthestReachedIndex) {
-        out[key] = lastRealTime; // «наследуем» время
+        out[key] = lastRealTime;
       }
     });
 
@@ -184,7 +206,7 @@ export default function OrderDetailsPage() {
   if (loading) {
     return (
       <Page>
-        <TopBar title="Заказ" onBack={() => navigate(-1)} />
+        <TopBar title="Заказ" />
         <Empty>Загружаем…</Empty>
       </Page>
     );
@@ -193,7 +215,7 @@ export default function OrderDetailsPage() {
   if (error || !transformedOrder) {
     return (
       <Page>
-        <TopBar title="Заказ" onBack={() => navigate(-1)} />
+        <TopBar title="Заказ" />
         <Empty>{error || "Заказ не найден"}</Empty>
       </Page>
     );
@@ -201,7 +223,7 @@ export default function OrderDetailsPage() {
 
   return (
     <Page>
-      <TopBar title="Заказ" onBack={() => navigate(-1)} />
+      <TopBar title="Заказ" />
 
       <Section>
         <Row>
@@ -211,7 +233,9 @@ export default function OrderDetailsPage() {
         <Divider />
         <Row>
           <LeftMuted>Дата создания:</LeftMuted>
-          <RightStrong>{formatDateLocal(transformedOrder.created_at)}</RightStrong>
+          <RightStrong>
+            {formatDateLocal(transformedOrder.created_at)}
+          </RightStrong>
         </Row>
       </Section>
 
@@ -229,7 +253,9 @@ export default function OrderDetailsPage() {
               <div className="text">
                 <div className="label">{label}</div>
                 {showTime && (
-                  <div className="time">{formatDateTimeLocal(displayTimeByStep[key])}</div>
+                  <div className="time">
+                    {formatDateTimeLocal(displayTimeByStep[key])}
+                  </div>
                 )}
               </div>
             </li>
@@ -257,7 +283,7 @@ export default function OrderDetailsPage() {
               <ThreeCols strong>
                 <span>{formatRUB(it.price)}</span>
                 <span>{it.qty}</span>
-                <span>{formatRUB(it.qty * it.price)}</span>
+                <span>{formatRUB(it.lineTotal)}</span>
               </ThreeCols>
             </Info>
 
@@ -283,14 +309,15 @@ export default function OrderDetailsPage() {
   );
 }
 
-/* =================== styled =================== */
+/* =================== styled и utils =================== */
 
 const Page = styled.main`
   min-height: 100dvh;
   background: #000;
   color: #fff;
   padding: 12px var(--side-pad, 16px) 24px;
-  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto,
+    sans-serif;
 `;
 
 const Empty = styled.div`
@@ -299,6 +326,7 @@ const Empty = styled.div`
   place-items: center;
   color: #d6d6d6;
 `;
+
 
 const Section = styled.section`
   padding: 12px 0;
@@ -509,15 +537,12 @@ const BottomPad = styled.div`
   height: 80px;
 `;
 
-/* ===== utils: локальная TZ пользователя ===== */
-
 const USER_TZ =
   Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
 
 function formatDateLocal(iso) {
   try {
     return new Intl.DateTimeFormat("ru-RU", {
-      // timeZone: USER_TZ, // можно не указывать — по умолчанию локальная
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -531,13 +556,11 @@ function formatDateTimeLocal(iso) {
   try {
     const d = new Date(iso);
     const dd = new Intl.DateTimeFormat("ru-RU", {
-      // timeZone: USER_TZ,
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
     }).format(d);
     const tm = new Intl.DateTimeFormat("ru-RU", {
-      // timeZone: USER_TZ,
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
