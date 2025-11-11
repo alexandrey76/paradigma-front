@@ -50,7 +50,6 @@ export default function HomePage() {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(PHONE_COPY);
       } else {
-        // Фоллбэк для старых браузеров
         const ta = document.createElement("textarea");
         ta.value = PHONE_COPY;
         ta.style.position = "fixed";
@@ -127,6 +126,10 @@ export default function HomePage() {
             {products.map((p) => {
               const qty = getQty(p.id);
               const icon = getIcon(qty);
+              const hasOld =
+                typeof p.oldPrice === "number" &&
+                p.oldPrice > (p.price ?? 0);
+
               return (
                 <CatalogSlide key={p.id}>
                   <Card
@@ -145,9 +148,16 @@ export default function HomePage() {
 
                     <CardBottomRow>
                       <PriceBlock>
-                        <Price>
-                          {(p.price ?? 0).toLocaleString("ru-RU")} ₽
-                        </Price>
+                        <PriceRow>
+                          <CurrentPrice $accent={hasOld}>
+                            {(p.price ?? 0).toLocaleString("ru-RU")} ₽
+                          </CurrentPrice>
+                          {hasOld && (
+                            <OldPrice>
+                              {p.oldPrice.toLocaleString("ru-RU")} ₽
+                            </OldPrice>
+                          )}
+                        </PriceRow>
                         <Name>{p.name}</Name>
                       </PriceBlock>
 
@@ -186,7 +196,9 @@ export default function HomePage() {
                 <Link to="/privacy-policy">Политика конфиденциальности</Link>
               </PolicyLine>
               <PolicyLine>
-                <Link to="/consent">Согласие на обработку персональных данных</Link>
+                <Link to="/consent">
+                  Согласие на обработку персональных данных
+                </Link>
               </PolicyLine>
               <PolicyLine>ИНН: 771588377502</PolicyLine>
               <PolicyLine>ОГРИП: 32577460063823</PolicyLine>
@@ -200,7 +212,6 @@ export default function HomePage() {
           <FooterRight>
             <PhoneBlock>
               <PhoneLabel>Телефон:</PhoneLabel>
-              {/* Было: <PhoneNumber href="tel:+79911851101"> ... */}
               <PhoneNumberButton
                 type="button"
                 onClick={copyPhone}
@@ -426,10 +437,27 @@ const PriceBlock = styled.div`
   flex-direction: column;
   gap: 4px;
 `;
-const Price = styled.div`
+
+const PriceRow = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-wrap: wrap;
+`;
+
+const CurrentPrice = styled.span`
   font-size: 18px;
   font-weight: 800;
+  color: ${(p) => (p.$accent ? "#ca3b34ff" : "#ffffff")};
 `;
+
+const OldPrice = styled.span`
+  font-size: 15px;
+  font-weight: 600;
+  color: #9c9c9c;
+  text-decoration: line-through;
+`;
+
 const Name = styled.div`
   font-size: 14px;
   color: #cfcfcf;

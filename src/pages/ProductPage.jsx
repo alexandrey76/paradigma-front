@@ -188,6 +188,9 @@ export default function ProductPage() {
   const prev = () => emblaApi && emblaApi.scrollPrev();
   const next = () => emblaApi && emblaApi.scrollNext();
 
+  const hasOld =
+    typeof product.oldPrice === "number" && product.oldPrice > 0;
+
   return (
     <FullBleed>
       <Page>
@@ -252,7 +255,16 @@ export default function ProductPage() {
         </MediaBox>
 
         <PriceRow>
-          <Price>{(product.price ?? 0).toLocaleString("ru-RU")} ₽</Price>
+          <PriceWrap>
+            <PriceNow $hasOld={hasOld}>
+              {(product.price ?? 0).toLocaleString("ru-RU")} ₽
+            </PriceNow>
+            {hasOld && (
+              <PriceOld>
+                {product.oldPrice.toLocaleString("ru-RU")} ₽
+              </PriceOld>
+            )}
+          </PriceWrap>
 
           {qtyInCart > 0 ? (
             <QtyBox>
@@ -317,7 +329,8 @@ const Page = styled.main`
   padding: 12px var(--side-pad, 16px) calc(110px + env(safe-area-inset-bottom));
   min-height: 100dvh;
   color: #fff;
-  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto,
+    sans-serif;
   max-width: 720px;
   margin: 0 auto;
 `;
@@ -444,9 +457,26 @@ const PriceRow = styled.div`
     grid-template-columns: 1fr;
   }
 `;
-const Price = styled.div`
+
+const PriceWrap = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+`;
+
+const PriceNow = styled.span`
   font-weight: 900;
   font-size: 24px;
+  white-space: nowrap;
+  color: ${(p) => (p.$hasOld ? "#ca3b34ff" : "#ffffff")};
+`;
+
+const PriceOld = styled.span`
+  font-size: 21px;
+  color: #a0a0a0;
+  text-decoration: line-through;
+  opacity: 0.9;
+  white-space: nowrap;
 `;
 
 const AddBtn = styled.button`
