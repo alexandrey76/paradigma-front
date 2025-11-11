@@ -17,7 +17,7 @@ const products = [
 • Зарядное устройство
 • Инструкция
 `,
-    price: 19900,
+    price: 222200,
     oldPrice: 21890, // +10%
     images: [
       `${P}/paradigmaone.jpg`,
