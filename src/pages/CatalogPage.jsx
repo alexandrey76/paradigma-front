@@ -40,6 +40,8 @@ export default function CatalogPage() {
           const qty = getQty(p.id);
           const icon = getIcon(qty);
 
+          const hasOld = typeof p.oldPrice === "number" && p.oldPrice > 0;
+
           return (
             <Card key={p.id}>
               <Link to={`/product/${p.id}`}>
@@ -52,7 +54,16 @@ export default function CatalogPage() {
 
               <InfoRow>
                 <PriceBlock>
-                  <Price>{(p.price ?? 0).toLocaleString("ru-RU")} ₽</Price>
+                  <PriceRow>
+                    <PriceNow $hasOld={hasOld}>
+                      {(p.price ?? 0).toLocaleString("ru-RU")} ₽
+                    </PriceNow>
+                    {hasOld && (
+                      <PriceOld>
+                        {p.oldPrice.toLocaleString("ru-RU")} ₽
+                      </PriceOld>
+                    )}
+                  </PriceRow>
                   <Name>{p.name}</Name>
                 </PriceBlock>
 
@@ -77,14 +88,13 @@ export default function CatalogPage() {
 
 /* ===================== styled ===================== */
 
-/* ===================== styled ===================== */
-
 const PageWrapper = styled.div`
   background: #000;
   min-height: 100vh;
   color: #fff;
   padding: 12px var(--side-pad, 16px) 16px;
-  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial,
+    sans-serif;
 `;
 
 const Grid = styled.div`
@@ -96,8 +106,7 @@ const Grid = styled.div`
 const Card = styled.div`
   background: transparent;
   border-radius: 8px;
-  /* ВАЖНО: даём выходить бейджу наружу */
-  overflow: visible;
+  overflow: visible; /* чтобы бейджик не резался */
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -118,6 +127,9 @@ const InfoRow = styled.div`
   align-items: flex-start;
   margin-top: 8px;
   gap: 8px;
+
+  /* чуть смещаем текст вправо, чтобы он визуально не выходил за рамку фото */
+  padding: 0 2px 0 4px;
 `;
 
 const PriceBlock = styled.div`
@@ -128,9 +140,24 @@ const PriceBlock = styled.div`
   min-width: 0;
 `;
 
-const Price = styled.div`
+const PriceRow = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+`;
+
+const PriceNow = styled.span`
   font-weight: 800;
-  font-size: 16px;
+  font-size: 14px;
+  white-space: nowrap;
+  color: ${(p) => (p.$hasOld ? "#ca3b34ff" : "#ffffff")};
+`;
+
+const PriceOld = styled.span`
+  font-size: 11px;
+  color: #a0a0a0;
+  text-decoration: line-through;
+  opacity: 0.9;
   white-space: nowrap;
 `;
 
@@ -167,7 +194,7 @@ const CartBtnWrap = styled.button`
 
 const CartBadge = styled.span`
   position: absolute;
-  top: -6px;    /* чуть выше, чтобы точно не цеплять рамку */
+  top: -6px;
   right: -6px;
   width: 16px;
   height: 16px;
@@ -183,4 +210,3 @@ const CartBadge = styled.span`
   line-height: 1;
   pointer-events: none;
 `;
-
