@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState } from "react";
 import styled from "styled-components";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import TopBar from "../components/TopBar";
 
 const API_BASE =
@@ -38,9 +38,11 @@ const BASE_STEPS = [
   "completed",
 ];
 
+// статусы, при которых клиент может отменить заказ (только pending и processing)
+const CAN_USER_CANCEL = new Set(["pending", "processing"]);
+
 export default function OrderDetailsPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [timeline, setTimeline] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -95,6 +97,7 @@ export default function OrderDetailsPage() {
 
   const getProductImage = (productId) => IMAGE_MAP[productId] || null;
 
+  // приводим заказ из БД к удобному виду и используем только БДшные суммы
   const transformedOrder = useMemo(() => {
     if (!order) return null;
 
@@ -111,8 +114,8 @@ export default function OrderDetailsPage() {
     const items = itemsRaw.map((i) => {
       const price = Number(i.price) || 0;
       const qty = Number(i.qty) || 0;
-      const lineTotalRaw =
-        i.line_total ?? i.total ?? i.sum ?? NaN;
+      // line_total сохраняем при создании заказа на бэке
+      const lineTotalRaw = i.line_total ?? i.total ?? i.sum ?? NaN;
       const lineTotal = Number.isFinite(Number(lineTotalRaw))
         ? Number(lineTotalRaw)
         : price * qty;
@@ -127,13 +130,9 @@ export default function OrderDetailsPage() {
       };
     });
 
-    const dbTotal = Number(
-      order.total_from_db ?? order.total ?? NaN
-    );
-    const fallbackTotal = items.reduce(
-      (s, it) => s + it.lineTotal,
-      0
-    );
+    // total_from_db / total — из БД
+    const dbTotal = Number(order.total_from_db ?? order.total ?? NaN);
+    const fallbackTotal = items.reduce((s, it) => s + it.lineTotal, 0);
     const total = Number.isFinite(dbTotal) ? dbTotal : fallbackTotal;
 
     return {
@@ -145,6 +144,7 @@ export default function OrderDetailsPage() {
     };
   }, [order]);
 
+  // карта «статус → время наступления»
   const reachedAt = useMemo(() => {
     const map = {};
     for (const row of timeline) {
@@ -203,6 +203,67 @@ export default function OrderDetailsPage() {
     return out;
   }, [hasRejected, stepsForRender, reachedAt, furthestReachedIndex, transformedOrder]);
 
+  // ===== отмена заказа пользователем =====
+  const allowCancel = useMemo(() => {
+    const st = String(transformedOrder?.status || "").toLowerCase();
+    return !hasRejected && CAN_USER_CANCEL.has(st);
+  }, [transformedOrder, hasRejected]);
+
+  const tgPopup = (title, message) => {
+    const tg = window?.Telegram?.WebApp;
+    if (tg?.showPopup) {
+      return new Promise((res) =>
+        tg.showPopup(
+          {
+            title,
+            message,
+            buttons: [
+              { id: "ok", type: "ok" },
+              { id: "cancel", type: "cancel" },
+            ],
+          },
+          (btnId) => res(btnId === "ok")
+        )
+      );
+    }
+    return Promise.resolve(window.confirm(`${title}\n\n${message}`));
+  };
+
+  const tgAlert = (message) => {
+    const tg = window?.Telegram?.WebApp;
+    if (tg?.showAlert) tg.showAlert(message);
+    else alert(message);
+  };
+
+  async function cancelOrder() {
+    const ok = await tgPopup("Отменить заказ", "Вы уверены, что хотите отменить заказ?");
+    if (!ok) return;
+    try {
+      const tg = window?.Telegram?.WebApp;
+      const initData = tg?.initData || "";
+
+      const res = await fetch(`${API_BASE}/api/orders/${id}/cancel`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Telegram-Init-Data": initData || "",
+        },
+        body: JSON.stringify({ reason: "user_cancelled" }),
+      });
+
+      if (!res.ok) {
+        // тихо выходим — кнопка сама пропадёт, когда статус станет неподходящим
+        return;
+      }
+
+      tgAlert("Заказ отменён.");
+      await Promise.all([fetchOrder(), fetchTimeline()]);
+    } catch {
+      // тихий фолбэк без алертов
+    }
+  }
+
+  // ======= рендер =======
   if (loading) {
     return (
       <Page>
@@ -304,6 +365,14 @@ export default function OrderDetailsPage() {
         </TotalRow>
       </SummarySection>
 
+      {allowCancel && (
+        <Actions>
+          <CancelBtn type="button" onClick={cancelOrder}>
+            Отменить заказ
+          </CancelBtn>
+        </Actions>
+      )}
+
       <BottomPad />
     </Page>
   );
@@ -326,7 +395,6 @@ const Empty = styled.div`
   place-items: center;
   color: #d6d6d6;
 `;
-
 
 const Section = styled.section`
   padding: 12px 0;
@@ -488,7 +556,7 @@ const ThreeCols = styled.div`
   grid-template-columns: repeat(3, 1fr);
   font-size: 12px;
   color: ${(p) => (p.muted ? "#bdbdbd" : p.strong ? "#fff" : "#dcdcdc")};
-  font-weight: ${(p) => (p.strong ? 800 : 500)};
+  font-weight: ${(p) => (p.strong ? 800 : 500)}; 
   margin-bottom: ${(p) => (p.strong ? "0" : "4px")};
 `;
 
@@ -533,12 +601,26 @@ const TotalRow = styled.div`
   }
 `;
 
+const Actions = styled.div`
+  margin-top: 6px;
+`;
+
+const CancelBtn = styled.button`
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  border: 2px solid #ff5252;
+  background: #ff5252;
+  color: #000;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  &:active { transform: translateY(1px); }
+`;
+
 const BottomPad = styled.div`
   height: 80px;
 `;
-
-const USER_TZ =
-  Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
 
 function formatDateLocal(iso) {
   try {
