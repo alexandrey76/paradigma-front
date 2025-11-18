@@ -19,6 +19,7 @@ const products = [
 `,
     price: 19900,
     oldPrice: 21890, // +10%
+    inStock: true,
     images: [
       `${P}/paradigmaone.jpg`,
       `${P}/paradigmaone2.jpg`,
@@ -40,11 +41,12 @@ const products = [
 • Щипцы
 • 1 чаша (стекло)
 • Набор для очистки
-• Зарядное устройство 
+• Зарядное устройство
 • Инструкция
 `,
     price: 46500,
     oldPrice: null, // +10%
+    inStock: true,
     images: [
       `${P}/paradigmalukah.jpg`,
       `${P}/paradigmalukah2.jpg`,
@@ -70,6 +72,7 @@ const products = [
 `,
     price: 26900,
     oldPrice: 29590, // +10%
+    inStock: true,
     images: [
       `${P}/paradigmaneo.jpg`,
       `${P}/paradigmaneo2.jpg`,
@@ -77,28 +80,29 @@ const products = [
     ],
   },
 
-  // {
-  //   id: 4,
-  //   name: "Paradigma Portative",
-  //   description:
-  //     "Paradigma Portative — мобильный кальян нового поколения. Компактный корпус делают его идеальным спутником в поездках, на отдыхе и в машине.",
-  //   configuration: `
-  // Комплектация:
-  // • Электронный кальян Paradigma Portative
-  // • Кейс для хранения и переноски
-  // • Чаша (1 шт.)
-  // • Шланг
-  // • Зарядное устройство
-  // • Инструкция
-  // `,
-  //   price: 18500,
-  //   oldPrice: 20350, // +10%
-  //   images: [
-  //     `${P}/paradigmaportative.jpg`,
-  //     `${P}/paradigmaportative2.jpg`,
-  //     `${P}/paradigmaportative3.jpg`,
-  //   ],
-  // },
+  {
+    id: 4,
+    name: "Paradigma Portative",
+    description:
+      "Paradigma Portative — мобильный кальян нового поколения. Компактный корпус делают его идеальным спутником в поездках, на отдыхе и в машине.",
+    configuration: `
+  Комплектация:
+  • Электронный кальян Paradigma Portative
+  • Кейс для хранения и переноски
+  • Чаша (1 шт.)
+  • Шланг
+  • Зарядное устройство
+  • Инструкция
+  `,
+    price: 18500,
+    oldPrice: 20350, // +10%
+    inStock: false,
+    images: [
+      `${P}/paradigmaportative.jpg`,
+      `${P}/paradigmaportative2.jpg`,
+      `${P}/paradigmaportative3.jpg`,
+    ],
+  },
 ];
 
 export default products;

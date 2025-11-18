@@ -577,4 +577,9 @@ const SaveBtn = styled.button`
     opacity: 0.6;
     cursor: default;
   }
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  box-shadow: ${(p) =>
+    p.$pressed ? "0 0 0 rgba(0,0,0,0)" : "0 3px 8px rgba(0,0,0,.25)"};
+  transform: ${(p) => (p.$pressed ? "scale(.965)" : "scale(1)")};
+  -webkit-tap-highlight-color: transparent;
 `;

@@ -12,10 +12,7 @@ const PUB = process.env.PUBLIC_URL || "";
 export default function CatalogPage() {
   const { addItem, getItemQuantity } = useCart();
 
-  const getQty = useCallback(
-    (id) => getItemQuantity(id),
-    [getItemQuantity]
-  );
+  const getQty = useCallback((id) => getItemQuantity(id), [getItemQuantity]);
 
   const getIcon = (qty) =>
     qty > 0
@@ -42,6 +39,11 @@ export default function CatalogPage() {
 
           const hasOld = typeof p.oldPrice === "number" && p.oldPrice > 0;
 
+          // Логика наличия:
+          // считаем, что товара нет, если inStock === false ИЛИ stock === 0
+          const outOfStock =
+            p?.inStock === false || (typeof p?.stock === "number" && p.stock <= 0);
+
           return (
             <Card key={p.id}>
               <Link to={`/product/${p.id}`}>
@@ -59,24 +61,26 @@ export default function CatalogPage() {
                       {(p.price ?? 0).toLocaleString("ru-RU")} ₽
                     </PriceNow>
                     {hasOld && (
-                      <PriceOld>
-                        {p.oldPrice.toLocaleString("ru-RU")} ₽
-                      </PriceOld>
+                      <PriceOld>{p.oldPrice.toLocaleString("ru-RU")} ₽</PriceOld>
                     )}
                   </PriceRow>
                   <Name>{p.name}</Name>
                 </PriceBlock>
 
-                <CartBtnWrap
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAdd(p);
-                  }}
-                  aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
-                >
-                  <img src={icon} alt="" />
-                  {qty > 0 && <CartBadge>{qty > 9 ? "9+" : qty}</CartBadge>}
-                </CartBtnWrap>
+                {outOfStock ? (
+                  <StockBadge>Нет в наличии</StockBadge>
+                ) : (
+                  <CartBtnWrap
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAdd(p);
+                    }}
+                    aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
+                  >
+                    <img src={icon} alt="" />
+                    {qty > 0 && <CartBadge>{qty > 9 ? "9+" : qty}</CartBadge>}
+                  </CartBtnWrap>
+                )}
               </InfoRow>
             </Card>
           );
@@ -150,7 +154,7 @@ const PriceNow = styled.span`
   font-weight: 800;
   font-size: 14px;
   white-space: nowrap;
-  color: ${(p) => (p.$hasOld ? "#ca3b34ff" : "#ffffff")};
+  color: ${(p) => (p.$hasOld ? "#ca3b34" : "#ffffff")};
 `;
 
 const PriceOld = styled.span`
@@ -210,3 +214,16 @@ const CartBadge = styled.span`
   line-height: 1;
   pointer-events: none;
 `;
+
+const StockBadge = styled.div`
+  border: 2px solid #ff5252;
+  color: #ff5252;
+  background: transparent;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  user-select: none;
+`;
+

@@ -25,7 +25,7 @@ import ConsentPage from "./pages/ConsentPage";
 import { ensureUserOnServer } from "./api/userApi";
 
 /* ====== версия фронта ====== */
-const BUILD_VERSION = "2025-11-12-01";
+const BUILD_VERSION = "2025-11-18-01";
 
 /* ====== AgeGate настройки ====== */
 const AGE_KEY = "age_gate_last_pass";
