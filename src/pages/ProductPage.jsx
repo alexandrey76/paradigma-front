@@ -20,13 +20,16 @@ export default function ProductPage() {
   const { id } = useParams();
   const { addItem, getItemQuantity, setQty } = useCart();
 
-  // товар
   const product = useMemo(
     () => products.find((p) => p.id === Number(id)),
     [id]
   );
 
-  // медиа
+  // недоступность: либо inStock=false, либо stock=0
+  const outOfStock =
+    product?.inStock === false ||
+    (typeof product?.stock === "number" && product.stock <= 0);
+
   const media = useMemo(() => {
     if (!product) return [];
     const vids = (product.videos || []).map((mp4) => ({ type: "video", mp4 }));
@@ -34,7 +37,6 @@ export default function ProductPage() {
     return [...vids, ...imgs];
   }, [product]);
 
-  // комплектация
   const configItems = useMemo(() => {
     const raw0 = product?.configuration || "";
     const noFence = raw0.replace(/```/g, "");
@@ -46,7 +48,6 @@ export default function ProductPage() {
       .map((s) => s.replace(/^[-•]\s*/, "").trim());
   }, [product]);
 
-  // карусель
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: false,
     dragFree: false,
@@ -55,18 +56,15 @@ export default function ProductPage() {
   });
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // анимации
   const [addPressed, setAddPressed] = useState(false);
   const [decPressed, setDecPressed] = useState(false);
   const [incPressed, setIncPressed] = useState(false);
 
-  // сколько в корзине
   const qtyInCart =
     product && typeof getItemQuantity === "function"
       ? getItemQuantity(product.id)
       : 0;
 
-  // всегда актуальное кол-во (для быстрого спама по "-")
   const qtyRef = useRef(qtyInCart);
   useEffect(() => {
     qtyRef.current = qtyInCart;
@@ -106,7 +104,6 @@ export default function ProductPage() {
     };
   }, [emblaApi, onSelect]);
 
-  // при смене товара — листаем в начало
   useEffect(() => {
     if (emblaApi) {
       setSelectedIndex(0);
@@ -114,7 +111,6 @@ export default function ProductPage() {
     }
   }, [id, emblaApi]);
 
-  // хаптика
   const haptic = () => {
     try {
       if (window.Telegram?.WebApp?.HapticFeedback) {
@@ -125,7 +121,6 @@ export default function ProductPage() {
     } catch {}
   };
 
-  // 1 handler = 1 вызов действия
   const makePointerPress = (setPressed, action) => ({
     onPointerDown: (e) => {
       e.preventDefault();
@@ -140,9 +135,8 @@ export default function ProductPage() {
     onPointerCancel: () => setPressed(false),
   });
 
-  // действия
   const doAddFirst = async () => {
-    if (!product) return;
+    if (!product || outOfStock) return;
     haptic();
     try {
       await addItem(product, 1);
@@ -152,7 +146,7 @@ export default function ProductPage() {
   };
 
   const doInc = async () => {
-    if (!product) return;
+    if (!product || outOfStock) return;
     haptic();
     try {
       await addItem(product, 1);
@@ -162,18 +156,17 @@ export default function ProductPage() {
   };
 
   const doDec = async () => {
-    if (!product) return;
+    if (!product || outOfStock) return;
     haptic();
     try {
       const current = qtyRef.current || 0;
-      const next = Math.max(0, current - 1); // не ниже 0
+      const next = Math.max(0, current - 1);
       await setQty(product.id, next);
     } catch (e) {
       console.error(e);
     }
   };
 
-  // рендер "товара нет" — после всех хуков
   if (!product) {
     return (
       <FullBleed>
@@ -260,13 +253,13 @@ export default function ProductPage() {
               {(product.price ?? 0).toLocaleString("ru-RU")} ₽
             </PriceNow>
             {hasOld && (
-              <PriceOld>
-                {product.oldPrice.toLocaleString("ru-RU")} ₽
-              </PriceOld>
+              <PriceOld>{product.oldPrice.toLocaleString("ru-RU")} ₽</PriceOld>
             )}
           </PriceWrap>
 
-          {qtyInCart > 0 ? (
+          {outOfStock ? (
+            <OutOfStockBadge>Нет в наличии</OutOfStockBadge>
+          ) : qtyInCart > 0 ? (
             <QtyBox>
               <QtyBtn
                 {...makePointerPress(setDecPressed, doDec)}
@@ -294,14 +287,12 @@ export default function ProductPage() {
           )}
         </PriceRow>
 
-        {/* описание */}
         {product.description && (
           <p style={{ margin: "8px 0 0", color: "#d6d6d6", lineHeight: 1.5 }}>
             {product.description}
           </p>
         )}
 
-        {/* комплектация */}
         {configItems.length > 0 && (
           <SpecBlock>
             <SpecTitle>Набор:</SpecTitle>
@@ -499,6 +490,20 @@ const AddBtn = styled.button`
     p.$pressed ? "0 0 0 rgba(0,0,0,0)" : "0 3px 8px rgba(0,0,0,.25)"};
   transform: ${(p) => (p.$pressed ? "scale(.965)" : "scale(1)")};
   -webkit-tap-highlight-color: transparent;
+`;
+
+const OutOfStockBadge = styled.div`
+  height: ${COMMON_BUTTON_HEIGHT};
+  min-width: 160px;
+  border-radius: 10px;
+  border: 2px solid #ff5252;
+  background: #ff5252;
+  color: #000;
+  font-weight: 800;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 `;
 
 const QtyBox = styled.div`

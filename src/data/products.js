@@ -95,7 +95,6 @@ const products = [
   • Инструкция
   `,
     price: 18500,
-    oldPrice: 20350, // +10%
     inStock: false,
     images: [
       `${P}/paradigmaportative.jpg`,

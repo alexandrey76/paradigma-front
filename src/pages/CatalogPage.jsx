@@ -39,8 +39,7 @@ export default function CatalogPage() {
 
           const hasOld = typeof p.oldPrice === "number" && p.oldPrice > 0;
 
-          // Логика наличия:
-          // считаем, что товара нет, если inStock === false ИЛИ stock === 0
+          // нет в наличии: inStock === false или stock === 0
           const outOfStock =
             p?.inStock === false || (typeof p?.stock === "number" && p.stock <= 0);
 
@@ -57,19 +56,25 @@ export default function CatalogPage() {
               <InfoRow>
                 <PriceBlock>
                   <PriceRow>
-                    <PriceNow $hasOld={hasOld}>
-                      {(p.price ?? 0).toLocaleString("ru-RU")} ₽
-                    </PriceNow>
-                    {hasOld && (
-                      <PriceOld>{p.oldPrice.toLocaleString("ru-RU")} ₽</PriceOld>
+                    {outOfStock ? (
+                      <OutOfStock>Нет в наличии</OutOfStock>
+                    ) : (
+                      <>
+                        <PriceNow $hasOld={hasOld}>
+                          {(p.price ?? 0).toLocaleString("ru-RU")} ₽
+                        </PriceNow>
+                        {hasOld && (
+                          <PriceOld>
+                            {p.oldPrice.toLocaleString("ru-RU")} ₽
+                          </PriceOld>
+                        )}
+                      </>
                     )}
                   </PriceRow>
                   <Name>{p.name}</Name>
                 </PriceBlock>
 
-                {outOfStock ? (
-                  <StockBadge>Нет в наличии</StockBadge>
-                ) : (
+                {!outOfStock && (
                   <CartBtnWrap
                     onClick={(e) => {
                       e.stopPropagation();
@@ -97,8 +102,7 @@ const PageWrapper = styled.div`
   min-height: 100vh;
   color: #fff;
   padding: 12px var(--side-pad, 16px) 16px;
-  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial,
-    sans-serif;
+  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 `;
 
 const Grid = styled.div`
@@ -110,7 +114,7 @@ const Grid = styled.div`
 const Card = styled.div`
   background: transparent;
   border-radius: 8px;
-  overflow: visible; /* чтобы бейджик не резался */
+  overflow: visible;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -131,9 +135,7 @@ const InfoRow = styled.div`
   align-items: flex-start;
   margin-top: 8px;
   gap: 8px;
-
-  /* чуть смещаем текст вправо, чтобы он визуально не выходил за рамку фото */
-  padding: 0 2px 0 4px;
+  padding: 0 2px 0 4px; /* чтобы текст визуально не «уезжал» влево за рамку фото */
 `;
 
 const PriceBlock = styled.div`
@@ -148,13 +150,14 @@ const PriceRow = styled.div`
   display: flex;
   align-items: baseline;
   gap: 4px;
+  min-height: 18px; /* чтобы высота строки не прыгала при разных состояниях */
 `;
 
 const PriceNow = styled.span`
   font-weight: 800;
-  font-size: 14px;
+  font-size: 14px;        /* по просьбе — 14px */
   white-space: nowrap;
-  color: ${(p) => (p.$hasOld ? "#ca3b34" : "#ffffff")};
+  color: ${(p) => (p.$hasOld ? "#ca3b34" : "#ffffff")}; /* если есть старая — красная, иначе белая */
 `;
 
 const PriceOld = styled.span`
@@ -163,6 +166,13 @@ const PriceOld = styled.span`
   text-decoration: line-through;
   opacity: 0.9;
   white-space: nowrap;
+`;
+
+const OutOfStock = styled.span`
+  font-weight: 800;
+  font-size: 14px;
+  white-space: nowrap;
+  color: #ff5252;           /* заметный красный */
 `;
 
 const Name = styled.div`
@@ -214,16 +224,3 @@ const CartBadge = styled.span`
   line-height: 1;
   pointer-events: none;
 `;
-
-const StockBadge = styled.div`
-  border: 2px solid #ff5252;
-  color: #ff5252;
-  background: transparent;
-  border-radius: 10px;
-  padding: 6px 10px;
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
-  user-select: none;
-`;
-

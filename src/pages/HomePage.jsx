@@ -15,7 +15,7 @@ const PHONE_COPY = "+79911851101";
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { cart, addItem, getItemQuantity } = useCart();
+  const { addItem, getItemQuantity } = useCart();
   const [copied, setCopied] = useState(false);
 
   const [emblaRef] = useEmblaCarousel({
@@ -25,10 +25,7 @@ export default function HomePage() {
     loop: false,
   });
 
-  const handleTap = useCallback(
-    (id) => navigate(`/product/${id}`),
-    [navigate]
-  );
+  const handleTap = useCallback((id) => navigate(`/product/${id}`), [navigate]);
 
   const getQty = (id) => getItemQuantity(id);
   const getIcon = (qty) =>
@@ -76,10 +73,7 @@ export default function HomePage() {
           alt="Paradigma hookah"
         />
         <LogoOverlay aria-hidden="true">
-          <img
-            src={`${PUB}/assets/images/paradigmaLogoo.svg`}
-            alt="Paradigma"
-          />
+          <img src={`${PUB}/assets/images/paradigmaLogoo.svg`} alt="Paradigma" />
         </LogoOverlay>
       </HeroWrap>
 
@@ -104,12 +98,7 @@ export default function HomePage() {
         <SectionHeaderRow>
           <Link
             to="/catalog"
-            style={{
-              textDecoration: "none",
-              color: "inherit",
-              display: "flex",
-              alignItems: "center",
-            }}
+            style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center" }}
           >
             <SectionTitle>
               Каталог товаров
@@ -126,9 +115,8 @@ export default function HomePage() {
             {products.map((p) => {
               const qty = getQty(p.id);
               const icon = getIcon(qty);
-              const hasOld =
-                typeof p.oldPrice === "number" &&
-                p.oldPrice > (p.price ?? 0);
+              const hasOld = typeof p.oldPrice === "number" && p.oldPrice > (p.price ?? 0);
+              const outOfStock = p.inStock === false;
 
               return (
                 <CatalogSlide key={p.id}>
@@ -139,40 +127,42 @@ export default function HomePage() {
                     onKeyDown={(e) => e.key === "Enter" && handleTap(p.id)}
                   >
                     <CardImage
-                      src={
-                        p.images?.[0] || `${PUB}/assets/images/placeholder.png`
-                      }
+                      src={p.images?.[0] || `${PUB}/assets/images/placeholder.png`}
                       alt={p.name}
                       loading="lazy"
                     />
 
                     <CardBottomRow>
                       <PriceBlock>
-                        <PriceRow>
-                          <CurrentPrice $accent={hasOld}>
-                            {(p.price ?? 0).toLocaleString("ru-RU")} ₽
-                          </CurrentPrice>
-                          {hasOld && (
-                            <OldPrice>
-                              {p.oldPrice.toLocaleString("ru-RU")} ₽
-                            </OldPrice>
-                          )}
-                        </PriceRow>
+                        {/* верхняя строка: цена или плашка «нет в наличии» */}
+                        {outOfStock ? (
+                          <OutOfStockText>Нет в наличии</OutOfStockText>
+                        ) : (
+                          <PriceRow>
+                            <CurrentPrice $accent={hasOld}>
+                              {(p.price ?? 0).toLocaleString("ru-RU")} ₽
+                            </CurrentPrice>
+                            {hasOld && <OldPrice>{p.oldPrice.toLocaleString("ru-RU")} ₽</OldPrice>}
+                          </PriceRow>
+                        )}
+
+                        {/* имя ВСЕГДА один раз */}
                         <Name>{p.name}</Name>
                       </PriceBlock>
 
-                      <CartBtnWrap
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAdd(p);
-                        }}
-                        aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
-                      >
-                        <img src={icon} alt="" />
-                        {qty > 0 && (
-                          <CartBadge>{qty > 9 ? "9+" : qty}</CartBadge>
-                        )}
-                      </CartBtnWrap>
+                      {/* кнопка корзины только для доступных товаров */}
+                      {!outOfStock && (
+                        <CartBtnWrap
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAdd(p);
+                          }}
+                          aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
+                        >
+                          <img src={icon} alt="" />
+                          {qty > 0 && <CartBadge>{qty > 9 ? "9+" : qty}</CartBadge>}
+                        </CartBtnWrap>
+                      )}
                     </CardBottomRow>
                   </Card>
                 </CatalogSlide>
@@ -196,9 +186,7 @@ export default function HomePage() {
                 <Link to="/privacy-policy">Политика конфиденциальности</Link>
               </PolicyLine>
               <PolicyLine>
-                <Link to="/consent">
-                  Согласие на обработку персональных данных
-                </Link>
+                <Link to="/consent">Согласие на обработку персональных данных</Link>
               </PolicyLine>
               <PolicyLine>ИНН: 771588377502</PolicyLine>
               <PolicyLine>ОГРИП: 32577460063823</PolicyLine>
@@ -212,11 +200,7 @@ export default function HomePage() {
           <FooterRight>
             <PhoneBlock>
               <PhoneLabel>Телефон:</PhoneLabel>
-              <PhoneNumberButton
-                type="button"
-                onClick={copyPhone}
-                aria-live="polite"
-              >
+              <PhoneNumberButton type="button" onClick={copyPhone} aria-live="polite">
                 {PHONE_DISPLAY}
               </PhoneNumberButton>
               {copied && <CopiedNote>Номер скопирован</CopiedNote>}
@@ -224,11 +208,7 @@ export default function HomePage() {
             <SocialBlock>
               <SocialLabel>Социальные сети:</SocialLabel>
               <SocialRow>
-                <a
-                  href="https://t.me/c/2783108300/19"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                <a href="https://t.me/c/2783108300/19" target="_blank" rel="noopener noreferrer">
                   <img src={`${PUB}/assets/images/tgLogo.svg`} alt="Telegram" />
                 </a>
                 <a
@@ -236,10 +216,7 @@ export default function HomePage() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <img
-                    src={`${PUB}/assets/images/instLogo.svg`}
-                    alt="Instagram"
-                  />
+                  <img src={`${PUB}/assets/images/instLogo.svg`} alt="Instagram" />
                 </a>
               </SocialRow>
             </SocialBlock>
@@ -249,17 +226,13 @@ export default function HomePage() {
         <FooterBottom>
           <WarningTitle>КУРЕНИЕ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ! 18+</WarningTitle>
           <WarningText>
-            Дистанционная продажа товаров подпадающих под запрет ФЗ 15 не
-            осуществляется. Товары можно приобрести только в нашем магазине или
-            у дилеров. Резерв товара, оформленного через приложение не является
-            заключённым договором о намерениях приобрести товар. Сделка по
-            приобретению товара осуществляется только при предъявлении паспорта.
-            Ограничения ФЗ 15 не действуют для оптовых заказов. Приложение не
-            является рекламой, это каталог для совершеннолетних потребителей
-            табачной продукции (граждан России старше 18 лет) для предоставления
-            им достоверной информации об основных потребительских свойствах и
-            качественных характеристик товаров (п.1 и п.2 ст. 10 Закона «О
-            защите прав Потребителя»).
+            Дистанционная продажа товаров подпадающих под запрет ФЗ 15 не осуществляется. Товары можно приобрести только
+            в нашем магазине или у дилеров. Резерв товара, оформленного через приложение не является заключённым
+            договором о намерениях приобрести товар. Сделка по приобретению товара осуществляется только при
+            предъявлении паспорта. Ограничения ФЗ 15 не действуют для оптовых заказов. Приложение не является рекламой,
+            это каталог для совершеннолетних потребителей табачной продукции (граждан России старше 18 лет) для
+            предоставления им достоверной информации об основных потребительских свойствах и качественных
+            характеристик товаров (п.1 и п.2 ст. 10 Закона «О защите прав Потребителя»).
           </WarningText>
         </FooterBottom>
       </FooterWrap>
@@ -268,6 +241,12 @@ export default function HomePage() {
 }
 
 /* ===================== styled ===================== */
+
+const OutOfStockText = styled.span`
+  font-size: 18px;
+  font-weight: 800;
+  color: #ca3b34ff;  /* как акцентная цена в каталоге */
+`;
 
 const CartBtnWrap = styled.button`
   --icon-size: 40px;
@@ -311,8 +290,7 @@ const Page = styled.main`
   color: #fff;
   min-height: 100dvh;
   padding-bottom: calc(80px + env(safe-area-inset-bottom));
-  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial,
-    sans-serif;
+  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 `;
 
 /* ——— Герой ——— */
@@ -437,27 +415,23 @@ const PriceBlock = styled.div`
   flex-direction: column;
   gap: 4px;
 `;
-
 const PriceRow = styled.div`
   display: flex;
   align-items: baseline;
   gap: 4px;
   flex-wrap: wrap;
 `;
-
 const CurrentPrice = styled.span`
   font-size: 18px;
   font-weight: 800;
   color: ${(p) => (p.$accent ? "#ca3b34ff" : "#ffffff")};
 `;
-
 const OldPrice = styled.span`
   font-size: 15px;
   font-weight: 600;
   color: #9c9c9c;
   text-decoration: line-through;
 `;
-
 const Name = styled.div`
   font-size: 14px;
   color: #cfcfcf;
@@ -475,7 +449,6 @@ const FooterWrap = styled.footer`
   flex-direction: column;
   gap: 20px;
 `;
-
 const FooterLogoBlock = styled.div`
   display: flex;
   flex-direction: column;
@@ -487,13 +460,11 @@ const FooterLogoBlock = styled.div`
     height: auto;
   }
 `;
-
 const FooterTagline = styled.div`
   font-weight: 600;
   font-size: 14px;
   text-align: center;
 `;
-
 const FooterMain = styled.div`
   display: flex;
   justify-content: space-between;
@@ -507,13 +478,11 @@ const FooterMain = styled.div`
     gap: 16px;
   }
 `;
-
 const FooterLeft = styled.div`
   flex: 1;
   min-width: 220px;
   text-align: left;
 `;
-
 const FooterRight = styled.div`
   flex: 1;
   min-width: 200px;
@@ -527,7 +496,6 @@ const FooterRight = styled.div`
     align-items: flex-start;
   }
 `;
-
 const PolicyBlock = styled.div`
   font-size: 12px;
   line-height: 1.3;
@@ -539,11 +507,9 @@ const PolicyBlock = styled.div`
     font-weight: 600;
   }
 `;
-
 const PolicyLine = styled.div`
   margin-bottom: 6px;
 `;
-
 const PhoneBlock = styled.div`
   display: flex;
   flex-direction: column;
@@ -572,7 +538,6 @@ const CopiedNote = styled.div`
   font-size: 12px;
   color: #000000ff;
 `;
-
 const SocialBlock = styled.div`
   display: flex;
   flex-direction: column;
@@ -595,7 +560,6 @@ const SocialRow = styled.div`
     height: 22px;
   }
 `;
-
 const FooterBottom = styled.div`
   background: #000;
   color: #fff;
@@ -604,7 +568,6 @@ const FooterBottom = styled.div`
   font-size: 12px;
   line-height: 1.4;
 `;
-
 const WarningTitle = styled.div`
   font-weight: 600;
   font-size: 14px;
