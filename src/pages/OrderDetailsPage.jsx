@@ -24,8 +24,8 @@ const LABEL = {
   processing: "В обработке",
   shipped: "Заказ передан в доставку",
   ready_for_pickup: "Заказ готов к получению",
-  completed: "Выполнена",
-  rejected: "Отменена",
+  completed: "Выполнен",
+  rejected: "Отменен",
 };
 
 // Базовая дорожка без "rejected"
