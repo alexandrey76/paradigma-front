@@ -3,11 +3,11 @@ import React, { useMemo } from "react";
 import styled from "styled-components";
 
 const STEPS = [
-  "Создана",
-  "Обработана",
-  "Товар готов к отправке",
-  "Товар готов к получению",
-  "Выполнена",
+  "Создан",
+  "Обработан",
+  "Заказ готов к отправке",
+  "Заказ готов к получению",
+  "Выполнен",
 ];
 
 function statusToIndex(s) {

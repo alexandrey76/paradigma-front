@@ -16,14 +16,14 @@ const FILE_BY_STATUS = {
 
 
 const LABEL_BY_STATUS = {
-  pending: "Создана",
-  created: "Создана",
-  confirmed: "Подтверждена",
+  pending: "Создан",
+  created: "Создан",
+  confirmed: "Подтвержден",
   processing: "В обработке",
   shipped: "Заказ передан в доставку",
   ready_for_pickup: "Заказ готов к получению",
-  completed: "Выполнена",
-  rejected: "Отменена",
+  completed: "Выполнен",
+  rejected: "Отменен",
 };
 
 export default function StatusPillSvg({ status, width = 100, style, className }) {
