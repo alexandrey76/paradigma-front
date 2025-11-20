@@ -20,7 +20,7 @@ const IMAGE_MAP = {
 // Человекочитаемые подписи
 const LABEL = {
   pending: "Ожидает подтверждения",
-  confirmed: "Подтверждена",
+  confirmed: "Подтвержден",
   processing: "В обработке",
   shipped: "Заказ передан в доставку",
   ready_for_pickup: "Заказ готов к получению",
