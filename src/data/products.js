@@ -21,7 +21,7 @@ const products = [
     oldPrice: 21890, // +10%
     inStock: true,
     images: [
-      `${P}/paradigmaone.jpg`,
+      `${P}/paradigmaonetest.svg`,
       `${P}/paradigmaone2.jpg`,
       `${P}/paradigmaone3.jpg`,
       `${P}/paradigmaone4.jpg`,
