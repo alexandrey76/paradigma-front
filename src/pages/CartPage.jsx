@@ -1,4 +1,3 @@
-// src/pages/CartPage.jsx
 import { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import { useCart } from "../context/CartContext";
@@ -15,6 +14,7 @@ const NAVBAR_HEIGHT = 64;
 function stripCodeFences(text = "") {
   return String(text).replace(/^\s*```|```\s*$/g, "").trim();
 }
+
 function parseConfig(raw = "") {
   const text = stripCodeFences(raw);
   const lines = text.split(/\r?\n/);
@@ -36,6 +36,14 @@ export default function CartPage() {
   const navigate = useNavigate();
   const PUB = process.env.PUBLIC_URL || "";
 
+  // локальные драфты количества по id (для ручного ввода)
+  const [draft, setDraft] = useState({});
+  useEffect(() => {
+    const next = {};
+    for (const i of cart) next[i.id] = String(i.qty ?? 1);
+    setDraft(next);
+  }, [cart]);
+
   useEffect(() => {
     const tg = window?.Telegram?.WebApp;
     tg?.ready();
@@ -48,19 +56,29 @@ export default function CartPage() {
 
   const showSuccess = (msg) => {
     const tg = window?.Telegram?.WebApp;
-    if (tg?.showPopup) tg.showPopup({ title: "Готово!", message: msg, buttons: [{ type: "close" }] });
-    else if (tg?.showAlert) tg.showAlert(msg);
-    else alert(msg);
+    if (tg?.showPopup) {
+      tg.showPopup({ title: "Готово!", message: msg, buttons: [{ type: "close" }] });
+    } else if (tg?.showAlert) {
+      tg.showAlert(msg);
+    } else {
+      alert(msg);
+    }
   };
+
   const showError = (msg) => {
     const tg = window?.Telegram?.WebApp;
-    if (tg?.showPopup) tg.showPopup({ title: "Ошибка", message: msg, buttons: [{ type: "close" }] });
-    else if (tg?.showAlert) tg.showAlert(msg);
-    else alert(msg);
+    if (tg?.showPopup) {
+      tg.showPopup({ title: "Ошибка", message: msg, buttons: [{ type: "close" }] });
+    } else if (tg?.showAlert) {
+      tg.showAlert(msg);
+    } else {
+      alert(msg);
+    }
   };
 
   const handleSubmit = async () => {
     setError("");
+
     const tg = window.Telegram?.WebApp;
     const u = tg?.initDataUnsafe?.user;
     const initData = tg?.initData || "";
@@ -75,6 +93,7 @@ export default function CartPage() {
 
     try {
       setSending(true);
+
       if (!cart.length) {
         const msg = "Корзина пуста";
         setError(msg);
@@ -113,24 +132,27 @@ export default function CartPage() {
 
       if (!res.ok) {
         throw new Error(
-          (data && (data.detail || data.message || data.error)) ||
-            `HTTP ${res.status}`
+          (data && (data.detail || data.message || data.error)) || `HTTP ${res.status}`
         );
       }
 
       clearCart();
+
       try {
         await fetch(`${API_BASE}/api/cart`, {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tg_user_id: uid }),
         });
-      } catch {}
+      } catch (err) {
+        console.log("Cart clear failed, but order was created:", err);
+      }
 
       showSuccess(
         `Заказ №${data.order_id} отправлен!\nМенеджер свяжется с вами в ближайшее время.`
       );
     } catch (err) {
+      console.error("Request error:", err);
       const msg = String(err.message || err);
       setError(msg);
       showError(`Ошибка отправки: ${msg}`);
@@ -139,11 +161,38 @@ export default function CartPage() {
     }
   };
 
-  // ===== рендер =====
+  // нормализация количества
+  const clampQty = (n) => Math.max(1, Math.min(999, n));
+
+  // обработчики ввода
+  const onDraftChange = (id, v) => {
+    // позволяем временно пустую строку
+    if (v === "") return setDraft((d) => ({ ...d, [id]: "" }));
+    const n = parseInt(v, 10);
+    if (Number.isNaN(n)) return;
+    setDraft((d) => ({ ...d, [id]: String(clampQty(n)) }));
+  };
+
+  const commitDraft = async (item) => {
+    let v = draft[item.id];
+    if (v === "" || v == null) {
+      setDraft((d) => ({ ...d, [item.id]: String(item.qty ?? 1) }));
+      return;
+    }
+    let n = parseInt(v, 10);
+    if (Number.isNaN(n)) n = item.qty ?? 1;
+    n = clampQty(n);
+    if (n <= 0) {
+      removeItem(item.id);
+      return;
+    }
+    if (n !== item.qty) await setQty(item.id, n);
+    setDraft((d) => ({ ...d, [item.id]: String(n) }));
+  };
+
   return (
     <Page>
       <TopBar title="Корзина" hideBack />
-
       {!cart?.length ? (
         <EmptyWrap>Корзина пуста</EmptyWrap>
       ) : (
@@ -151,30 +200,9 @@ export default function CartPage() {
           {cart.map((i) => {
             const fromCatalog = products.find((p) => Number(p.id) === Number(i.id));
             const cfgLines = parseConfig(i.configuration ?? fromCatalog?.configuration ?? "");
-            const qty = Number(i.qty) || 1;
 
-            // локальный драфт для input
-            const clamp = (n) => Math.max(1, Math.min(999, n));
-
-            const onMinus = async () => {
-              if (qty <= 1) {
-                // при 1 — удаляем позицию
-                removeItem(i.id);
-              } else {
-                await setQty(i.id, clamp(qty - 1));
-              }
-            };
-            const onPlus = async () => {
-              if (qty >= 999) return;
-              await setQty(i.id, clamp(qty + 1));
-            };
-
-            const onChangeDraft = async (e) => {
-              let v = e.target.value.replace(/[^\d]/g, "");
-              if (v === "") v = "1";
-              let n = clamp(parseInt(v, 10) || 1);
-              await setQty(i.id, n);
-            };
+            const val = draft[i.id] ?? String(i.qty ?? 1);
+            const atMax = Number(val) >= 999;
 
             return (
               <Item key={i.id}>
@@ -189,36 +217,58 @@ export default function CartPage() {
                     </ImgWrap>
                   </Clickable>
 
-                  {/* Ширина контейнера = ширине фото, правый край счётчика ровно по правому краю фото */}
-                  <Controls>
-                    <DeleteBtn onClick={() => removeItem(i.id)} aria-label="Удалить">
+                  {/* ширина этого ряда = ширине картинки, счётчик прижат вправо */}
+                  <ControlsRow>
+                    <DeleteBtn
+                      onClick={() => removeItem(i.id)}
+                      aria-label="Удалить"
+                    >
                       <img src={`${PUB}/assets/images/trashBin.svg`} alt="" />
                     </DeleteBtn>
 
                     <QtyBox>
-                      <button type="button" onClick={onMinus} aria-label="Уменьшить">−</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = i.qty ?? 1;
+                          if (current <= 1) removeItem(i.id);
+                          else setQty(i.id, current - 1);
+                        }}
+                        aria-label="Уменьшить"
+                      >
+                        −
+                      </button>
 
-                      <QtyInput
+                      <input
                         type="number"
                         min={1}
                         max={999}
                         step={1}
-                        value={qty}
-                        onChange={onChangeDraft}
+                        value={val}
+                        onChange={(e) => onDraftChange(i.id, e.target.value)}
+                        onBlur={() => commitDraft(i)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") e.currentTarget.blur();
+                          if (e.key === "Escape") {
+                            setDraft((d) => ({ ...d, [i.id]: String(i.qty ?? 1) }));
+                            e.currentTarget.blur();
+                          }
+                        }}
                         inputMode="numeric"
                         aria-label="Количество"
                       />
 
-                      <PlusBtn
+                      <button
                         type="button"
-                        onClick={onPlus}
+                        onClick={() => setQty(i.id, Math.min(999, (i.qty ?? 1) + 1))}
                         aria-label="Увеличить"
-                        disabled={qty >= 999}
+                        disabled={atMax}
+                        className={atMax ? "disabled" : ""}
                       >
                         +
-                      </PlusBtn>
+                      </button>
                     </QtyBox>
-                  </Controls>
+                  </ControlsRow>
                 </LeftCol>
 
                 <ItemInfo onClick={() => navigate(`/product/${i.id}`)}>
@@ -267,6 +317,7 @@ const Page = styled.main`
   overflow-x: hidden;
   touch-action: manipulation;
 `;
+
 const EmptyWrap = styled.div`
   min-height: 60vh;
   display: grid;
@@ -279,20 +330,22 @@ const Item = styled.div`
   column-gap: 14px;
   margin-bottom: 24px;
 `;
+
 const LeftCol = styled.div`
   display: flex;
   flex-direction: column;
-  /* Ширина этого столбца задаёт ширину фото и контролов */
-  width: 100%;
 `;
+
 const Clickable = styled.div`
   cursor: pointer;
 `;
+
 const ImgWrap = styled.div`
   border: 3px solid #f8f8f8ff;
   border-radius: 10px;
   overflow: hidden;
   aspect-ratio: 1 / 1;
+  width: 100%;
 
   img {
     width: 100%;
@@ -300,20 +353,22 @@ const ImgWrap = styled.div`
     object-fit: cover;
   }
 `;
+
 const NoPic = styled.div`
   width: 100%;
   height: 100%;
   background: #111;
 `;
 
-/* Контролы ровно под фото, правый край совпадает с правым краем фото */
-const Controls = styled.div`
+/* Ряд с кнопкой удаления и счётчиком.
+   Ширина = ширине картинки; счётчик прижат к правому краю. */
+const ControlsRow = styled.div`
+  width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between; /* правый край QtyBox = правый край фото */
-  gap: 12px;
+  justify-content: space-between; /* delete слева, счётчик справа */
+  gap: 8px;
   margin-top: 8px;
-  width: 100%; /* = ширина колонки/фото */
 `;
 
 const DeleteBtn = styled.button`
@@ -328,10 +383,10 @@ const DeleteBtn = styled.button`
     width: clamp(26px, 6.2vw, 34px);
     height: clamp(26px, 6.2vw, 34px);
   }
+
   padding: 4px;
 `;
 
-/* Компактный бокс; по ширине не «выпирает» */
 const QtyBox = styled.div`
   height: clamp(34px, 8vw, 40px);
   border-radius: 10px;
@@ -341,7 +396,7 @@ const QtyBox = styled.div`
   align-items: center;
   column-gap: 6px;
   padding: 0 6px;
-  width: clamp(120px, 33vw, 150px); /* держим в границах фото-колонки */
+  width: 136px;              /* компактный фикс — чтобы никогда не «лезло» за фото */
   box-sizing: border-box;
 
   button {
@@ -352,28 +407,31 @@ const QtyBox = styled.div`
     cursor: pointer;
     display: grid;
     place-items: center;
+    user-select: none;
   }
-`;
+  button.disabled,
+  button:disabled {
+    color: #7a7a7a;          /* серый плюс при 999 */
+    cursor: default;
+  }
 
-const PlusBtn = styled.button`
-  opacity: ${(p) => (p.disabled ? 0.35 : 1)};
-  cursor: ${(p) => (p.disabled ? "default" : "pointer")};
-`;
+  input {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-weight: 800;
+    font-size: clamp(13px, 3.5vw, 16px);
+    text-align: center;
+    outline: none;
+    min-width: 1.5em;
+    -webkit-tap-highlight-color: transparent;
 
-const QtyInput = styled.input`
-  background: transparent;
-  border: none;
-  color: #fff;
-  font-weight: 800;
-  font-size: clamp(11px, 3.5vw, 14px);
-  text-align: center;
-  outline: none;
-  -webkit-tap-highlight-color: transparent;
-  min-width: 2.2em;
-  /* iOS: убираем нестабильные спиннеры */
-  appearance: textfield;
-  &::-webkit-outer-spin-button,
-  &::-webkit-inner-spin-button { margin: 0; }
+    appearance: textfield;
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      margin: 0;
+    }
+  }
 `;
 
 const ItemInfo = styled.div`
@@ -382,19 +440,23 @@ const ItemInfo = styled.div`
   gap: 8px;
   cursor: pointer;
 `;
+
 const Price = styled.div`
   font-weight: 900;
   font-size: clamp(16px, 4.2vw, 20px);
 `;
+
 const Name = styled.div`
   font-size: clamp(14px, 3.6vw, 16px);
   font-weight: 600;
 `;
+
 const ConfigTitle = styled.div`
   margin-top: 6px;
   font-weight: 700;
   font-size: clamp(14px, 3.6vw, 16px);
 `;
+
 const ConfigList = styled.ul`
   list-style: none;
   padding: 0;
@@ -407,6 +469,7 @@ const ConfigList = styled.ul`
     font-size: clamp(13px, 3.4vw, 15px);
     line-height: 1.35;
   }
+
   li::before {
     content: "";
     position: absolute;
@@ -431,10 +494,12 @@ const BottomBar = styled.div`
   align-items: flex-end;
   gap: 10px;
 `;
+
 const Total = styled.div`
   align-self: flex-start;
   font-size: clamp(16px, 4vw, 18px);
 `;
+
 const SendBtn = styled.button`
   height: 44px;
   padding: 0 16px;
@@ -446,8 +511,12 @@ const SendBtn = styled.button`
   font-size: clamp(14px, 3.8vw, 16px);
   cursor: pointer;
 
-  &:disabled { opacity: 0.6; cursor: default; }
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
 `;
+
 const ErrorMsg = styled.div`
   color: crimson;
   margin-top: 12px;
