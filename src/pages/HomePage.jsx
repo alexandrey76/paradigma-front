@@ -69,12 +69,9 @@ export default function HomePage() {
       {/* Герой */}
       <HeroWrap>
         <HeroImg
-          src={`${PUB}/assets/images/background_homepage.svg`}
+          src={`${PUB}/assets/images/backgroundNewYear.jpg`}
           alt="Paradigma hookah"
         />
-        <LogoOverlay aria-hidden="true">
-          <img src={`${PUB}/assets/images/paradigmaLogoo.svg`} alt="Paradigma" />
-        </LogoOverlay>
       </HeroWrap>
 
       {/* Преимущества */}
