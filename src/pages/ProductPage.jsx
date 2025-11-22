@@ -16,6 +16,14 @@ import TopBar from "../components/TopBar";
 const PUB = process.env.PUBLIC_URL || "";
 const COMMON_BUTTON_HEIGHT = "44px";
 
+// кламп для ручного ввода: 1–999
+const clampInputQty = (n) => {
+  if (!Number.isFinite(n)) return 1;
+  if (n <= 1) return 1;
+  if (n >= 999) return 999;
+  return n;
+};
+
 export default function ProductPage() {
   const { id } = useParams();
   const { addItem, getItemQuantity, setQty } = useCart();
@@ -70,12 +78,15 @@ export default function ProductPage() {
       ? getItemQuantity(product.id)
       : 0;
 
-  // локальный ввод количества (строка, чтобы позволить временно "")
-  const [qtyDraft, setQtyDraft] = useState(qtyInCart ? String(qtyInCart) : "");
+  // локальный ввод количества
+  const [qtyDraft, setQtyDraft] = useState(
+    qtyInCart ? String(qtyInCart) : "1"
+  );
   const qtyRef = useRef(qtyInCart);
+
   useEffect(() => {
     qtyRef.current = qtyInCart;
-    setQtyDraft(qtyInCart ? String(qtyInCart) : "");
+    setQtyDraft(qtyInCart ? String(qtyInCart) : "1");
   }, [qtyInCart]);
 
   const pauseAllVideosExcept = useCallback(
@@ -131,12 +142,14 @@ export default function ProductPage() {
     } catch {}
   };
 
-  const makePointerPress = (setPressed, action) => ({
+  const makePointerPress = (setPressed, action, disabled = false) => ({
     onPointerDown: (e) => {
+      if (disabled) return;
       e.preventDefault();
       setPressed(true);
     },
     onPointerUp: (e) => {
+      if (disabled) return;
       e.preventDefault();
       setPressed(false);
       action?.();
@@ -159,7 +172,7 @@ export default function ProductPage() {
   const doInc = async () => {
     if (!product || outOfStock) return;
     const current = qtyRef.current || 0;
-    if (current >= 999) return; // блок выше 999
+    if (current >= 999) return; // дальше нельзя
     haptic();
     try {
       await addItem(product, 1);
@@ -170,43 +183,50 @@ export default function ProductPage() {
 
   const doDec = async () => {
     if (!product || outOfStock) return;
+    const current = qtyRef.current || 0;
     haptic();
     try {
-      const current = qtyRef.current || 0;
-      const next = Math.max(0, current - 1); // допускаем 0 -> удалится из корзины
-      await setQty(product.id, next);
+      if (current <= 1) {
+        // 1 -> 0 => удаляем
+        await setQty(product.id, 0);
+      } else {
+        await setQty(product.id, current - 1);
+      }
     } catch (e) {
       console.error(e);
     }
   };
 
   // ===== работа с вводом количества =====
-  const clampQty = (n) => Math.max(0, Math.min(999, n));
-
   const handleQtyChange = (e) => {
-    const v = e.target.value; // допускаем временно ""
+    const v = e.target.value.replace(/[^\d]/g, "");
     if (v === "") {
       setQtyDraft("");
       return;
     }
     let n = parseInt(v, 10);
     if (Number.isNaN(n)) return;
-    n = clampQty(n);
+    // ограничим 3 цифрами
+    if (n > 999) n = 999;
     setQtyDraft(String(n));
   };
 
   const commitQty = async () => {
-    if (!product) return;
+    if (!product || outOfStock) return;
     if (qtyDraft === "") {
-      setQtyDraft(qtyInCart ? String(qtyInCart) : "");
+      // откатываемся
+      const fallback = qtyInCart || 1;
+      setQtyDraft(String(clampInputQty(fallback)));
       return;
     }
     let n = parseInt(qtyDraft, 10);
     if (Number.isNaN(n)) {
-      setQtyDraft(qtyInCart ? String(qtyInCart) : "");
+      const fallback = qtyInCart || 1;
+      setQtyDraft(String(clampInputQty(fallback)));
       return;
     }
-    n = clampQty(n);
+    n = clampInputQty(n); // 1–999
+
     if (n !== qtyInCart) {
       try {
         haptic();
@@ -215,14 +235,14 @@ export default function ProductPage() {
         console.error(e);
       }
     }
-    setQtyDraft(n ? String(n) : "");
+    setQtyDraft(String(n));
   };
 
   const handleQtyKeyDown = (e) => {
     if (e.key === "Enter") {
       e.currentTarget.blur(); // триггерит onBlur -> commitQty
     } else if (e.key === "Escape") {
-      setQtyDraft(qtyInCart ? String(qtyInCart) : "");
+      setQtyDraft(qtyInCart ? String(qtyInCart) : "1");
       e.currentTarget.blur();
     }
   };
@@ -244,6 +264,8 @@ export default function ProductPage() {
 
   const hasOld =
     typeof product.oldPrice === "number" && product.oldPrice > 0;
+
+  const canInc = qtyInCart < 999;
 
   return (
     <FullBleed>
@@ -322,7 +344,6 @@ export default function ProductPage() {
             <OutOfStockBadge>Нет в наличии</OutOfStockBadge>
           ) : qtyInCart > 0 ? (
             <QtyBox>
-              {/* МИНУС — всегда активен, уходит до 0 */}
               <QtyBtn
                 {...makePointerPress(setDecPressed, doDec)}
                 $pressed={decPressed}
@@ -333,7 +354,7 @@ export default function ProductPage() {
 
               <QtyInput
                 type="number"
-                min={0}
+                min={1}
                 max={999}
                 step={1}
                 value={qtyDraft}
@@ -344,12 +365,11 @@ export default function ProductPage() {
                 aria-label="Количество"
               />
 
-              {/* ПЛЮС — серый и «нежмётся» при 999 */}
               <QtyBtn
-                {...makePointerPress(setIncPressed, doInc)}
+                {...makePointerPress(setIncPressed, doInc, !canInc)}
                 $pressed={incPressed}
-                $disabled={qtyInCart >= 999}
                 aria-label="Увеличить количество"
+                $disabled={!canInc}
               >
                 <span className="btn-icon">+</span>
               </QtyBtn>
@@ -586,39 +606,37 @@ const OutOfStockBadge = styled.div`
 const QtyBox = styled.div`
   height: ${COMMON_BUTTON_HEIGHT};
   display: grid;
-  grid-template-columns: auto auto auto;
-  gap: 12px;
-  align-items: center;
+  grid-template-columns: 40px minmax(56px, 80px) 40px;
+  align-items: stretch;
   border: 2px solid #f5b300;
   background: #000;
   border-radius: 10px;
-  padding: 0 10px;
-  min-width: 160px;
+  padding: 0;
+  min-width: 150px;
+  max-width: 190px;
   box-sizing: border-box;
+  overflow: hidden;
 `;
 
 const QtyBtn = styled.button`
   background: transparent;
   border: none;
-  color: #fff;
+  color: ${(p) => (p.$disabled ? "#777" : "#fff")};
   font-size: 20px;
   font-weight: 700;
   line-height: 1;
-  cursor: pointer;
+  cursor: ${(p) => (p.$disabled ? "default" : "pointer")};
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 110ms ease-out, opacity 120ms ease-out;
+  transition: transform 110ms ease-out, color 110ms ease-out, opacity 110ms ease-out;
   transform: ${(p) => (p.$pressed ? "scale(.9)" : "scale(1)")};
-  width: 46px;
+  width: 100%;
   height: 100%;
   -webkit-tap-highlight-color: transparent;
   outline: none;
   touch-action: manipulation;
-
-  /* «серый» и не кликается, если disabled */
   opacity: ${(p) => (p.$disabled ? 0.4 : 1)};
-  pointer-events: ${(p) => (p.$disabled ? "none" : "auto")};
 
   .btn-icon {
     pointer-events: none;
@@ -626,18 +644,20 @@ const QtyBtn = styled.button`
 `;
 
 const QtyInput = styled.input`
-  width: 64px;
+  width: 100%;
+  min-width: 0;
   height: 100%;
   background: transparent;
   border: none;
   color: #fff;
   font-weight: 800;
-  font-size: 14px;
+  font-size: 15px;
   text-align: center;
   outline: none;
   -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+  padding: 0 4px;
 
-  /* убираем стрелки в iOS Safari, но оставляем стандартные в Android/desktop */
   appearance: textfield;
   &::-webkit-outer-spin-button,
   &::-webkit-inner-spin-button {

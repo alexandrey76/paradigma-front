@@ -1,3 +1,4 @@
+// src/pages/CartPage.jsx
 import { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import { useCart } from "../context/CartContext";
@@ -29,6 +30,14 @@ function parseConfig(raw = "") {
   return out;
 }
 
+// кламп для ручного ввода 1–999
+const clampInputQty = (n) => {
+  if (!Number.isFinite(n)) return 1;
+  if (n <= 1) return 1;
+  if (n >= 999) return 999;
+  return n;
+};
+
 export default function CartPage() {
   const { cart, total, clearCart, removeItem, setQty } = useCart();
   const [sending, setSending] = useState(false);
@@ -36,12 +45,15 @@ export default function CartPage() {
   const navigate = useNavigate();
   const PUB = process.env.PUBLIC_URL || "";
 
-  // локальные драфты количества по id (для ручного ввода)
-  const [draft, setDraft] = useState({});
+  // локальные черновики количеств по id товара
+  const [draftQty, setDraftQty] = useState({});
+
   useEffect(() => {
-    const next = {};
-    for (const i of cart) next[i.id] = String(i.qty ?? 1);
-    setDraft(next);
+    const map = {};
+    cart.forEach((i) => {
+      map[i.id] = String(i.qty ?? 1);
+    });
+    setDraftQty(map);
   }, [cart]);
 
   useEffect(() => {
@@ -54,10 +66,15 @@ export default function CartPage() {
     [total]
   );
 
+  // ===== nice popups =====
   const showSuccess = (msg) => {
     const tg = window?.Telegram?.WebApp;
     if (tg?.showPopup) {
-      tg.showPopup({ title: "Готово!", message: msg, buttons: [{ type: "close" }] });
+      tg.showPopup({
+        title: "Готово!",
+        message: msg,
+        buttons: [{ type: "close" }],
+      });
     } else if (tg?.showAlert) {
       tg.showAlert(msg);
     } else {
@@ -68,7 +85,11 @@ export default function CartPage() {
   const showError = (msg) => {
     const tg = window?.Telegram?.WebApp;
     if (tg?.showPopup) {
-      tg.showPopup({ title: "Ошибка", message: msg, buttons: [{ type: "close" }] });
+      tg.showPopup({
+        title: "Ошибка",
+        message: msg,
+        buttons: [{ type: "close" }],
+      });
     } else if (tg?.showAlert) {
       tg.showAlert(msg);
     } else {
@@ -132,7 +153,8 @@ export default function CartPage() {
 
       if (!res.ok) {
         throw new Error(
-          (data && (data.detail || data.message || data.error)) || `HTTP ${res.status}`
+          (data && (data.detail || data.message || data.error)) ||
+            `HTTP ${res.status}`
         );
       }
 
@@ -161,33 +183,81 @@ export default function CartPage() {
     }
   };
 
-  // нормализация количества
-  const clampQty = (n) => Math.max(1, Math.min(999, n));
+  // ====== работа с количеством ======
 
-  // обработчики ввода
-  const onDraftChange = (id, v) => {
-    // позволяем временно пустую строку
-    if (v === "") return setDraft((d) => ({ ...d, [id]: "" }));
-    const n = parseInt(v, 10);
-    if (Number.isNaN(n)) return;
-    setDraft((d) => ({ ...d, [id]: String(clampQty(n)) }));
+  const handleDec = async (id, current) => {
+    try {
+      if (current <= 1) {
+        await setQty(id, 0); // удаление
+      } else {
+        await setQty(id, current - 1);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const commitDraft = async (item) => {
-    let v = draft[item.id];
-    if (v === "" || v == null) {
-      setDraft((d) => ({ ...d, [item.id]: String(item.qty ?? 1) }));
+  const handleInc = async (id, current) => {
+    if (current >= 999) return;
+    try {
+      await setQty(id, current + 1);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleQtyChange = (id, value) => {
+    const v = String(value).replace(/[^\d]/g, "");
+    if (v === "") {
+      setDraftQty((prev) => ({ ...prev, [id]: "" }));
       return;
     }
     let n = parseInt(v, 10);
-    if (Number.isNaN(n)) n = item.qty ?? 1;
-    n = clampQty(n);
-    if (n <= 0) {
-      removeItem(item.id);
+    if (Number.isNaN(n)) return;
+    if (n > 999) n = 999;
+    setDraftQty((prev) => ({ ...prev, [id]: String(n) }));
+  };
+
+  const commitQty = async (id, current) => {
+    const raw = draftQty[id];
+    if (raw === "" || raw == null) {
+      setDraftQty((prev) => ({
+        ...prev,
+        [id]: String(current || 1),
+      }));
       return;
     }
-    if (n !== item.qty) await setQty(item.id, n);
-    setDraft((d) => ({ ...d, [item.id]: String(n) }));
+    let n = parseInt(raw, 10);
+    if (Number.isNaN(n)) {
+      setDraftQty((prev) => ({
+        ...prev,
+        [id]: String(current || 1),
+      }));
+      return;
+    }
+    n = clampInputQty(n); // 1–999
+
+    if (n !== current) {
+      try {
+        await setQty(id, n);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    setDraftQty((prev) => ({ ...prev, [id]: String(n) }));
+  };
+
+  const handleQtyKeyDown = (e, id, current) => {
+    if (e.key === "Enter") {
+      e.currentTarget.blur();
+    } else if (e.key === "Escape") {
+      setDraftQty((prev) => ({
+        ...prev,
+        [id]: String(current || 1),
+      }));
+      e.currentTarget.blur();
+    }
   };
 
   return (
@@ -198,11 +268,15 @@ export default function CartPage() {
       ) : (
         <>
           {cart.map((i) => {
-            const fromCatalog = products.find((p) => Number(p.id) === Number(i.id));
-            const cfgLines = parseConfig(i.configuration ?? fromCatalog?.configuration ?? "");
-
-            const val = draft[i.id] ?? String(i.qty ?? 1);
-            const atMax = Number(val) >= 999;
+            const fromCatalog = products.find(
+              (p) => Number(p.id) === Number(i.id)
+            );
+            const cfgLines = parseConfig(
+              i.configuration ?? fromCatalog?.configuration ?? ""
+            );
+            const qty = i.qty ?? 1;
+            const draft = draftQty[i.id] ?? String(qty);
+            const plusDisabled = qty >= 999;
 
             return (
               <Item key={i.id}>
@@ -217,58 +291,52 @@ export default function CartPage() {
                     </ImgWrap>
                   </Clickable>
 
-                  {/* ширина этого ряда = ширине картинки, счётчик прижат вправо */}
-                  <ControlsRow>
+                  <Controls>
                     <DeleteBtn
                       onClick={() => removeItem(i.id)}
                       aria-label="Удалить"
                     >
-                      <img src={`${PUB}/assets/images/trashBin.svg`} alt="" />
+                      <img
+                        src={`${PUB}/assets/images/trashBin.svg`}
+                        alt=""
+                      />
                     </DeleteBtn>
 
                     <QtyBox>
-                      <button
+                      <QtyBtn
                         type="button"
-                        onClick={() => {
-                          const current = i.qty ?? 1;
-                          if (current <= 1) removeItem(i.id);
-                          else setQty(i.id, current - 1);
-                        }}
+                        onClick={() => handleDec(i.id, qty)}
                         aria-label="Уменьшить"
                       >
                         −
-                      </button>
+                      </QtyBtn>
 
-                      <input
+                      <QtyInput
                         type="number"
+                        inputMode="numeric"
                         min={1}
                         max={999}
-                        step={1}
-                        value={val}
-                        onChange={(e) => onDraftChange(i.id, e.target.value)}
-                        onBlur={() => commitDraft(i)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") e.currentTarget.blur();
-                          if (e.key === "Escape") {
-                            setDraft((d) => ({ ...d, [i.id]: String(i.qty ?? 1) }));
-                            e.currentTarget.blur();
-                          }
-                        }}
-                        inputMode="numeric"
+                        value={draft}
+                        onChange={(e) =>
+                          handleQtyChange(i.id, e.target.value)
+                        }
+                        onBlur={() => commitQty(i.id, qty)}
+                        onKeyDown={(e) =>
+                          handleQtyKeyDown(e, i.id, qty)
+                        }
                         aria-label="Количество"
                       />
 
-                      <button
+                      <QtyBtn
                         type="button"
-                        onClick={() => setQty(i.id, Math.min(999, (i.qty ?? 1) + 1))}
+                        onClick={() => handleInc(i.id, qty)}
                         aria-label="Увеличить"
-                        disabled={atMax}
-                        className={atMax ? "disabled" : ""}
+                        $disabled={plusDisabled}
                       >
                         +
-                      </button>
+                      </QtyBtn>
                     </QtyBox>
-                  </ControlsRow>
+                  </Controls>
                 </LeftCol>
 
                 <ItemInfo onClick={() => navigate(`/product/${i.id}`)}>
@@ -313,7 +381,8 @@ const Page = styled.main`
   background: #000;
   color: #fff;
   padding: 12px var(--side-pad, 16px) 24px;
-  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto,
+    sans-serif;
   overflow-x: hidden;
   touch-action: manipulation;
 `;
@@ -329,6 +398,10 @@ const Item = styled.div`
   grid-template-columns: clamp(150px, 40vw, 220px) 1fr;
   column-gap: 14px;
   margin-bottom: 24px;
+
+  @media (max-width: 420px) {
+    grid-template-columns: 1.1fr 1.4fr;
+  }
 `;
 
 const LeftCol = styled.div`
@@ -345,7 +418,6 @@ const ImgWrap = styled.div`
   border-radius: 10px;
   overflow: hidden;
   aspect-ratio: 1 / 1;
-  width: 100%;
 
   img {
     width: 100%;
@@ -360,15 +432,12 @@ const NoPic = styled.div`
   background: #111;
 `;
 
-/* Ряд с кнопкой удаления и счётчиком.
-   Ширина = ширине картинки; счётчик прижат к правому краю. */
-const ControlsRow = styled.div`
-  width: 100%;
+const Controls = styled.div`
   display: flex;
   align-items: center;
-  justify-content: space-between; /* delete слева, счётчик справа */
-  gap: 8px;
+  gap: 12px;
   margin-top: 8px;
+  margin-left: 4px;
 `;
 
 const DeleteBtn = styled.button`
@@ -392,45 +461,46 @@ const QtyBox = styled.div`
   border-radius: 10px;
   border: 2px solid #fff;
   display: grid;
-  grid-template-columns: clamp(28px, 7vw, 34px) 1fr clamp(28px, 7vw, 34px);
-  align-items: center;
-  column-gap: 6px;
-  padding: 0 6px;
-  width: 136px;              /* компактный фикс — чтобы никогда не «лезло» за фото */
+  grid-template-columns: clamp(28px, 7vw, 34px) minmax(52px, 80px)
+    clamp(28px, 7vw, 34px);
+  align-items: stretch;
+  width: 100%;
   box-sizing: border-box;
+  overflow: hidden;
+`;
 
-  button {
-    background: none;
-    border: none;
-    color: #fff;
-    font-size: clamp(16px, 4vw, 20px);
-    cursor: pointer;
-    display: grid;
-    place-items: center;
-    user-select: none;
-  }
-  button.disabled,
-  button:disabled {
-    color: #7a7a7a;          /* серый плюс при 999 */
-    cursor: default;
-  }
+const QtyBtn = styled.button`
+  background: none;
+  border: none;
+  color: ${(p) => (p.$disabled ? "#777" : "#fff")};
+  font-size: clamp(16px, 4vw, 20px);
+  cursor: ${(p) => (p.$disabled ? "default" : "pointer")};
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  opacity: ${(p) => (p.$disabled ? 0.4 : 1)};
+`;
 
-  input {
-    background: transparent;
-    border: none;
-    color: #fff;
-    font-weight: 800;
-    font-size: clamp(13px, 3.5vw, 16px);
-    text-align: center;
-    outline: none;
-    min-width: 1.5em;
-    -webkit-tap-highlight-color: transparent;
+const QtyInput = styled.input`
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: clamp(14px, 3.5vw, 18px);
+  font-weight: 700;
+  text-align: center;
+  box-sizing: border-box;
+  outline: none;
+  padding: 0 4px;
+  -webkit-tap-highlight-color: transparent;
 
-    appearance: textfield;
-    &::-webkit-outer-spin-button,
-    &::-webkit-inner-spin-button {
-      margin: 0;
-    }
+  appearance: textfield;
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    margin: 0;
   }
 `;
 
