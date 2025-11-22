@@ -30,6 +30,7 @@ export default function ProductPage() {
     product?.inStock === false ||
     (typeof product?.stock === "number" && product.stock <= 0);
 
+  // медиа
   const media = useMemo(() => {
     if (!product) return [];
     const vids = (product.videos || []).map((mp4) => ({ type: "video", mp4 }));
@@ -37,6 +38,7 @@ export default function ProductPage() {
     return [...vids, ...imgs];
   }, [product]);
 
+  // комплектация
   const configItems = useMemo(() => {
     const raw0 = product?.configuration || "";
     const noFence = raw0.replace(/```/g, "");
@@ -48,6 +50,7 @@ export default function ProductPage() {
       .map((s) => s.replace(/^[-•]\s*/, "").trim());
   }, [product]);
 
+  // карусель
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: false,
     dragFree: false,
@@ -56,18 +59,23 @@ export default function ProductPage() {
   });
   const [selectedIndex, setSelectedIndex] = useState(0);
 
+  // анимации
   const [addPressed, setAddPressed] = useState(false);
   const [decPressed, setDecPressed] = useState(false);
   const [incPressed, setIncPressed] = useState(false);
 
+  // количество в корзине
   const qtyInCart =
     product && typeof getItemQuantity === "function"
       ? getItemQuantity(product.id)
       : 0;
 
+  // локальный ввод количества (строка, чтобы позволить временно "")
+  const [qtyDraft, setQtyDraft] = useState(qtyInCart ? String(qtyInCart) : "");
   const qtyRef = useRef(qtyInCart);
   useEffect(() => {
     qtyRef.current = qtyInCart;
+    setQtyDraft(qtyInCart ? String(qtyInCart) : "");
   }, [qtyInCart]);
 
   const pauseAllVideosExcept = useCallback(
@@ -104,6 +112,7 @@ export default function ProductPage() {
     };
   }, [emblaApi, onSelect]);
 
+  // при смене товара — листаем в начало
   useEffect(() => {
     if (emblaApi) {
       setSelectedIndex(0);
@@ -111,6 +120,7 @@ export default function ProductPage() {
     }
   }, [id, emblaApi]);
 
+  // хаптика
   const haptic = () => {
     try {
       if (window.Telegram?.WebApp?.HapticFeedback) {
@@ -135,6 +145,7 @@ export default function ProductPage() {
     onPointerCancel: () => setPressed(false),
   });
 
+  // действия
   const doAddFirst = async () => {
     if (!product || outOfStock) return;
     haptic();
@@ -167,6 +178,54 @@ export default function ProductPage() {
     }
   };
 
+  // ===== работа с вводом количества =====
+  const clampQty = (n) => Math.max(0, Math.min(999, n));
+
+  const handleQtyChange = (e) => {
+    const v = e.target.value; // допускаем временно ""
+    if (v === "") {
+      setQtyDraft("");
+      return;
+    }
+    let n = parseInt(v, 10);
+    if (Number.isNaN(n)) return;
+    n = clampQty(n);
+    setQtyDraft(String(n));
+  };
+
+  const commitQty = async () => {
+    if (!product) return;
+    if (qtyDraft === "") {
+      setQtyDraft(qtyInCart ? String(qtyInCart) : "");
+      return;
+    }
+    let n = parseInt(qtyDraft, 10);
+    if (Number.isNaN(n)) {
+      setQtyDraft(qtyInCart ? String(qtyInCart) : "");
+      return;
+    }
+    n = clampQty(n);
+    if (n !== qtyInCart) {
+      try {
+        haptic();
+        await setQty(product.id, n);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    setQtyDraft(n ? String(n) : "");
+  };
+
+  const handleQtyKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.currentTarget.blur(); // триггерит onBlur -> commitQty
+    } else if (e.key === "Escape") {
+      setQtyDraft(qtyInCart ? String(qtyInCart) : "");
+      e.currentTarget.blur();
+    }
+  };
+
+  // если товар не найден
   if (!product) {
     return (
       <FullBleed>
@@ -268,7 +327,20 @@ export default function ProductPage() {
               >
                 <span className="btn-icon">–</span>
               </QtyBtn>
-              <QtyText>{qtyInCart} шт.</QtyText>
+
+              <QtyInput
+                type="number"
+                min={0}
+                max={999}
+                step={1}
+                value={qtyDraft}
+                onChange={handleQtyChange}
+                onBlur={commitQty}
+                onKeyDown={handleQtyKeyDown}
+                inputMode="numeric"
+                aria-label="Количество"
+              />
+
               <QtyBtn
                 {...makePointerPress(setIncPressed, doInc)}
                 $pressed={incPressed}
@@ -544,11 +616,24 @@ const QtyBtn = styled.button`
   }
 `;
 
-const QtyText = styled.div`
+const QtyInput = styled.input`
+  width: 64px;
+  height: 100%;
+  background: transparent;
+  border: none;
   color: #fff;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 14px;
   text-align: center;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+
+  /* убираем стрелки в iOS Safari, но оставляем стандартные в Android/desktop */
+  appearance: textfield;
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    margin: 0;
+  }
 `;
 
 const SpecBlock = styled.section`
