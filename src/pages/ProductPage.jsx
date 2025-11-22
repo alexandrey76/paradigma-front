@@ -25,12 +25,10 @@ export default function ProductPage() {
     [id]
   );
 
-  // недоступность: либо inStock=false, либо stock=0
   const outOfStock =
     product?.inStock === false ||
     (typeof product?.stock === "number" && product.stock <= 0);
 
-  // медиа
   const media = useMemo(() => {
     if (!product) return [];
     const vids = (product.videos || []).map((mp4) => ({ type: "video", mp4 }));
@@ -38,7 +36,6 @@ export default function ProductPage() {
     return [...vids, ...imgs];
   }, [product]);
 
-  // комплектация
   const configItems = useMemo(() => {
     const raw0 = product?.configuration || "";
     const noFence = raw0.replace(/```/g, "");
@@ -50,7 +47,6 @@ export default function ProductPage() {
       .map((s) => s.replace(/^[-•]\s*/, "").trim());
   }, [product]);
 
-  // карусель
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: false,
     dragFree: false,
@@ -59,18 +55,15 @@ export default function ProductPage() {
   });
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // анимации
   const [addPressed, setAddPressed] = useState(false);
   const [decPressed, setDecPressed] = useState(false);
   const [incPressed, setIncPressed] = useState(false);
 
-  // количество в корзине
   const qtyInCart =
     product && typeof getItemQuantity === "function"
       ? getItemQuantity(product.id)
       : 0;
 
-  // локальный ввод количества (строка, чтобы позволить временно "")
   const [qtyDraft, setQtyDraft] = useState(qtyInCart ? String(qtyInCart) : "");
   const qtyRef = useRef(qtyInCart);
   useEffect(() => {
@@ -112,7 +105,6 @@ export default function ProductPage() {
     };
   }, [emblaApi, onSelect]);
 
-  // при смене товара — листаем в начало
   useEffect(() => {
     if (emblaApi) {
       setSelectedIndex(0);
@@ -120,7 +112,6 @@ export default function ProductPage() {
     }
   }, [id, emblaApi]);
 
-  // хаптика
   const haptic = () => {
     try {
       if (window.Telegram?.WebApp?.HapticFeedback) {
@@ -145,7 +136,6 @@ export default function ProductPage() {
     onPointerCancel: () => setPressed(false),
   });
 
-  // действия
   const doAddFirst = async () => {
     if (!product || outOfStock) return;
     haptic();
@@ -158,6 +148,7 @@ export default function ProductPage() {
 
   const doInc = async () => {
     if (!product || outOfStock) return;
+    if ((qtyRef.current || 0) >= 999) return; // не даём превысить 999
     haptic();
     try {
       await addItem(product, 1);
@@ -171,18 +162,21 @@ export default function ProductPage() {
     haptic();
     try {
       const current = qtyRef.current || 0;
-      const next = Math.max(0, current - 1);
-      await setQty(product.id, next);
+      const next = current - 1;
+      if (next <= 0) {
+        await setQty(product.id, 0); // удалит позицию
+      } else {
+        await setQty(product.id, next);
+      }
     } catch (e) {
       console.error(e);
     }
   };
 
-  // ===== работа с вводом количества =====
   const clampQty = (n) => Math.max(0, Math.min(999, n));
 
   const handleQtyChange = (e) => {
-    const v = e.target.value; // допускаем временно ""
+    const v = e.target.value;
     if (v === "") {
       setQtyDraft("");
       return;
@@ -218,14 +212,13 @@ export default function ProductPage() {
 
   const handleQtyKeyDown = (e) => {
     if (e.key === "Enter") {
-      e.currentTarget.blur(); // триггерит onBlur -> commitQty
+      e.currentTarget.blur();
     } else if (e.key === "Escape") {
       setQtyDraft(qtyInCart ? String(qtyInCart) : "");
       e.currentTarget.blur();
     }
   };
 
-  // если товар не найден
   if (!product) {
     return (
       <FullBleed>
@@ -345,6 +338,8 @@ export default function ProductPage() {
                 {...makePointerPress(setIncPressed, doInc)}
                 $pressed={incPressed}
                 aria-label="Увеличить количество"
+                disabled={(qtyRef.current || 0) >= 999}
+                title={(qtyRef.current || 0) >= 999 ? "Максимум 999" : ""}
               >
                 <span className="btn-icon">+</span>
               </QtyBtn>
@@ -603,13 +598,19 @@ const QtyBtn = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 110ms ease-out;
+  transition: transform 110ms ease-out, opacity 120ms ease-out, filter 120ms ease-out;
   transform: ${(p) => (p.$pressed ? "scale(.9)" : "scale(1)")};
   width: 46px;
   height: 100%;
   -webkit-tap-highlight-color: transparent;
   outline: none;
   touch-action: manipulation;
+
+  &[disabled] {
+    opacity: 0.45;
+    cursor: default;
+    filter: grayscale(1);
+  }
 
   .btn-icon {
     pointer-events: none;
@@ -627,8 +628,6 @@ const QtyInput = styled.input`
   text-align: center;
   outline: none;
   -webkit-tap-highlight-color: transparent;
-
-  /* убираем стрелки в iOS Safari, но оставляем стандартные в Android/desktop */
   appearance: textfield;
   &::-webkit-outer-spin-button,
   &::-webkit-inner-spin-button {
