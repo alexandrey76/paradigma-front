@@ -1,21 +1,13 @@
+// src/pages/OrderDetailsPage.jsx
 import React, { useMemo, useEffect, useState } from "react";
 import styled from "styled-components";
 import { useParams } from "react-router-dom";
 import TopBar from "../components/TopBar";
+import products from "../data/products";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
   "https://alexandrey76-paradigma-back-c956.twc1.net";
-
-/* === изображения товаров (детали) === */
-const PUB = process.env.PUBLIC_URL || "";
-const P = `${PUB}/assets/products_images`;
-const IMAGE_MAP = {
-  1: `${P}/paradigmaone.jpg`,
-  2: `${P}/paradigmalukah.jpg`,
-  3: `${P}/paradigmaneo.jpg`,
-  4: `${P}/paradigmaportative.jpg`,
-};
 
 // Человекочитаемые подписи
 const LABEL = {
@@ -40,6 +32,12 @@ const BASE_STEPS = [
 
 // статусы, при которых клиент может отменить заказ (только pending и processing)
 const CAN_USER_CANCEL = new Set(["pending", "processing"]);
+
+// первая картинка из products.js по ID товара
+const getProductImage = (productId) => {
+  const prod = products.find((p) => Number(p.id) === Number(productId));
+  return prod?.images?.[0] || null;
+};
 
 export default function OrderDetailsPage() {
   const { id } = useParams();
@@ -66,7 +64,7 @@ export default function OrderDetailsPage() {
       });
       if (!res.ok) {
         throw new Error(
-          res.status === 404 ? "Заказ не найден" : `HTTP ${res.status}`
+          res.status === 404 ? "Заказ не найден" : `HTTP ${res.status}` // <-- FIX
         );
       }
       const data = await res.json();
@@ -94,8 +92,6 @@ export default function OrderDetailsPage() {
       setTimeline([]);
     }
   }
-
-  const getProductImage = (productId) => IMAGE_MAP[productId] || null;
 
   // приводим заказ из БД к удобному виду и используем только БДшные суммы
   const transformedOrder = useMemo(() => {
@@ -201,7 +197,13 @@ export default function OrderDetailsPage() {
     });
 
     return out;
-  }, [hasRejected, stepsForRender, reachedAt, furthestReachedIndex, transformedOrder]);
+  }, [
+    hasRejected,
+    stepsForRender,
+    reachedAt,
+    furthestReachedIndex,
+    transformedOrder,
+  ]);
 
   // ===== отмена заказа пользователем =====
   const allowCancel = useMemo(() => {
@@ -236,7 +238,10 @@ export default function OrderDetailsPage() {
   };
 
   async function cancelOrder() {
-    const ok = await tgPopup("Отменить заказ", "Вы уверены, что хотите отменить заказ?");
+    const ok = await tgPopup(
+      "Отменить заказ",
+      "Вы уверены, что хотите отменить заказ?"
+    );
     if (!ok) return;
     try {
       const tg = window?.Telegram?.WebApp;
@@ -348,7 +353,9 @@ export default function OrderDetailsPage() {
               </ThreeCols>
             </Info>
 
-            {idx !== transformedOrder.items.length - 1 && <AccentSeparator />}
+            {idx !== transformedOrder.items.length - 1 && (
+              <AccentSeparator />
+            )}
           </Item>
         ))}
       </Items>
@@ -465,7 +472,11 @@ const TimelineUI = styled.ul`
   }
 
   li:last-child::before {
-    background: linear-gradient(to bottom, #2a2a2a 0 50%, transparent 50% 100%);
+    background: linear-gradient(
+      to bottom,
+      #2a2a2a 0 50%,
+      transparent 50% 100%
+    );
   }
 
   /* активные точки и линия */
@@ -477,7 +488,11 @@ const TimelineUI = styled.ul`
     background: #f5b300;
   }
   li.reached:last-child::before {
-    background: linear-gradient(to bottom, #f5b300 0 50%, transparent 50% 100%);
+    background: linear-gradient(
+      to bottom,
+      #f5b300 0 50%,
+      transparent 50% 100%
+    );
   }
 
   /* красная точка для отмены */
@@ -489,7 +504,11 @@ const TimelineUI = styled.ul`
     background: #ff5252;
   }
   li[data-state="rejected"].reached:last-child::before {
-    background: linear-gradient(to bottom, #ff5252 0 50%, transparent 50% 100%);
+    background: linear-gradient(
+      to bottom,
+      #ff5252 0 50%,
+      transparent 50% 100%
+    );
   }
 
   .dot {
@@ -556,7 +575,7 @@ const ThreeCols = styled.div`
   grid-template-columns: repeat(3, 1fr);
   font-size: 12px;
   color: ${(p) => (p.muted ? "#bdbdbd" : p.strong ? "#fff" : "#dcdcdc")};
-  font-weight: ${(p) => (p.strong ? 800 : 500)}; 
+  font-weight: ${(p) => (p.strong ? 800 : 500)};
   margin-bottom: ${(p) => (p.strong ? "0" : "4px")};
 `;
 
@@ -615,7 +634,9 @@ const CancelBtn = styled.button`
   font-weight: 700;
   font-size: 14px;
   cursor: pointer;
-  &:active { transform: translateY(1px); }
+  &:active {
+    transform: translateY(1px);
+  }
 `;
 
 const BottomPad = styled.div`
@@ -647,12 +668,12 @@ function formatDateTimeLocal(iso) {
       minute: "2-digit",
       hour12: false,
     }).format(d);
-    return `${dd} ${tm}`;
+    return `${dd} ${tm}`; // <-- FIX
   } catch {
     return "";
   }
 }
 
 function formatRUB(v) {
-  return `${Number(v).toLocaleString("ru-RU")} ₽`;
+  return `${Number(v).toLocaleString("ru-RU")} ₽`; // <-- FIX
 }
