@@ -312,7 +312,7 @@ export default function CartPage() {
                       </QtyBtn>
 
                       <QtyInput
-                        type="number"
+                        type="tel"
                         inputMode="numeric"
                         min={1}
                         max={999}

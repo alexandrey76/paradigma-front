@@ -8,6 +8,7 @@ import { useCart } from "../context/CartContext";
 import TopBar from "../components/TopBar";
 
 const PUB = process.env.PUBLIC_URL || "";
+const PREORDER_BADGE_SRC = `${PUB}/assets/images/preorderBadge.svg`;
 
 export default function CatalogPage() {
   const { addItem, getItemQuantity } = useCart();
@@ -41,16 +42,31 @@ export default function CatalogPage() {
 
           // нет в наличии: inStock === false или stock === 0
           const outOfStock =
-            p?.inStock === false || (typeof p?.stock === "number" && p.stock <= 0);
+            p?.inStock === false ||
+            (typeof p?.stock === "number" && p.stock <= 0);
+
+          // предзаказ
+          const isPreorder = p.status === "preorder";
 
           return (
             <Card key={p.id}>
               <Link to={`/product/${p.id}`}>
-                <ProductImage
-                  src={p.images?.[0] || `${PUB}/assets/images/placeholder.png`}
-                  alt={p.name}
-                  loading="lazy"
-                />
+                <ImageWrap>
+                  <ProductImage
+                    src={
+                      p.images?.[0] ||
+                      `${PUB}/assets/images/placeholder.png`
+                    }
+                    alt={p.name}
+                    loading="lazy"
+                  />
+
+                  {isPreorder && (
+                    <PreorderSticker>
+                      <img src={PREORDER_BADGE_SRC} alt="Предзаказ" />
+                    </PreorderSticker>
+                  )}
+                </ImageWrap>
               </Link>
 
               <InfoRow>
@@ -83,7 +99,9 @@ export default function CatalogPage() {
                     aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
                   >
                     <img src={icon} alt="" />
-                    {qty > 0 && <CartBadge>{qty > 9 ? "9+" : qty}</CartBadge>}
+                    {qty > 0 && (
+                      <CartBadge>{qty > 9 ? "9+" : qty}</CartBadge>
+                    )}
                   </CartBtnWrap>
                 )}
               </InfoRow>
@@ -102,7 +120,8 @@ const PageWrapper = styled.div`
   min-height: 100vh;
   color: #fff;
   padding: 12px var(--side-pad, 16px) 16px;
-  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial,
+    sans-serif;
 `;
 
 const Grid = styled.div`
@@ -120,6 +139,10 @@ const Card = styled.div`
   justify-content: space-between;
 `;
 
+const ImageWrap = styled.div`
+  position: relative;
+`;
+
 const ProductImage = styled.img`
   width: 100%;
   aspect-ratio: 1 / 1;
@@ -127,6 +150,19 @@ const ProductImage = styled.img`
   border: 2px solid #ffffff;
   border-radius: 6px;
   display: block;
+`;
+
+const PreorderSticker = styled.div`
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  z-index: 2;
+
+  img {
+    display: block;
+    max-width: 70px;
+    height: auto;
+  }
 `;
 
 const InfoRow = styled.div`
@@ -155,9 +191,9 @@ const PriceRow = styled.div`
 
 const PriceNow = styled.span`
   font-weight: 800;
-  font-size: 14px;        /* по просьбе — 14px */
+  font-size: 14px;
   white-space: nowrap;
-  color: ${(p) => (p.$hasOld ? "#ca3b34" : "#ffffff")}; /* если есть старая — красная, иначе белая */
+  color: ${(p) => (p.$hasOld ? "#ca3b34" : "#ffffff")};
 `;
 
 const PriceOld = styled.span`
@@ -172,7 +208,7 @@ const OutOfStock = styled.span`
   font-weight: 800;
   font-size: 14px;
   white-space: nowrap;
-  color: #ff5252;           /* заметный красный */
+  color: #ff5252;
 `;
 
 const Name = styled.div`

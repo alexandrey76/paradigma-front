@@ -20,9 +20,10 @@ const products = [
     oldPrice: 21890, // +10%
     inStock: true,
     color: {name: "Черный", hex:"#000000"},
+    status: "preorder", 
     variantIds: [1, 5],
     images: [
-      `${P}/paradigmaonetest.svg`,
+      `${P}/paradigmaone.jpg`,
       `${P}/paradigmaone2.jpg`,
       `${P}/paradigmaone3.jpg`,
       `${P}/paradigmaone4.jpg`,

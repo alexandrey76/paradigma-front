@@ -16,6 +16,10 @@ import TopBar from "../components/TopBar";
 const PUB = process.env.PUBLIC_URL || "";
 const COMMON_BUTTON_HEIGHT = "44px";
 
+// svg для предзаказа
+const PREORDER_BADGE_SRC = `${PUB}/assets/images/preorderBadge.svg`;
+const PREORDER_INFO_SRC = `${PUB}/assets/images/preorderInfo.svg`;
+
 // кламп для ручного ввода: 1–999
 const clampInputQty = (n) => {
   if (!Number.isFinite(n)) return 1;
@@ -33,6 +37,8 @@ export default function ProductPage() {
     () => products.find((p) => p.id === Number(id)),
     [id]
   );
+
+  const isPreorder = product?.status === "preorder";
 
   // недоступность: либо inStock=false, либо stock=0
   const outOfStock =
@@ -313,6 +319,13 @@ export default function ProductPage() {
             </Slides>
           </Viewport>
 
+          {/* Плашка предзаказа на фото — справа снизу */}
+          {isPreorder && (
+            <PreorderBadge>
+              <img src={PREORDER_BADGE_SRC} alt="Предзаказ" />
+            </PreorderBadge>
+          )}
+
           {media.length > 1 && (
             <>
               <NavArrow left aria-label="Назад" onClick={prev}>
@@ -359,7 +372,7 @@ export default function ProductPage() {
               </QtyBtn>
 
               <QtyInput
-                type="number"
+                type="tel"
                 min={1}
                 max={999}
                 step={1}
@@ -408,6 +421,29 @@ export default function ProductPage() {
               ))}
             </ColorDots>
           </ColorRow>
+        )}
+
+        {/* Жёлтый блок-плашка для предзаказа под выбором цвета */}
+        {isPreorder && (
+          <PreorderInfo>
+            <PreorderInfoBg src={PREORDER_INFO_SRC} alt="" />
+            <PreorderInfoContent>
+              <PreorderInfoTitle>Внимание!</PreorderInfoTitle>
+              <PreorderInfoText>
+                Товар временно доступен только по предзаказу. Ориентировочный
+                срок ожидания — до 30 дней. Перед оформлением заказа уточните
+                точные сроки у менеджера{" "}
+                <a
+                  href="https://t.me/paradigma_hookah"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  @paradigma_hookah
+                </a>
+                .
+              </PreorderInfoText>
+            </PreorderInfoContent>
+          </PreorderInfo>
         )}
 
         {product.description && (
@@ -521,6 +557,18 @@ const Vid = styled.video`
   background: transparent;
 `;
 
+const PreorderBadge = styled.div`
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 3;
+  img {
+    display: block;
+    max-width: 100px;
+    height: auto;
+  }
+`;
+
 const NavArrow = styled.button`
   position: absolute;
   top: 50%;
@@ -557,7 +605,7 @@ const Dot = styled.button`
   height: 8px;
   border-radius: 999px;
   border: none;
-  background: ${(p) => (p.$active ? "#f5b300" : "rgba(255,255,255,.5)")};
+  background: ${(p) => (p.$active ? "#f5b300" : "rgba(255, 255, 255, 0.5)")};
 `;
 
 const PriceRow = styled.div`
@@ -655,7 +703,8 @@ const QtyBtn = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 110ms ease-out, color 110ms ease-out, opacity 110ms ease-out;
+  transition: transform 110ms ease-out, color 110ms ease-out,
+    opacity 110ms.ease-out;
   transform: ${(p) => (p.$pressed ? "scale(.9)" : "scale(1)")};
   width: 100%;
   height: 100%;
@@ -700,8 +749,7 @@ const ColorRow = styled.div`
 `;
 
 const ColorLabel = styled.div`
-  font-size: 15px;
-  font-weight: 1000;
+  font-size: 13px;
   color: #ddd;
 `;
 
@@ -720,6 +768,50 @@ const ColorDot = styled.button`
   padding: 0;
   box-sizing: border-box;
   outline: none;
+`;
+
+/* блок с информацией о предзаказе */
+const PreorderInfo = styled.div`
+  position: relative;
+  margin: 4px 0 10px;
+`;
+
+const PreorderInfoBg = styled.img`
+  width: 100%;
+  display: block;
+`;
+
+const PreorderInfoContent = styled.div`
+  position: absolute;
+  inset: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  pointer-events: none;
+  /* сдвигаем текст правее, оставляя место под иконку грузовика на svg */
+  padding-left: 64px;
+  align-items: flex-start;
+
+  a {
+    pointer-events: auto;
+    color: #0066ff; /* синий ник менеджера */
+    text-decoration: underline;
+    font-weight: 700;
+  }
+`;
+
+const PreorderInfoTitle = styled.div`
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: #000;
+`;
+
+const PreorderInfoText = styled.div`
+  font-size: 12px;
+  line-height: 1.35;
+  color: #000;
+  font-weight: 700; /* делаем весь текст жирным */
 `;
 
 const SpecBlock = styled.section`
