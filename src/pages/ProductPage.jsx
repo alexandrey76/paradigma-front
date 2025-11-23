@@ -807,7 +807,7 @@ const PreorderInfoTitle = styled.div`
 `;
 
 const PreorderInfoText = styled.div`
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.35;
   color: #000;
   font-weight: 700; /* делаем весь текст жирным */
