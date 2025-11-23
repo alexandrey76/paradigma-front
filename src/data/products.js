@@ -4,7 +4,7 @@ const P = `${PUB}/assets/products_images`;
 const products = [
   {
     id: 1,
-    name: "Paradigma ONE",
+    name: "Paradigma ONE Black",
     description:
       "Paradigma One — инновационный электронный кальян без угля и пепла. Удобен в использовании, безопасен для помещений и техники, стильно впишется в любую обстановку.",
     configuration: `
@@ -19,6 +19,8 @@ const products = [
     price: 19900,
     oldPrice: 21890, // +10%
     inStock: true,
+    color: {name: "Черный", hex:"#000000"},
+    variantIds: [1, 5],
     images: [
       `${P}/paradigmaonetest.svg`,
       `${P}/paradigmaone2.jpg`,
@@ -98,6 +100,34 @@ const products = [
       `${P}/paradigmaportative3.jpg`,
     ],
   },
+
+  {
+    id: 5,
+    name: "Paradigma ONE White",
+    description:
+      "Paradigma One — инновационный электронный кальян без угля и пепла. Удобен в использовании, безопасен для помещений и техники, стильно впишется в любую обстановку.",
+    configuration: `
+• Электронный кальян Paradigma One
+• Прочный кейс
+• Щипцы
+• 2 чаши
+• Набор для очистки
+• Зарядное устройство
+• Инструкция
+`,
+    price: 19900,
+    oldPrice: 21890, // +10%
+    inStock: true,
+    color: {name: "Белый", hex:"#ffffffff"},
+    variantIds: [1, 5],
+    images: [
+      `${P}/pepega.png`,
+      `${P}/paradigmaone2.jpg`,
+      `${P}/paradigmaone3.jpg`,
+      `${P}/paradigmaone4.jpg`,
+    ],
+  },
+  
 ];
 
 export default products;

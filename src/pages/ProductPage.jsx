@@ -6,7 +6,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import useEmblaCarousel from "embla-carousel-react";
 import products from "../data/products";
@@ -26,6 +26,7 @@ const clampInputQty = (n) => {
 
 export default function ProductPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { addItem, getItemQuantity, setQty } = useCart();
 
   const product = useMemo(
@@ -37,6 +38,13 @@ export default function ProductPage() {
   const outOfStock =
     product?.inStock === false ||
     (typeof product?.stock === "number" && product.stock <= 0);
+
+  // все варианты цвета для этого товара
+  const colorVariants = useMemo(() => {
+    if (!product || !Array.isArray(product.variantIds)) return [];
+    const idsSet = new Set(product.variantIds);
+    return products.filter((p) => idsSet.has(p.id));
+  }, [product]);
 
   // медиа
   const media = useMemo(() => {
@@ -206,7 +214,6 @@ export default function ProductPage() {
     }
     let n = parseInt(v, 10);
     if (Number.isNaN(n)) return;
-    // ограничим 3 цифрами
     if (n > 999) n = 999;
     setQtyDraft(String(n));
   };
@@ -214,7 +221,6 @@ export default function ProductPage() {
   const commitQty = async () => {
     if (!product || outOfStock) return;
     if (qtyDraft === "") {
-      // откатываемся
       const fallback = qtyInCart || 1;
       setQtyDraft(String(clampInputQty(fallback)));
       return;
@@ -240,7 +246,7 @@ export default function ProductPage() {
 
   const handleQtyKeyDown = (e) => {
     if (e.key === "Enter") {
-      e.currentTarget.blur(); // триггерит onBlur -> commitQty
+      e.currentTarget.blur();
     } else if (e.key === "Escape") {
       setQtyDraft(qtyInCart ? String(qtyInCart) : "1");
       e.currentTarget.blur();
@@ -383,6 +389,26 @@ export default function ProductPage() {
             </AddBtn>
           )}
         </PriceRow>
+
+        {/* выбор цвета, если есть варианты */}
+        {colorVariants.length > 1 && (
+          <ColorRow>
+            <ColorLabel>Выбор цвета:</ColorLabel>
+            <ColorDots>
+              {colorVariants.map((v) => (
+                <ColorDot
+                  key={v.id}
+                  $color={v.color?.hex || "#ffffff"}
+                  $active={v.id === product.id}
+                  onClick={() =>
+                    v.id !== product.id && navigate(`/product/${v.id}`)
+                  }
+                  title={v.color?.name || v.name}
+                />
+              ))}
+            </ColorDots>
+          </ColorRow>
+        )}
 
         {product.description && (
           <p style={{ margin: "8px 0 0", color: "#d6d6d6", lineHeight: 1.5 }}>
@@ -663,6 +689,37 @@ const QtyInput = styled.input`
   &::-webkit-inner-spin-button {
     margin: 0;
   }
+`;
+
+/* выбор цвета */
+const ColorRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 10px;
+`;
+
+const ColorLabel = styled.div`
+  font-size: 15px;
+  font-weight: 1000;
+  color: #ddd;
+`;
+
+const ColorDots = styled.div`
+  display: flex;
+  gap: 6px;
+`;
+
+const ColorDot = styled.button`
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid ${(p) => (p.$active ? "#f5b300" : "#fff")};
+  background: ${(p) => p.$color || "#ffffff"};
+  cursor: pointer;
+  padding: 0;
+  box-sizing: border-box;
+  outline: none;
 `;
 
 const SpecBlock = styled.section`
