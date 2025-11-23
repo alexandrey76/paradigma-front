@@ -9,6 +9,9 @@ import { useCart } from "../context/CartContext";
 
 const PUB = process.env.PUBLIC_URL || "";
 
+// svg для предзаказа
+const PREORDER_BADGE_SRC = `${PUB}/assets/images/preorderBadge.svg`;
+
 // что показываем и что копируем
 const PHONE_DISPLAY = "+7 (991) 185-11-01";
 const PHONE_COPY = "+79911851101";
@@ -95,7 +98,12 @@ export default function HomePage() {
         <SectionHeaderRow>
           <Link
             to="/catalog"
-            style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center" }}
+            style={{
+              textDecoration: "none",
+              color: "inherit",
+              display: "flex",
+              alignItems: "center",
+            }}
           >
             <SectionTitle>
               Каталог товаров
@@ -112,8 +120,10 @@ export default function HomePage() {
             {products.map((p) => {
               const qty = getQty(p.id);
               const icon = getIcon(qty);
-              const hasOld = typeof p.oldPrice === "number" && p.oldPrice > (p.price ?? 0);
+              const hasOld =
+                typeof p.oldPrice === "number" && p.oldPrice > (p.price ?? 0);
               const outOfStock = p.inStock === false;
+              const isPreorder = p.status === "preorder";
 
               return (
                 <CatalogSlide key={p.id}>
@@ -123,11 +133,24 @@ export default function HomePage() {
                     onClick={() => handleTap(p.id)}
                     onKeyDown={(e) => e.key === "Enter" && handleTap(p.id)}
                   >
-                    <CardImage
-                      src={p.images?.[0] || `${PUB}/assets/images/placeholder.png`}
-                      alt={p.name}
-                      loading="lazy"
-                    />
+                    <CardImageWrap>
+                      <CardImage
+                        src={
+                          p.images?.[0] ||
+                          `${PUB}/assets/images/placeholder.png`
+                        }
+                        alt={p.name}
+                        loading="lazy"
+                      />
+                      {isPreorder && (
+                        <PreorderBadge>
+                          <img
+                            src={PREORDER_BADGE_SRC}
+                            alt="Предзаказ"
+                          />
+                        </PreorderBadge>
+                      )}
+                    </CardImageWrap>
 
                     <CardBottomRow>
                       <PriceBlock>
@@ -139,7 +162,11 @@ export default function HomePage() {
                             <CurrentPrice $accent={hasOld}>
                               {(p.price ?? 0).toLocaleString("ru-RU")} ₽
                             </CurrentPrice>
-                            {hasOld && <OldPrice>{p.oldPrice.toLocaleString("ru-RU")} ₽</OldPrice>}
+                            {hasOld && (
+                              <OldPrice>
+                                {p.oldPrice.toLocaleString("ru-RU")} ₽
+                              </OldPrice>
+                            )}
                           </PriceRow>
                         )}
 
@@ -154,10 +181,14 @@ export default function HomePage() {
                             e.stopPropagation();
                             onAdd(p);
                           }}
-                          aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
+                          aria-label={
+                            qty > 0 ? `В корзине: ${qty}` : "В корзину"
+                          }
                         >
                           <img src={icon} alt="" />
-                          {qty > 0 && <CartBadge>{qty > 9 ? "9+" : qty}</CartBadge>}
+                          {qty > 0 && (
+                            <CartBadge>{qty > 9 ? "9+" : qty}</CartBadge>
+                          )}
                         </CartBtnWrap>
                       )}
                     </CardBottomRow>
@@ -183,7 +214,9 @@ export default function HomePage() {
                 <Link to="/privacy-policy">Политика конфиденциальности</Link>
               </PolicyLine>
               <PolicyLine>
-                <Link to="/consent">Согласие на обработку персональных данных</Link>
+                <Link to="/consent">
+                  Согласие на обработку персональных данных
+                </Link>
               </PolicyLine>
               <PolicyLine>ИНН: 771588377502</PolicyLine>
               <PolicyLine>ОГРИП: 32577460063823</PolicyLine>
@@ -197,7 +230,11 @@ export default function HomePage() {
           <FooterRight>
             <PhoneBlock>
               <PhoneLabel>Телефон:</PhoneLabel>
-              <PhoneNumberButton type="button" onClick={copyPhone} aria-live="polite">
+              <PhoneNumberButton
+                type="button"
+                onClick={copyPhone}
+                aria-live="polite"
+              >
                 {PHONE_DISPLAY}
               </PhoneNumberButton>
               {copied && <CopiedNote>Номер скопирован</CopiedNote>}
@@ -205,7 +242,11 @@ export default function HomePage() {
             <SocialBlock>
               <SocialLabel>Социальные сети:</SocialLabel>
               <SocialRow>
-                <a href="https://t.me/c/2783108300/19" target="_blank" rel="noopener noreferrer">
+                <a
+                  href="https://t.me/c/2783108300/19"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   <img src={`${PUB}/assets/images/tgLogo.svg`} alt="Telegram" />
                 </a>
                 <a
@@ -213,7 +254,10 @@ export default function HomePage() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <img src={`${PUB}/assets/images/instLogo.svg`} alt="Instagram" />
+                  <img
+                    src={`${PUB}/assets/images/instLogo.svg`}
+                    alt="Instagram"
+                  />
                 </a>
               </SocialRow>
             </SocialBlock>
@@ -223,13 +267,17 @@ export default function HomePage() {
         <FooterBottom>
           <WarningTitle>КУРЕНИЕ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ! 18+</WarningTitle>
           <WarningText>
-            Дистанционная продажа товаров подпадающих под запрет ФЗ 15 не осуществляется. Товары можно приобрести только
-            в нашем магазине или у дилеров. Резерв товара, оформленного через приложение не является заключённым
-            договором о намерениях приобрести товар. Сделка по приобретению товара осуществляется только при
-            предъявлении паспорта. Ограничения ФЗ 15 не действуют для оптовых заказов. Приложение не является рекламой,
-            это каталог для совершеннолетних потребителей табачной продукции (граждан России старше 18 лет) для
-            предоставления им достоверной информации об основных потребительских свойствах и качественных
-            характеристик товаров (п.1 и п.2 ст. 10 Закона «О защите прав Потребителя»).
+            Дистанционная продажа товаров подпадающих под запрет ФЗ 15 не
+            осуществляется. Товары можно приобрести только в нашем магазине или
+            у дилеров. Резерв товара, оформленного через приложение не является
+            заключённым договором о намерениях приобрести товар. Сделка по
+            приобретению товара осуществляется только при предъявлении паспорта.
+            Ограничения ФЗ 15 не действуют для оптовых заказов. Приложение не
+            является рекламой, это каталог для совершеннолетних потребителей
+            табачной продукции (граждан России старше 18 лет) для
+            предоставления им достоверной информации об основных
+            потребительских свойствах и качественных характеристик товаров (п.1
+            и п.2 ст. 10 Закона «О защите прав Потребителя»).
           </WarningText>
         </FooterBottom>
       </FooterWrap>
@@ -242,7 +290,7 @@ export default function HomePage() {
 const OutOfStockText = styled.span`
   font-size: 18px;
   font-weight: 800;
-  color: #ca3b34ff;  /* как акцентная цена в каталоге */
+  color: #ca3b34ff;
 `;
 
 const CartBtnWrap = styled.button`
@@ -287,7 +335,8 @@ const Page = styled.main`
   color: #fff;
   min-height: 100dvh;
   padding-bottom: calc(80px + env(safe-area-inset-bottom));
-  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial,
+    sans-serif;
 `;
 
 /* ——— Герой ——— */
@@ -392,6 +441,25 @@ const Card = styled.div`
   cursor: pointer;
   outline: none;
 `;
+
+/* обёртка для картинки + бейдж предзаказа */
+const CardImageWrap = styled.div`
+  position: relative;
+`;
+
+const PreorderBadge = styled.div`
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  z-index: 2;
+
+  img {
+    display: block;
+    max-width: 105px;
+    height: auto;
+  }
+`;
+
 const CardImage = styled.img`
   width: 100%;
   aspect-ratio: 1 / 1;

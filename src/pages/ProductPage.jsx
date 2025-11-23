@@ -773,7 +773,7 @@ const ColorDot = styled.button`
 /* блок с информацией о предзаказе */
 const PreorderInfo = styled.div`
   position: relative;
-  margin: 4px 0 10px;
+  margin: 24px 0 18px;
 `;
 
 const PreorderInfoBg = styled.img`
@@ -788,13 +788,12 @@ const PreorderInfoContent = styled.div`
   flex-direction: column;
   justify-content: center;
   pointer-events: none;
-  /* сдвигаем текст правее, оставляя место под иконку грузовика на svg */
   padding-left: 64px;
   align-items: flex-start;
 
   a {
     pointer-events: auto;
-    color: #0066ff; /* синий ник менеджера */
+    color: #0066ff;
     text-decoration: underline;
     font-weight: 700;
   }
