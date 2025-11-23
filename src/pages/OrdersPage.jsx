@@ -3,19 +3,19 @@ import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import StatusPillSvg from "../components/StatusPillSvg";
+import products from "../data/products"; // <-- добавили
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
   "https://alexandrey76-paradigma-back-c956.twc1.net";
 
 /* === изображения товаров (миниатюры) === */
-const PUB = process.env.PUBLIC_URL || "";
-const P = `${PUB}/assets/products_images`;
-const IMAGE_MAP = {
-  1: `${P}/paradigmaone.jpg`,
-  2: `${P}/paradigmalukah.jpg`,
-  3: `${P}/paradigmaneo.jpg`,
-  4: `${P}/paradigmaportative.jpg`,
+// первая картинка из products.js по ID товара
+const getProductImage = (productId) => {
+  const prod = products.find(
+    (p) => Number(p.id) === Number(productId)
+  );
+  return prod?.images?.[0] || null;
 };
 
 const STATUS_TEXT = {
@@ -79,8 +79,6 @@ export default function OrdersPage() {
     }
   };
 
-  const getProductImage = (productId) => IMAGE_MAP[productId] || null;
-
   const transformOrder = (order) => {
     try {
       const rawItems =
@@ -96,7 +94,7 @@ export default function OrdersPage() {
           name: item.name,
           price,
           qty,
-          image: getProductImage(item.id),
+          image: getProductImage(item.id), // <-- берём картинку по products.js
         };
       });
 
@@ -172,7 +170,9 @@ export default function OrdersPage() {
                         <img
                           src={thumb.src}
                           alt=""
-                          onClick={(e) => handleProductClick(e, thumb.productId)}
+                          onClick={(e) =>
+                            handleProductClick(e, thumb.productId)
+                          }
                         />
                       ) : null}
                     </Thumb>
