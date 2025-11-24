@@ -122,10 +122,8 @@ const products = [
     color: {name: "Белый", hex:"#ffffffff"},
     variantIds: [1, 5],
     images: [
-      `${P}/pepega.png`,
-      `${P}/paradigmaone2.jpg`,
-      `${P}/paradigmaone3.jpg`,
-      `${P}/paradigmaone4.jpg`,
+      `${P}/paradigmaonewhite.jpg`,
+      `${P}/paradigmaonewhite2.jpg`,
     ],
   },
   
