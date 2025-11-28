@@ -3,7 +3,7 @@ import React, { useCallback, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import useEmblaCarousel from "embla-carousel-react";
-
+import makePointerPress from "../utils/makePointerPress";
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
 
@@ -177,13 +177,12 @@ export default function HomePage() {
                       {/* кнопка корзины только для доступных товаров */}
                       {!outOfStock && (
                         <CartBtnWrap
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onAdd(p);
-                          }}
-                          aria-label={
-                            qty > 0 ? `В корзине: ${qty}` : "В корзину"
-                          }
+                          {...makePointerPress(
+                            (isPressed) => setPressedId(isPressed ? p.id : null),
+                            () => onAdd(p)
+                          )}
+                          $pressed={pressedId === p.id}
+                          aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
                         >
                           <img src={icon} alt="" />
                           {qty > 0 && (
@@ -302,7 +301,8 @@ const CartBtnWrap = styled.button`
   display: inline-grid;
   place-items: center;
   cursor: pointer;
-
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  transform: ${(p) => (p.$pressed ? "scale(.965)" : "scale(1)")};
   img {
     width: var(--icon-size);
     height: var(--icon-size);

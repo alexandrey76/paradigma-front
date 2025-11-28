@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import TopBar from "../components/TopBar";
+import makePointerPress from "../utils/makePointerPress";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
@@ -45,6 +46,7 @@ export default function ProfilePage() {
     null;
 
   const [name] = useState(defaultName);
+  const [pressedId, setPressedId] = useState(null);
   const [avatar, setAvatar] = useState(defaultAvatar);
   const [phone, setPhone] = useState(saved?.phone || "+7");
   const [gender, setGender] = useState(
@@ -373,7 +375,11 @@ export default function ProfilePage() {
           {error && <ErrorText>{error}</ErrorText>}
 
           <SaveRow>
-            <SaveBtn type="submit" disabled={!canSave}>
+            <SaveBtn {...makePointerPress(
+              (isPressed) => setPressedId(isPressed ? p.id : null)
+            )}
+            $pressed ={pressedId === p.id}
+            type="submit" disabled={!canSave}>
               {sending ? "Сохраняем…" : "Сохранить"}
             </SaveBtn>
           </SaveRow>
@@ -572,7 +578,8 @@ const SaveBtn = styled.button`
   color: #000;
   font-weight: 800;
   cursor: pointer;
-
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  transform: ${(p) => (p.$pressed ? "scale(.965)" : "scale(1)")};
   &:disabled {
     opacity: 0.6;
     cursor: default;

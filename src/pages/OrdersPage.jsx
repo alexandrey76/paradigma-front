@@ -318,7 +318,8 @@ const SeeBtn = styled.button`
   align-items: center;
   padding: 0 14px;
   cursor: pointer;
-
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  transform: ${(p) => (p.$pressed ? "scale(.965)" : "scale(1)")};
   &:active {
     transform: translateY(1px);
   }

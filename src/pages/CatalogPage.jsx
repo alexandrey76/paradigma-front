@@ -1,17 +1,19 @@
 // src/pages/CatalogPage.jsx
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import styled from "styled-components";
 
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
 import TopBar from "../components/TopBar";
+import makePointerPress from "../utils/makePointerPress";
 
 const PUB = process.env.PUBLIC_URL || "";
 const PREORDER_BADGE_SRC = `${PUB}/assets/images/preorderBadge.svg`;
 
 export default function CatalogPage() {
   const { addItem, getItemQuantity } = useCart();
+  const [pressedId, setPressedId] = useState(null); // <-- добавили
 
   const getQty = useCallback((id) => getItemQuantity(id), [getItemQuantity]);
 
@@ -40,12 +42,10 @@ export default function CatalogPage() {
 
           const hasOld = typeof p.oldPrice === "number" && p.oldPrice > 0;
 
-          // нет в наличии: inStock === false или stock === 0
           const outOfStock =
             p?.inStock === false ||
             (typeof p?.stock === "number" && p.stock <= 0);
 
-          // предзаказ
           const isPreorder = p.status === "preorder";
 
           return (
@@ -92,10 +92,11 @@ export default function CatalogPage() {
 
                 {!outOfStock && (
                   <CartBtnWrap
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAdd(p);
-                    }}
+                    {...makePointerPress(
+                      (isPressed) => setPressedId(isPressed ? p.id : null),
+                      () => onAdd(p)
+                    )}
+                    $pressed={pressedId === p.id}
                     aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
                   >
                     <img src={icon} alt="" />
@@ -112,6 +113,7 @@ export default function CatalogPage() {
     </PageWrapper>
   );
 }
+
 
 /* ===================== styled ===================== */
 
@@ -233,7 +235,8 @@ const CartBtnWrap = styled.button`
   place-items: center;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  transform: ${(p) => (p.$pressed ? "scale(.965)" : "scale(1)")};
   img {
     width: var(--icon-size);
     height: var(--icon-size);
