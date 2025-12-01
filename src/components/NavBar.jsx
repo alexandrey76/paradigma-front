@@ -2,26 +2,49 @@
 import { Link, useLocation } from "react-router-dom";
 import styled from "styled-components";
 import { useCart } from "../context/CartContext";
+import { useState } from "react";
+import makePointerPress from "../utils/makePointerPress";
 
 export default function NavBar() {
   const { pathname } = useLocation();
   const { cart } = useCart();
   const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
 
+  // какой таб сейчас зажат (pressed)
+  const [pressedTab, setPressedTab] = useState(null);
+
   return (
     <Wrap>
       <Bar role="navigation" aria-label="Нижняя навигация" data-testid="nav-bar">
-        <IconLink to="/" $active={pathname === "/"}>
+        <IconLink  {...makePointerPress(
+            (isPressed) => setPressedTab(isPressed ? "home" : null),
+            undefined
+          )}
+          $pressed={pressedTab === "home"}
+          to="/"
+          $active={pathname === "/"}>
           <LogoIcon />
         </IconLink>
 
-        <IconLink to="/catalog" $active={pathname.startsWith("/catalog")}>
+        <IconLink   {...makePointerPress(
+            (isPressed) => setPressedTab(isPressed ? "catalog" : null),
+            undefined
+          )}
+          $pressed={pressedTab === "catalog"}
+          to="/catalog"
+          $active={pathname.startsWith("/catalog")}>
           <CatalogIcon />
         </IconLink>
 
-        {/* корзина */}
+
         <CartWrapper>
-          <IconLink to="/cart" $active={pathname.startsWith("/cart")}>
+          <IconLink {...makePointerPress(
+            (isPressed) => setPressedTab(isPressed ? "cart" : null),
+            undefined
+          )}
+          $pressed={pressedTab === "cart"}
+          to="/cart"
+          $active={pathname.startsWith("/cart")}>
             <CartIcon />
           </IconLink>
           {totalQty > 0 && (
@@ -29,17 +52,32 @@ export default function NavBar() {
           )}
         </CartWrapper>
 
-        <IconLink to="/profile" $active={pathname.startsWith("/profile")}>
+        <IconLink {...makePointerPress(
+            (isPressed) => setPressedTab(isPressed ? "profile" : null),
+            undefined
+          )}
+          $pressed={pressedTab === "profile"}
+          to="/profile"
+          $active={pathname.startsWith("/profile")}>
           <UserIcon />
         </IconLink>
 
-        <IconLink to="/support" $active={pathname.startsWith("/support")}>
+        <IconLink
+          {...makePointerPress(
+            (isPressed) => setPressedTab(isPressed ? "support" : null),
+            undefined
+          )}
+          $pressed={pressedTab === "support"}
+          to="/support"
+          $active={pathname.startsWith("/support")}
+        >
           <ChatIcon />
         </IconLink>
       </Bar>
     </Wrap>
   );
 }
+
 
 /* ====== стили ====== */
 const Wrap = styled.div`
@@ -93,12 +131,15 @@ const IconLink = styled(Link)`
     display: block;
     opacity: ${(p) => (p.$active ? 1 : 0.95)};
     transition: transform 120ms ease, opacity 120ms ease;
+    transform: ${(p) => (p.$pressed ? "scale(0.94)" : "scale(1)")};
   }
 
-  &:active img {
+  /* можно вообще убрать &:active img, чтобы всё шло через $pressed */
+  /* &:active img {
     transform: scale(0.94);
-  }
+  } */
 `;
+
 
 const CartWrapper = styled.div`
   position: relative;

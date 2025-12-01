@@ -4,6 +4,7 @@ import styled from "styled-components";
 import { useParams } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import products from "../data/products";
+import makePointerPress from "../utils/makePointerPress";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
@@ -45,6 +46,7 @@ export default function OrderDetailsPage() {
   const [timeline, setTimeline] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [cancelPressed, setCancelPressed] = useState(false);
 
   useEffect(() => {
     fetchOrder();
@@ -374,7 +376,10 @@ export default function OrderDetailsPage() {
 
       {allowCancel && (
         <Actions>
-          <CancelBtn type="button" onClick={cancelOrder}>
+          <CancelBtn
+            {...makePointerPress(setCancelPressed, cancelOrder)}
+            $pressed={cancelPressed}
+          >
             Отменить заказ
           </CancelBtn>
         </Actions>
@@ -633,6 +638,8 @@ const CancelBtn = styled.button`
   color: #000;
   font-weight: 700;
   font-size: 14px;
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  transform: ${(p) => (p.$pressed ? "scale(.965)" : "scale(1)")};
   cursor: pointer;
   &:active {
     transform: translateY(1px);

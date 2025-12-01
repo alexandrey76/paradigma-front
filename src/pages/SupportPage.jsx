@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
+import makePointerPress from "../utils/makePointerPress";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
@@ -17,8 +18,9 @@ export default function SupportPage() {
   const [phone, setPhone] = useState("+7");
   const [question, setQuestion] = useState("");
   const [pref, setPref] = useState("write"); // write | call
-
+  const [pressedId, setPressedId] = useState(null);
   const [sending, setSending] = useState(false);
+  const [submitPressed, setSubmitPressed] = useState(false);
   const [error, setError] = useState("");
 
   // ---------- автонаполнение ----------
@@ -232,7 +234,13 @@ export default function SupportPage() {
               checked={pref === "write"}
               onChange={() => setPref("write")}
             />
-            <RadioMark aria-hidden="true" />
+            <RadioMark {
+              ...makePointerPress(
+                (isPressed) => setPressedId(isPressed ? "write" : null)
+              )
+            }
+            $pressed={pressedId === "write"}
+             aria-hidden="true" />
             <span>Напишите мне</span>
           </RadioLabel>
 
@@ -243,14 +251,23 @@ export default function SupportPage() {
               checked={pref === "call"}
               onChange={() => setPref("call")}
             />
-            <RadioMark aria-hidden="true" />
+            <RadioMark {
+              ...makePointerPress(
+                (isPressed) => setPressedId(isPressed ? "call" : null)
+              )  
+            } 
+            $pressed={pressedId === "call"}
+            aria-hidden="true" />
             <span>Позвоните мне</span>
           </RadioLabel>
         </RowRadio>
 
         {error && <ErrorText>{error}</ErrorText>}
 
-        <Submit type="submit" disabled={!canSend || sending}>
+        <Submit 
+          {...makePointerPress(setSubmitPressed)}
+          $pressed={submitPressed} 
+          type="submit" disabled={!canSend || sending}>
           {sending ? "Отправляем…" : "Оставить заявку"}
         </Submit>
       </Card>
@@ -384,7 +401,8 @@ const RadioMark = styled.span`
   box-sizing: border-box;
   position: relative;
   transition: all 0.15s ease;
-
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  transform: ${(p) => (p.$pressed ? "scale(.965)" : "scale(1)")};
   ${RadioHidden}:checked + & {
     border-color: #ffffff;
     background: #ffffff;
@@ -407,7 +425,8 @@ const Submit = styled.button`
   color: #000;
   font-weight: 800;
   cursor: pointer;
-
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  transform: ${(p) => (p.$pressed ? "scale(.965)" : "scale(1)")};
   &:disabled {
     opacity: 0.6;
     cursor: default;

@@ -21,7 +21,7 @@ const LABEL_BY_STATUS = {
   confirmed: "Подтвержден",
   processing: "В обработке",
   shipped: "Заказ передан в доставку",
-  ready_for_pickup: "Заказ готов к получению",
+  ready_for_pickup: "Заказ передан в службу доставки",
   completed: "Выполнен",
   rejected: "Отменен",
 };

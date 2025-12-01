@@ -3,7 +3,8 @@ import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import StatusPillSvg from "../components/StatusPillSvg";
-import products from "../data/products"; // <-- добавили
+import products from "../data/products";
+import makePointerPress from "../utils/makePointerPress"
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
@@ -34,6 +35,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const [pressedId, setPressedId] = useState(null);
 
   useEffect(() => {
     fetchUserOrders();
@@ -196,7 +198,11 @@ export default function OrdersPage() {
                 </div>
 
                 <SeeBtn
-                  type="button"
+                  {...makePointerPress(
+                    (isPressed) => setPressedId(isPressed ? o.id : null),
+                    null
+                  )}
+                  $pressed={pressedId === o.id}
                   onClick={(e) => handleSeeButtonClick(e, o.id)}
                 >
                   Посмотреть
@@ -318,7 +324,8 @@ const SeeBtn = styled.button`
   align-items: center;
   padding: 0 14px;
   cursor: pointer;
-
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  transform: ${(p) => (p.$pressed ? "scale(.965)" : "scale(1)")};
   &:active {
     transform: translateY(1px);
   }

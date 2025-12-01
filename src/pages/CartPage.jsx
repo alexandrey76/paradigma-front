@@ -5,6 +5,7 @@ import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import products from "../data/products";
+import makePointerPress from "../utils/makePointerPress";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
@@ -42,12 +43,13 @@ export default function CartPage() {
   const { cart, total, clearCart, removeItem, setQty } = useCart();
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [draftQty, setDraftQty] = useState({});
+  const [delPressedId, setDelPressedId] = useState(null);
+  const [pressedId, setPressedId] = useState(null)
   const navigate = useNavigate();
   const PUB = process.env.PUBLIC_URL || "";
 
-  // локальные черновики количеств по id товара
-  const [draftQty, setDraftQty] = useState({});
-
+  // синхронизация черновиков количества с корзиной
   useEffect(() => {
     const map = {};
     cart.forEach((i) => {
@@ -293,7 +295,12 @@ export default function CartPage() {
 
                   <Controls>
                     <DeleteBtn
-                      onClick={() => removeItem(i.id)}
+                      {...makePointerPress(
+                        (isPressed) =>
+                          setDelPressedId(isPressed ? i.id : null),
+                        () => removeItem(i.id)
+                      )}
+                      $pressed={delPressedId === i.id}
                       aria-label="Удалить"
                     >
                       <img
@@ -305,7 +312,11 @@ export default function CartPage() {
                     <QtyBox>
                       <QtyBtn
                         type="button"
-                        onClick={() => handleDec(i.id, qty)}
+                        {...makePointerPress(
+                          (isPressed) => setPressedId(isPressed ? `dec-${i.id}` : null),
+                          () => handleDec(i.id, qty)
+                        )}
+                        $pressed={pressedId === `dec-${i.id}`}
                         aria-label="Уменьшить"
                       >
                         −
@@ -329,9 +340,12 @@ export default function CartPage() {
 
                       <QtyBtn
                         type="button"
-                        onClick={() => handleInc(i.id, qty)}
-                        aria-label="Увеличить"
-                        $disabled={plusDisabled}
+                        {...makePointerPress(
+                          (isPressed) => setPressedId(isPressed ? `inc-${i.id}` : null),
+                          () => handleInc(i.id, qty)
+                        )}
+                        $pressed={pressedId === `inc-${i.id}`}
+                        aria-label="Увеличть"
                       >
                         +
                       </QtyBtn>
@@ -447,6 +461,8 @@ const DeleteBtn = styled.button`
   display: grid;
   place-items: center;
   flex: 0 0 auto;
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  transform: ${(p) => (p.$pressed ? "scale(.965)" : "scale(1)")};
 
   img {
     width: clamp(26px, 6.2vw, 34px);
@@ -475,6 +491,8 @@ const QtyBtn = styled.button`
   color: ${(p) => (p.$disabled ? "#777" : "#fff")};
   font-size: clamp(16px, 4vw, 20px);
   cursor: ${(p) => (p.$disabled ? "default" : "pointer")};
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  transform: ${(p) => (p.$pressed ? "scale(.965)" : "scale(1)")};
   display: grid;
   place-items: center;
   width: 100%;

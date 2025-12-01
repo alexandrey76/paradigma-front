@@ -12,6 +12,7 @@ import useEmblaCarousel from "embla-carousel-react";
 import products from "../data/products";
 import { useCart } from "../context/CartContext";
 import TopBar from "../components/TopBar";
+import makePointerPress from "../utils/makePointerPress"
 
 const PUB = process.env.PUBLIC_URL || "";
 const COMMON_BUTTON_HEIGHT = "44px";
@@ -155,22 +156,6 @@ export default function ProductPage() {
       }
     } catch {}
   };
-
-  const makePointerPress = (setPressed, action, disabled = false) => ({
-    onPointerDown: (e) => {
-      if (disabled) return;
-      e.preventDefault();
-      setPressed(true);
-    },
-    onPointerUp: (e) => {
-      if (disabled) return;
-      e.preventDefault();
-      setPressed(false);
-      action?.();
-    },
-    onPointerLeave: () => setPressed(false),
-    onPointerCancel: () => setPressed(false),
-  });
 
   // действия
   const doAddFirst = async () => {
