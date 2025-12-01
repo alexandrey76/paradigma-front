@@ -176,19 +176,18 @@ export default function HomePage() {
 
                       {/* кнопка корзины только для доступных товаров */}
                       {!outOfStock && (
-                        <CartBtnWrap
-                          {...makePointerPress(
-                            (isPressed) => setPressedId(isPressed ? p.id : null),
-                            () => onAdd(p)
-                          )}
-                          $pressed={pressedId === p.id}
-                          aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
-                        >
-                          <img src={icon} alt="" />
-                          {qty > 0 && (
-                            <CartBadge>{qty > 9 ? "9+" : qty}</CartBadge>
-                          )}
-                        </CartBtnWrap>
+                      <CartBtnWrap
+                        {...makePointerPress(
+                          (isPressed) => setPressedId(isPressed ? p.id : null),
+                          () => onAdd(p)
+                        )}
+                        $pressed={pressedId === p.id}
+                        onClick={(e) => e.stopPropagation()}   // <<< добавили
+                        aria-label={qty > 0 ? `В корзине: ${qty}` : "В корзину"}
+                      >
+                        <img src={icon} alt="" />
+                        {qty > 0 && <CartBadge>{qty > 9 ? "9+" : qty}</CartBadge>}
+                      </CartBtnWrap>
                       )}
                     </CardBottomRow>
                   </Card>

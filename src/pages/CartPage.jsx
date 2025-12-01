@@ -603,7 +603,8 @@ const SendBtn = styled.button`
   font-weight: 700;
   font-size: clamp(14px, 3.8vw, 16px);
   cursor: pointer;
-
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  transform: ${(p) => (p.$pressed ? "scale(.965)" : "scale(1)")};
   &:disabled {
     opacity: 0.6;
     cursor: default;
