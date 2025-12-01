@@ -45,6 +45,7 @@ export default function CartPage() {
   const [error, setError] = useState("");
   const [draftQty, setDraftQty] = useState({});
   const [delPressedId, setDelPressedId] = useState(null);
+  const [submitPressed, setSubmitPressed] = useState(false);
   const [pressedId, setPressedId] = useState(null)
   const navigate = useNavigate();
   const PUB = process.env.PUBLIC_URL || "";
@@ -376,7 +377,11 @@ export default function CartPage() {
             <Total>
               Итого: <b>{formattedTotal} ₽</b>
             </Total>
-            <SendBtn onClick={handleSubmit} disabled={sending}>
+            <SendBtn 
+              {...makePointerPress(setSubmitPressed)}
+              $pressed={submitPressed} 
+              onClick={handleSubmit}
+              disabled={sending}>
               {sending ? "Отправляем…" : "Сделать заказ"}
             </SendBtn>
           </BottomBar>
