@@ -20,7 +20,7 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { addItem, getItemQuantity } = useCart();
   const [copied, setCopied] = useState(false);
-
+  const [pressedId, setPressedId] = useState(null);
   const [emblaRef] = useEmblaCarousel({
     align: "start",
     containScroll: "trimSnaps",
