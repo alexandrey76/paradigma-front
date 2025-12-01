@@ -160,7 +160,6 @@ export default function ProductPage() {
   // действия
   const doAddFirst = async () => {
     if (!product || outOfStock) return;
-    haptic();
     try {
       await addItem(product, 1);
     } catch (e) {
@@ -172,7 +171,6 @@ export default function ProductPage() {
     if (!product || outOfStock) return;
     const current = qtyRef.current || 0;
     if (current >= 999) return; // дальше нельзя
-    haptic();
     try {
       await addItem(product, 1);
     } catch (e) {
@@ -183,7 +181,6 @@ export default function ProductPage() {
   const doDec = async () => {
     if (!product || outOfStock) return;
     const current = qtyRef.current || 0;
-    haptic();
     try {
       if (current <= 1) {
         // 1 -> 0 => удаляем
@@ -226,7 +223,6 @@ export default function ProductPage() {
 
     if (n !== qtyInCart) {
       try {
-        haptic();
         await setQty(product.id, n);
       } catch (e) {
         console.error(e);

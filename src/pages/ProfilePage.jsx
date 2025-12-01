@@ -46,7 +46,7 @@ export default function ProfilePage() {
     null;
 
   const [name] = useState(defaultName);
-  const [pressedId, setPressedId] = useState(null);
+  const [savePressed, setSavePressed] = useState(false);
   const [avatar, setAvatar] = useState(defaultAvatar);
   const [phone, setPhone] = useState(saved?.phone || "+7");
   const [gender, setGender] = useState(
@@ -375,11 +375,12 @@ export default function ProfilePage() {
           {error && <ErrorText>{error}</ErrorText>}
 
           <SaveRow>
-            <SaveBtn {...makePointerPress(
-              (isPressed) => setPressedId(isPressed ? p.id : null)
-            )}
-            $pressed ={pressedId === p.id}
-            type="submit" disabled={!canSave}>
+            <SaveBtn
+              {...makePointerPress(setSavePressed)}
+              $pressed={savePressed}
+              type="submit"
+              disabled={!canSave}
+            >
               {sending ? "Сохраняем…" : "Сохранить"}
             </SaveBtn>
           </SaveRow>
