@@ -380,9 +380,8 @@ export default function CartPage() {
             <SendBtn 
               {...makePointerPress(setSubmitPressed)}
               $pressed={submitPressed} 
-              onClick={handleSubmit}
+              onClick={() => navigate("/checkout")}
               disabled={sending}>
-              {sending ? "Отправляем…" : "Сделать заказ"}
             </SendBtn>
           </BottomBar>
         </>

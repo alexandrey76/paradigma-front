@@ -22,6 +22,7 @@ import AgeGate from "./components/AgeGate";
 import PrivacyPage from "./pages/PrivacPage";
 import OrderDetailsPage from "./pages/OrderDetailsPage";
 import ConsentPage from "./pages/ConsentPage";
+import CheckoutPage from "./pages/CheckoutPage";
 import { ensureUserOnServer } from "./api/userApi";
 
 /* ====== версия фронта ====== */
@@ -188,6 +189,7 @@ function AppShell() {
           <Route path="/consent" element={<ConsentPage />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/order/:id" element={<OrderDetailsPage />} />
+          <Route path="/checkout" element={<CheckoutPage/>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
