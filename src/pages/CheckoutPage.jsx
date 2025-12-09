@@ -27,6 +27,12 @@ export default function CheckoutPage() {
   const [tgHandle, setTgHandle] = useState("");
   const [comment, setComment] = useState("");
 
+  // стоимость/срок доставки
+  const [deliveryPrice, setDeliveryPrice] = useState(null);
+  const [deliveryDays, setDeliveryDays] = useState(null);
+  const [deliveryCalcLoading, setDeliveryCalcLoading] = useState(false);
+  const [deliveryCalcError, setDeliveryCalcError] = useState("");
+
   const [deliveryType, setDeliveryType] = useState(DELIVERY_TYPES.PICKUP);
 
   // CDEK: адрес и ПВЗ
@@ -80,6 +86,16 @@ export default function CheckoutPage() {
     () => (Number.isFinite(total) ? total.toLocaleString("ru-RU") : "0"),
     [total]
   );
+
+  // примитивный расчёт веса: считаем, что 1 товар = 500 г
+  const totalWeightGrams = useMemo(() => {
+    if (!cart || !cart.length) return 0;
+    let qtySum = 0;
+    for (const item of cart) {
+      qtySum += Number(item.qty || 0);
+    }
+    return Math.max(500, qtySum * 500); // минимум 500 г
+  }, [cart]);
 
   const phoneOk = useMemo(() => {
     const digits = phone.replace(/\D/g, "");
@@ -238,6 +254,92 @@ export default function CheckoutPage() {
     setSelectedPvz(found || null);
   }, [selectedPvzCode, pvzList]);
 
+  // =============== расчёт стоимости доставки СДЭК ===============
+
+  useEffect(() => {
+    // считаем только для доставки до ПВЗ, чтобы не городить пока парсер адреса
+    if (deliveryType !== DELIVERY_TYPES.CDEK_PVZ) {
+      setDeliveryPrice(null);
+      setDeliveryDays(null);
+      setDeliveryCalcError("");
+      setDeliveryCalcLoading(false);
+      return;
+    }
+
+    if (!cart || !cart.length || !selectedPvz || !totalWeightGrams) {
+      setDeliveryPrice(null);
+      setDeliveryDays(null);
+      setDeliveryCalcError("");
+      setDeliveryCalcLoading(false);
+      return;
+    }
+
+    const toCityCode =
+      selectedPvz.location?.code || selectedPvz.city_code || null;
+    if (!toCityCode) {
+      setDeliveryPrice(null);
+      setDeliveryDays(null);
+      setDeliveryCalcError("");
+      setDeliveryCalcLoading(false);
+      return;
+    }
+
+    let aborted = false;
+    setDeliveryCalcLoading(true);
+    setDeliveryCalcError("");
+
+    (async () => {
+      try {
+        const params = new URLSearchParams({
+          delivery_type: DELIVERY_TYPES.CDEK_PVZ,
+          to_city_code: String(toCityCode),
+          weight_grams: String(totalWeightGrams),
+        });
+
+        const resp = await fetch(
+          `${API_BASE}/api/delivery/cdek/calc?` + params.toString()
+        );
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const data = await resp.json();
+        if (aborted) return;
+
+        if (!data.ok) {
+          throw new Error("calc not ok");
+        }
+
+        const price =
+          typeof data.price === "number"
+            ? data.price
+            : Number(data.price || 0);
+
+        setDeliveryPrice(price);
+
+        if (data.period_min && data.period_max) {
+          setDeliveryDays(
+            data.period_min === data.period_max
+              ? `${data.period_min} дн.`
+              : `${data.period_min}–${data.period_max} дн.`
+          );
+        } else {
+          setDeliveryDays(null);
+        }
+      } catch (e) {
+        console.error("delivery calc failed", e);
+        if (!aborted) {
+          setDeliveryPrice(null);
+          setDeliveryDays(null);
+          setDeliveryCalcError("Не удалось рассчитать доставку");
+        }
+      } finally {
+        if (!aborted) setDeliveryCalcLoading(false);
+      }
+    })();
+
+    return () => {
+      aborted = true;
+    };
+  }, [deliveryType, cart, selectedPvz, totalWeightGrams]);
+
   // ================= отправка заказа =================
 
   const handleSubmit = async (e) => {
@@ -324,12 +426,16 @@ export default function CheckoutPage() {
         deliveryPayload = {
           type: DELIVERY_TYPES.CDEK_DOOR,
           address: address.trim(),
+          price: deliveryPrice,
+          period: deliveryDays,
         };
       } else if (deliveryType === DELIVERY_TYPES.CDEK_PVZ) {
         deliveryPayload = {
           type: DELIVERY_TYPES.CDEK_PVZ,
           pvz_code: selectedPvzCode,
           pvz: selectedPvz || null,
+          price: deliveryPrice,
+          period: deliveryDays,
         };
       }
 
@@ -549,9 +655,47 @@ export default function CheckoutPage() {
 
         <SummaryRow>
           <TotalText>
-            Итого: <b>{formattedTotal} ₽</b>
+            Итого за товары: <b>{formattedTotal} ₽</b>
           </TotalText>
         </SummaryRow>
+
+        {deliveryType === DELIVERY_TYPES.CDEK_PVZ && (
+          <SummaryRow>
+            {deliveryCalcLoading && (
+              <DeliveryText>Считаем доставку…</DeliveryText>
+            )}
+
+            {!deliveryCalcLoading && deliveryPrice != null && (
+              <DeliveryText>
+                Доставка СДЭК:{" "}
+                <b>
+                  {deliveryPrice.toLocaleString("ru-RU")} ₽
+                  {deliveryDays ? ` (${deliveryDays})` : ""}
+                </b>
+              </DeliveryText>
+            )}
+
+            {!deliveryCalcLoading &&
+              deliveryPrice == null &&
+              !deliveryCalcError && (
+                <DeliveryText>
+                  Доставка СДЭК: будет рассчитана позже
+                </DeliveryText>
+              )}
+
+            {deliveryCalcError && (
+              <DeliveryText>{deliveryCalcError}</DeliveryText>
+            )}
+          </SummaryRow>
+        )}
+
+        {deliveryType === DELIVERY_TYPES.CDEK_DOOR && (
+          <SummaryRow>
+            <DeliveryText>
+              Стоимость доставки до двери уточнит менеджер по тарифам СДЭК.
+            </DeliveryText>
+          </SummaryRow>
+        )}
 
         {error && <ErrorText>{error}</ErrorText>}
 
@@ -768,6 +912,16 @@ const TotalText = styled.div`
   font-size: 16px;
   b {
     font-weight: 800;
+  }
+`;
+
+const DeliveryText = styled.div`
+  font-size: 14px;
+  color: #ffcb66;
+
+  b {
+    font-weight: 700;
+    color: #ffffff;
   }
 `;
 
