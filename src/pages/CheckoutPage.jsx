@@ -27,12 +27,6 @@ export default function CheckoutPage() {
   const [tgHandle, setTgHandle] = useState("");
   const [comment, setComment] = useState("");
 
-  // стоимость/срок доставки
-  const [deliveryPrice, setDeliveryPrice] = useState(null);
-  const [deliveryDays, setDeliveryDays] = useState(null);
-  const [deliveryCalcLoading, setDeliveryCalcLoading] = useState(false);
-  const [deliveryCalcError, setDeliveryCalcError] = useState("");
-
   const [deliveryType, setDeliveryType] = useState(DELIVERY_TYPES.PICKUP);
 
   // CDEK: адрес и ПВЗ
@@ -42,6 +36,12 @@ export default function CheckoutPage() {
   const [pvzLoading, setPvzLoading] = useState(false);
   const [selectedPvzCode, setSelectedPvzCode] = useState("");
   const [selectedPvz, setSelectedPvz] = useState(null);
+
+  // калькуляция доставки
+  const [deliveryPrice, setDeliveryPrice] = useState(null);
+  const [deliveryDays, setDeliveryDays] = useState(null);
+  const [deliveryCalcLoading, setDeliveryCalcLoading] = useState(false);
+  const [deliveryCalcError, setDeliveryCalcError] = useState("");
 
   const [saveProfile, setSaveProfile] = useState(true);
   const [sending, setSending] = useState(false);
@@ -87,14 +87,14 @@ export default function CheckoutPage() {
     [total]
   );
 
-  // примитивный расчёт веса: считаем, что 1 товар = 500 г
+  // примерно считаем вес: каждая штука 500г, минимум 500г
   const totalWeightGrams = useMemo(() => {
     if (!cart || !cart.length) return 0;
     let qtySum = 0;
     for (const item of cart) {
       qtySum += Number(item.qty || 0);
     }
-    return Math.max(500, qtySum * 500); // минимум 500 г
+    return Math.max(500, qtySum * 500);
   }, [cart]);
 
   const phoneOk = useMemo(() => {
@@ -147,7 +147,7 @@ export default function CheckoutPage() {
     const tg = window?.Telegram?.WebApp;
     const user = tg?.initDataUnsafe?.user;
 
-    // 1) данные из localStorage (если уже сохраняли)
+    // 1) данные из localStorage
     try {
       const savedRaw = localStorage.getItem(LOCAL_KEY);
       if (savedRaw) {
@@ -161,7 +161,7 @@ export default function CheckoutPage() {
       /* ignore */
     }
 
-    // 2) если имени нет — подставим из Telegram
+    // 2) имя / username из Telegram
     if (user && !name) {
       const fullName = `${user.first_name || ""}${
         user.last_name ? " " + user.last_name : ""
@@ -172,7 +172,7 @@ export default function CheckoutPage() {
       if (user.username) setTgHandle("@" + user.username);
     }
 
-    // 3) подгружаем профиль с бэка (/api/profile)
+    // 3) профиль с бэка
     (async () => {
       try {
         const initData = tg?.initData || "";
@@ -183,19 +183,16 @@ export default function CheckoutPage() {
         const data = await resp.json();
         const profile = data?.profile || {};
 
-        // телефон
         const rawPhone = String(profile.user_phone || "").trim();
         const digits = rawPhone.replace(/\D/g, "");
         if (digits.length === 11) {
           setPhone(formatPhoneFromDigits(digits));
         }
 
-        // имя, если ещё пусто
         if (profile.tg_first_name && !name) {
           setName(profile.tg_first_name);
         }
 
-        // @username, если ещё пусто
         if (profile.tg_username && !tgHandle) {
           setTgHandle("@" + profile.tg_username);
         }
@@ -206,7 +203,7 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ================= загрузка ПВЗ (очень простой вариант) =================
+  // ================= загрузка ПВЗ =================
 
   useEffect(() => {
     if (deliveryType !== DELIVERY_TYPES.CDEK_PVZ) return;
@@ -254,91 +251,76 @@ export default function CheckoutPage() {
     setSelectedPvz(found || null);
   }, [selectedPvzCode, pvzList]);
 
-  // =============== расчёт стоимости доставки СДЭК ===============
+  // ================= расчет доставки =================
 
   useEffect(() => {
-    // считаем только для доставки до ПВЗ, чтобы не городить пока парсер адреса
-    if (deliveryType !== DELIVERY_TYPES.CDEK_PVZ) {
-      setDeliveryPrice(null);
-      setDeliveryDays(null);
-      setDeliveryCalcError("");
-      setDeliveryCalcLoading(false);
-      return;
-    }
-
-    if (!cart || !cart.length || !selectedPvz || !totalWeightGrams) {
-      setDeliveryPrice(null);
-      setDeliveryDays(null);
-      setDeliveryCalcError("");
-      setDeliveryCalcLoading(false);
-      return;
-    }
-
-    const toCityCode =
-      selectedPvz.location?.code || selectedPvz.city_code || null;
-    if (!toCityCode) {
-      setDeliveryPrice(null);
-      setDeliveryDays(null);
-      setDeliveryCalcError("");
-      setDeliveryCalcLoading(false);
-      return;
-    }
-
-    let aborted = false;
-    setDeliveryCalcLoading(true);
     setDeliveryCalcError("");
+
+    // самовывоз — ничего не считаем
+    if (deliveryType === DELIVERY_TYPES.PICKUP) {
+      setDeliveryPrice(null);
+      setDeliveryDays(null);
+      return;
+    }
+
+    if (!cart || !cart.length || !totalWeightGrams) {
+      setDeliveryPrice(null);
+      setDeliveryDays(null);
+      return;
+    }
+
+    let url = `${API_BASE}/api/delivery/cdek/calc?delivery_type=${deliveryType}&weight_grams=${totalWeightGrams}`;
+
+    if (deliveryType === DELIVERY_TYPES.CDEK_PVZ) {
+      if (!selectedPvz || !selectedPvz.city_code) return;
+      url += `&to_city_code=${selectedPvz.city_code}`;
+    } else if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
+      const cityPart = address.split(",")[0].trim();
+      if (!cityPart || cityPart.length < 2) return;
+      url += `&to_city_query=${encodeURIComponent(cityPart)}`;
+    }
+
+    let cancelled = false;
+    setDeliveryCalcLoading(true);
 
     (async () => {
       try {
-        const params = new URLSearchParams({
-          delivery_type: DELIVERY_TYPES.CDEK_PVZ,
-          to_city_code: String(toCityCode),
-          weight_grams: String(totalWeightGrams),
-        });
-
-        const resp = await fetch(
-          `${API_BASE}/api/delivery/cdek/calc?` + params.toString()
-        );
+        const resp = await fetch(url);
         if (!resp.ok) throw new Error("HTTP " + resp.status);
         const data = await resp.json();
-        if (aborted) return;
+        if (cancelled) return;
 
-        if (!data.ok) {
-          throw new Error("calc not ok");
-        }
-
-        const price =
-          typeof data.price === "number"
-            ? data.price
-            : Number(data.price || 0);
-
-        setDeliveryPrice(price);
-
-        if (data.period_min && data.period_max) {
-          setDeliveryDays(
-            data.period_min === data.period_max
-              ? `${data.period_min} дн.`
-              : `${data.period_min}–${data.period_max} дн.`
-          );
+        if (data.ok && data.price != null) {
+          setDeliveryPrice(Number(data.price));
+          let daysText = null;
+          if (data.period_min && data.period_max) {
+            if (data.period_min === data.period_max) {
+              daysText = `${data.period_min} дн.`;
+            } else {
+              daysText = `${data.period_min}–${data.period_max} дн.`;
+            }
+          }
+          setDeliveryDays(daysText);
         } else {
-          setDeliveryDays(null);
-        }
-      } catch (e) {
-        console.error("delivery calc failed", e);
-        if (!aborted) {
           setDeliveryPrice(null);
           setDeliveryDays(null);
           setDeliveryCalcError("Не удалось рассчитать доставку");
         }
+      } catch (e) {
+        if (cancelled) return;
+        console.error("cdek calc failed", e);
+        setDeliveryPrice(null);
+        setDeliveryDays(null);
+        setDeliveryCalcError("Не удалось рассчитать доставку");
       } finally {
-        if (!aborted) setDeliveryCalcLoading(false);
+        if (!cancelled) setDeliveryCalcLoading(false);
       }
     })();
 
     return () => {
-      aborted = true;
+      cancelled = true;
     };
-  }, [deliveryType, cart, selectedPvz, totalWeightGrams]);
+  }, [deliveryType, selectedPvz, address, totalWeightGrams, cart]);
 
   // ================= отправка заказа =================
 
@@ -372,7 +354,6 @@ export default function CheckoutPage() {
 
       // 1) сохранить профиль, если стоит галка
       if (saveProfile) {
-        // локально
         try {
           localStorage.setItem(
             LOCAL_KEY,
@@ -387,7 +368,6 @@ export default function CheckoutPage() {
           /* ignore */
         }
 
-        // на бэк
         try {
           await fetch(`${API_BASE}/api/profile`, {
             method: "POST",
@@ -426,16 +406,16 @@ export default function CheckoutPage() {
         deliveryPayload = {
           type: DELIVERY_TYPES.CDEK_DOOR,
           address: address.trim(),
-          price: deliveryPrice,
-          period: deliveryDays,
+          calc_price: deliveryPrice,
+          calc_days: deliveryDays,
         };
       } else if (deliveryType === DELIVERY_TYPES.CDEK_PVZ) {
         deliveryPayload = {
           type: DELIVERY_TYPES.CDEK_PVZ,
           pvz_code: selectedPvzCode,
           pvz: selectedPvz || null,
-          price: deliveryPrice,
-          period: deliveryDays,
+          calc_price: deliveryPrice,
+          calc_days: deliveryDays,
         };
       }
 
@@ -659,43 +639,20 @@ export default function CheckoutPage() {
           </TotalText>
         </SummaryRow>
 
-        {deliveryType === DELIVERY_TYPES.CDEK_PVZ && (
-          <SummaryRow>
-            {deliveryCalcLoading && (
-              <DeliveryText>Считаем доставку…</DeliveryText>
-            )}
-
-            {!deliveryCalcLoading && deliveryPrice != null && (
-              <DeliveryText>
-                Доставка СДЭК:{" "}
-                <b>
-                  {deliveryPrice.toLocaleString("ru-RU")} ₽
-                  {deliveryDays ? ` (${deliveryDays})` : ""}
-                </b>
-              </DeliveryText>
-            )}
-
-            {!deliveryCalcLoading &&
-              deliveryPrice == null &&
-              !deliveryCalcError && (
-                <DeliveryText>
-                  Доставка СДЭК: будет рассчитана позже
-                </DeliveryText>
-              )}
-
-            {deliveryCalcError && (
-              <DeliveryText>{deliveryCalcError}</DeliveryText>
-            )}
-          </SummaryRow>
+        {deliveryType !== DELIVERY_TYPES.PICKUP && (
+          <DeliverySummary>
+            Доставка СДЭК:&nbsp;
+            {deliveryCalcLoading
+              ? "рассчитываем…"
+              : deliveryPrice != null
+              ? `${deliveryPrice.toLocaleString("ru-RU")} ₽${
+                  deliveryDays ? ` • ${deliveryDays}` : ""
+                }`
+              : "будет рассчитана позже"}
+          </DeliverySummary>
         )}
 
-        {deliveryType === DELIVERY_TYPES.CDEK_DOOR && (
-          <SummaryRow>
-            <DeliveryText>
-              Стоимость доставки до двери уточнит менеджер по тарифам СДЭК.
-            </DeliveryText>
-          </SummaryRow>
-        )}
+        {deliveryCalcError && <Hint>⚠ {deliveryCalcError}</Hint>}
 
         {error && <ErrorText>{error}</ErrorText>}
 
@@ -915,14 +872,10 @@ const TotalText = styled.div`
   }
 `;
 
-const DeliveryText = styled.div`
+const DeliverySummary = styled.div`
+  margin-top: 4px;
   font-size: 14px;
-  color: #ffcb66;
-
-  b {
-    font-weight: 700;
-    color: #ffffff;
-  }
+  color: #e6e6e6;
 `;
 
 const ErrorText = styled.div`
