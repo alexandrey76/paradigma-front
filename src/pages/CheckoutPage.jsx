@@ -8,7 +8,7 @@ import makePointerPress from "../utils/makePointerPress";
 
 // ✅ CDEK widget (npm i @cdek-it/widget)
 import CDEKWidget from "@cdek-it/widget";
-import "@cdek-it/widget/dist/cdek-widget.css";
+import '@cdek-it/widget';
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
