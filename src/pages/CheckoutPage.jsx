@@ -6,11 +6,15 @@ import TopBar from "../components/TopBar";
 import { useCart } from "../context/CartContext";
 import makePointerPress from "../utils/makePointerPress";
 
+// ✅ CDEK widget (npm i @cdek-it/widget)
+import CDEKWidget from "@cdek-it/widget";
+import "@cdek-it/widget/dist/cdek-widget.css";
+
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
   "https://alexandrey76-paradigma-back-c956.twc1.net";
 
-const YMAPS_API_KEY = process.env.REACT_APP_YMAPS_API_KEY || "";
+const YM_API_KEY = process.env.REACT_APP_YMAPS_API_KEY || ""; // твой Yandex Maps API key (публичный)
 
 const LOCAL_KEY = "checkout_profile.v1";
 
@@ -19,88 +23,6 @@ const DELIVERY_TYPES = {
   CDEK_PVZ: "cdek_pvz",
   CDEK_DOOR: "cdek_door",
 };
-
-// ====== small helpers ======
-function debounce(fn, ms) {
-  let t = null;
-  return (...args) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), ms);
-  };
-}
-
-function safeJsonParse(x) {
-  try {
-    return JSON.parse(x);
-  } catch {
-    return null;
-  }
-}
-
-// ====== Yandex Map loader ======
-let __ymaps_loading = false;
-let __ymaps_loaded = false;
-function loadYmaps(apiKey) {
-  if (__ymaps_loaded) return Promise.resolve(true);
-  if (__ymaps_loading) {
-    return new Promise((resolve) => {
-      const i = setInterval(() => {
-        if (__ymaps_loaded) {
-          clearInterval(i);
-          resolve(true);
-        }
-      }, 100);
-    });
-  }
-
-  __ymaps_loading = true;
-
-  return new Promise((resolve, reject) => {
-    if (!apiKey) {
-      reject(new Error("REACT_APP_YMAPS_API_KEY не задан"));
-      return;
-    }
-    const existing = document.querySelector('script[data-ymaps="1"]');
-    if (existing) {
-      // уже есть, ждём ymaps.ready
-      const i = setInterval(() => {
-        if (window.ymaps && window.ymaps.ready) {
-          window.ymaps.ready(() => {
-            __ymaps_loaded = true;
-            __ymaps_loading = false;
-            clearInterval(i);
-            resolve(true);
-          });
-        }
-      }, 100);
-      return;
-    }
-
-    const s = document.createElement("script");
-    s.src = `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(
-      apiKey
-    )}&lang=ru_RU`;
-    s.async = true;
-    s.dataset.ymaps = "1";
-    s.onload = () => {
-      if (!window.ymaps?.ready) {
-        __ymaps_loading = false;
-        reject(new Error("Yandex Maps API не загрузился"));
-        return;
-      }
-      window.ymaps.ready(() => {
-        __ymaps_loaded = true;
-        __ymaps_loading = false;
-        resolve(true);
-      });
-    };
-    s.onerror = () => {
-      __ymaps_loading = false;
-      reject(new Error("Не удалось загрузить Yandex Maps API"));
-    };
-    document.head.appendChild(s);
-  });
-}
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -113,24 +35,21 @@ export default function CheckoutPage() {
 
   const [deliveryType, setDeliveryType] = useState(DELIVERY_TYPES.PICKUP);
 
-  // ===== CDEK: city + pvz + address =====
-  const [cityQuery, setCityQuery] = useState("");
-  const [cityList, setCityList] = useState([]);
-  const [cityLoading, setCityLoading] = useState(false);
-  const [selectedCity, setSelectedCity] = useState(null); // {code, city, region, sub_region, country_code, ...}
+  // ====== CDEK: город + ПВЗ ======
+  const [cdekCityQuery, setCdekCityQuery] = useState("");
+  const [cdekCityLoading, setCdekCityLoading] = useState(false);
+  const [cdekCityList, setCdekCityList] = useState([]);
+  const [selectedCity, setSelectedCity] = useState(null); // {code, city, region...}
 
-  const [pvzFilter, setPvzFilter] = useState("");
+  const [pvzMode, setPvzMode] = useState("list"); // "list" | "map"
+  const [pvzTerm, setPvzTerm] = useState("");
+
   const [pvzList, setPvzList] = useState([]);
   const [pvzLoading, setPvzLoading] = useState(false);
   const [selectedPvzCode, setSelectedPvzCode] = useState("");
   const [selectedPvz, setSelectedPvz] = useState(null);
 
-  const [address, setAddress] = useState("");
-
-  // ===== view mode: list/map =====
-  const [pvzView, setPvzView] = useState("list"); // "list" | "map"
-
-  // ===== delivery calc =====
+  // калькуляция доставки
   const [deliveryPrice, setDeliveryPrice] = useState(null);
   const [deliveryDays, setDeliveryDays] = useState(null);
   const [deliveryCalcLoading, setDeliveryCalcLoading] = useState(false);
@@ -143,41 +62,11 @@ export default function CheckoutPage() {
 
   const PUB = process.env.PUBLIC_URL || "";
 
-  const formattedTotal = useMemo(
-    () => (Number.isFinite(total) ? total.toLocaleString("ru-RU") : "0"),
-    [total]
-  );
+  // ====== CDEK widget refs ======
+  const widgetRef = useRef(null);
+  const widgetRootId = "cdek-map";
 
-  // примерно считаем вес: каждая штука 500г, минимум 500г
-  const totalWeightGrams = useMemo(() => {
-    if (!cart || !cart.length) return 0;
-    let qtySum = 0;
-    for (const item of cart) qtySum += Number(item.qty || 0);
-    return Math.max(500, qtySum * 500);
-  }, [cart]);
-
-  const phoneOk = useMemo(() => {
-    const digits = phone.replace(/\D/g, "");
-    return digits.length === 11;
-  }, [phone]);
-
-  const canSubmit = useMemo(() => {
-    if (!name.trim()) return false;
-    if (!phoneOk) return false;
-    if (!cart || cart.length === 0) return false;
-
-    if (deliveryType === DELIVERY_TYPES.CDEK_PVZ) {
-      if (!selectedCity?.code) return false;
-      if (!selectedPvzCode) return false;
-    }
-
-    if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
-      if (!selectedCity?.code) return false;
-      if (!address.trim()) return false;
-    }
-
-    return true;
-  }, [name, phoneOk, cart, deliveryType, selectedCity, address, selectedPvzCode]);
+  // ================= helpers =================
 
   const showSuccess = (msg) => {
     const tg = window?.Telegram?.WebApp;
@@ -209,6 +98,43 @@ export default function CheckoutPage() {
     }
   };
 
+  const formattedTotal = useMemo(
+    () => (Number.isFinite(total) ? total.toLocaleString("ru-RU") : "0"),
+    [total]
+  );
+
+  // примерно считаем вес: каждая штука 500г, минимум 500г
+  const totalWeightGrams = useMemo(() => {
+    if (!cart || !cart.length) return 0;
+    let qtySum = 0;
+    for (const item of cart) qtySum += Number(item.qty || 0);
+    return Math.max(500, qtySum * 500);
+  }, [cart]);
+
+  const phoneOk = useMemo(() => {
+    const digits = phone.replace(/\D/g, "");
+    return digits.length === 11;
+  }, [phone]);
+
+  const canSubmit = useMemo(() => {
+    if (!name.trim()) return false;
+    if (!phoneOk) return false;
+    if (!cart || cart.length === 0) return false;
+
+    if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
+      // дверь: нужен адрес (оставим как было — textarea ниже)
+      // тут мы не правим, чтоб не ломать
+      return true;
+    }
+
+    if (deliveryType === DELIVERY_TYPES.CDEK_PVZ) {
+      if (!selectedCity?.code) return false;
+      if (!selectedPvzCode) return false;
+    }
+
+    return true;
+  }, [name, phoneOk, cart, deliveryType, selectedPvzCode, selectedCity]);
+
   // формат телефона в +7 (xxx) xxx-xx-xx
   function formatPhoneFromDigits(raw) {
     let digits = raw.replace(/\D/g, "");
@@ -232,26 +158,27 @@ export default function CheckoutPage() {
     setPhone(formatPhoneFromDigits(digits));
   }
 
-  // ================= init fill =================
+  // ================= начальное заполнение =================
+
   useEffect(() => {
     const tg = window?.Telegram?.WebApp;
     const user = tg?.initDataUnsafe?.user;
 
-    // 1) localStorage
+    // 1) данные из localStorage
     try {
       const savedRaw = localStorage.getItem(LOCAL_KEY);
       if (savedRaw) {
-        const saved = safeJsonParse(savedRaw);
-        if (saved?.name) setName(saved.name);
-        if (saved?.phone) setPhone(saved.phone);
-        if (saved?.tgHandle) setTgHandle(saved.tgHandle);
-        if (saved?.deliveryType) setDeliveryType(saved.deliveryType);
+        const saved = JSON.parse(savedRaw);
+        if (saved.name) setName(saved.name);
+        if (saved.phone) setPhone(saved.phone);
+        if (saved.tgHandle) setTgHandle(saved.tgHandle);
+        if (saved.deliveryType) setDeliveryType(saved.deliveryType);
       }
     } catch {
       /* ignore */
     }
 
-    // 2) Telegram user
+    // 2) имя / username из Telegram
     if (user && !name) {
       const fullName = `${user.first_name || ""}${
         user.last_name ? " " + user.last_name : ""
@@ -262,7 +189,7 @@ export default function CheckoutPage() {
       if (user.username) setTgHandle("@" + user.username);
     }
 
-    // 3) profile from backend
+    // 3) профиль с бэка
     (async () => {
       try {
         const initData = tg?.initData || "";
@@ -286,109 +213,208 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ================= city autocomplete =================
-  const debouncedCityFetch = useMemo(
-    () =>
-      debounce(async (q) => {
-        const query = q.trim();
-        if (query.length < 2) {
-          setCityList([]);
-          return;
-        }
-        setCityLoading(true);
-        try {
-          const resp = await fetch(
-            `${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(query)}`
-          );
-          if (!resp.ok) throw new Error("HTTP " + resp.status);
-          const data = await resp.json();
-          const items = Array.isArray(data?.cities) ? data.cities : Array.isArray(data) ? data : [];
-          setCityList(items);
-        } catch (e) {
-          console.error("cities load failed", e);
-          setCityList([]);
-        } finally {
-          setCityLoading(false);
-        }
-      }, 250),
-    []
-  );
+  // ================= города: автодополнение =================
 
-  useEffect(() => {
-    if (deliveryType === DELIVERY_TYPES.CDEK_PVZ || deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
-      debouncedCityFetch(cityQuery);
-    }
-  }, [cityQuery, deliveryType, debouncedCityFetch]);
-
-  function selectCity(city) {
-    setSelectedCity(city);
-    const display = [city.city, city.region].filter(Boolean).join(", ");
-    setCityQuery(display || city.city || "");
-    setCityList([]);
-
-    // смена города — сбрасываем выбор ПВЗ
-    setSelectedPvzCode("");
-    setSelectedPvz(null);
-    setPvzFilter("");
-  }
-
-  // ================= load PVZ for city =================
   useEffect(() => {
     if (deliveryType !== DELIVERY_TYPES.CDEK_PVZ) return;
-    if (!selectedCity?.code) {
-      setPvzList([]);
+
+    const q = cdekCityQuery.trim();
+    if (q.length < 2) {
+      setCdekCityList([]);
       return;
     }
 
-    let cancelled = false;
-    setPvzLoading(true);
+    let aborted = false;
+    setCdekCityLoading(true);
 
     (async () => {
       try {
         const resp = await fetch(
-          `${API_BASE}/api/delivery/cdek/pvz?city_code=${encodeURIComponent(selectedCity.code)}`
+          `${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(q)}`
         );
         if (!resp.ok) throw new Error("HTTP " + resp.status);
         const data = await resp.json();
-        const points = Array.isArray(data?.points) ? data.points : [];
-        if (!cancelled) setPvzList(points);
+        if (!aborted) setCdekCityList(Array.isArray(data.cities) ? data.cities : []);
       } catch (e) {
-        console.error("pvz load failed", e);
-        if (!cancelled) setPvzList([]);
+        if (!aborted) {
+          console.error("cities load failed", e);
+          setCdekCityList([]);
+        }
       } finally {
-        if (!cancelled) setPvzLoading(false);
+        if (!aborted) setCdekCityLoading(false);
       }
     })();
 
     return () => {
-      cancelled = true;
+      aborted = true;
     };
-  }, [deliveryType, selectedCity]);
+  }, [cdekCityQuery, deliveryType]);
 
-  // sync selected pvz object
+  // при смене выбранного города — сбрасываем ПВЗ/доставку
+  useEffect(() => {
+    setSelectedPvzCode("");
+    setSelectedPvz(null);
+    setPvzList([]);
+    setPvzTerm("");
+    setDeliveryPrice(null);
+    setDeliveryDays(null);
+    setDeliveryCalcError("");
+  }, [selectedCity?.code]);
+
+  // ================= список ПВЗ (по городу + term) =================
+
+  useEffect(() => {
+    if (deliveryType !== DELIVERY_TYPES.CDEK_PVZ) return;
+    if (!selectedCity?.code) return;
+    if (pvzMode !== "list") return;
+
+    let aborted = false;
+    setPvzLoading(true);
+
+    (async () => {
+      try {
+        const qs = new URLSearchParams();
+        qs.set("city_code", String(selectedCity.code));
+        if (pvzTerm.trim()) qs.set("term", pvzTerm.trim());
+
+        const resp = await fetch(`${API_BASE}/api/delivery/cdek/pvz?${qs.toString()}`);
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const data = await resp.json();
+        if (!aborted) setPvzList(Array.isArray(data.points) ? data.points : []);
+      } catch (e) {
+        if (!aborted) {
+          console.error("pvz list load failed", e);
+          setPvzList([]);
+        }
+      } finally {
+        if (!aborted) setPvzLoading(false);
+      }
+    })();
+
+    return () => {
+      aborted = true;
+    };
+  }, [deliveryType, selectedCity?.code, pvzTerm, pvzMode]);
+
   useEffect(() => {
     if (!selectedPvzCode) {
       setSelectedPvz(null);
       return;
     }
     const found = pvzList.find((p) => p.code === selectedPvzCode);
-    setSelectedPvz(found || null);
+    if (found) setSelectedPvz(found);
   }, [selectedPvzCode, pvzList]);
 
-  // filter pvz client-side by address/name/metro
-  const filteredPvz = useMemo(() => {
-    const q = pvzFilter.trim().toLowerCase();
-    if (!q) return pvzList;
+  // ================= CDEK widget init (карта) =================
 
-    return pvzList.filter((p) => {
-      const name = String(p.name || "").toLowerCase();
-      const addr = String(p.address || "").toLowerCase();
-      const metro = String(p.metro || p.nearest_metro_station || "").toLowerCase();
-      return name.includes(q) || addr.includes(q) || metro.includes(q);
+  useEffect(() => {
+    if (deliveryType !== DELIVERY_TYPES.CDEK_PVZ) return;
+    if (pvzMode !== "map") return;
+    if (!selectedCity?.city) return;
+
+    // если ключа Яндекса нет — виджет не заведётся
+    if (!YM_API_KEY) {
+      console.warn("Missing REACT_APP_YMAPS_API_KEY");
+      return;
+    }
+
+    // destroy previous
+    if (widgetRef.current) {
+      try {
+        widgetRef.current.destroy();
+      } catch {}
+      widgetRef.current = null;
+    }
+
+    // вес для виджета (обычно кг)
+    const weightKg = Math.max(0.1, Math.round((totalWeightGrams / 1000) * 10) / 10);
+
+    // ⚠️ servicePath должен вести на твой бэк-энд “service.php”-совместимый роут
+    // (мы его делаем в FastAPI). Если у тебя роут другой — поменяй здесь.
+    const servicePath = `${API_BASE}/api/cdek-widget/service`;
+
+    const widget = new CDEKWidget({
+      apiKey: YM_API_KEY,
+      root: widgetRootId,
+      servicePath,
+      lang: "rus",
+      currency: "RUB",
+
+      // показываем выбор ПВЗ
+      hideDeliveryOptions: { door: true, office: false },
+
+      // удобнее как на widget.cdek.ru — встраиваем прямо в страницу
+      popup: false,
+
+      // стартовая локация
+      defaultLocation: `${selectedCity.city}${selectedCity.region ? ", " + selectedCity.region : ""}`,
+
+      goods: [
+        {
+          length: 10,
+          width: 10,
+          height: 10,
+          weight: weightKg,
+        },
+      ],
+
+      onReady: () => {
+        // можно что-то логнуть
+      },
+
+      onChoose: (type, tariff, target) => {
+        // target для office — это iOffice
+        if (type !== "office") return;
+        const office = target;
+        const code = office?.code;
+        if (!code) return;
+
+        setSelectedPvzCode(code);
+        setSelectedPvz({
+          code: office.code,
+          name: office.name || office.code,
+          address: office.address,
+          city_code: office.city_code,
+          lat: office.location?.[0] ?? null,
+          lon: office.location?.[1] ?? null,
+          work_time: office.work_time || "",
+          _fromWidget: true,
+        });
+
+        if (tariff) {
+          setDeliveryPrice(Number(tariff.delivery_sum));
+          const daysText =
+            tariff.period_min && tariff.period_max
+              ? tariff.period_min === tariff.period_max
+                ? `${tariff.period_min} дн.`
+                : `${tariff.period_min}–${tariff.period_max} дн.`
+              : null;
+          setDeliveryDays(daysText);
+          setDeliveryCalcError("");
+        }
+      },
+
+      onCalculate: (prices) => {
+        // по желанию: можно подсветить/выбрать самый дешевый тариф office
+        // мы НЕ форсим — финально всё равно выставляется в onChoose
+        // prices.office: массив тарифов
+      },
     });
-  }, [pvzList, pvzFilter]);
 
-  // ================= delivery calc =================
+    widgetRef.current = widget;
+
+    return () => {
+      if (widgetRef.current) {
+        try {
+          widgetRef.current.destroy();
+        } catch {}
+        widgetRef.current = null;
+      }
+    };
+  }, [deliveryType, pvzMode, selectedCity?.city, selectedCity?.region, totalWeightGrams]);
+
+  // ================= расчет доставки (старый: бэком) =================
+  // ВАЖНО: если ПВЗ выбрали через виджет и он уже отдал тариф — не перетираем.
   useEffect(() => {
     setDeliveryCalcError("");
 
@@ -398,36 +424,27 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (deliveryType === DELIVERY_TYPES.CDEK_PVZ && selectedPvz?._fromWidget) {
+      // тариф уже пришёл из виджета
+      return;
+    }
+
     if (!cart || !cart.length || !totalWeightGrams) {
       setDeliveryPrice(null);
       setDeliveryDays(null);
       return;
     }
 
-    if (!selectedCity?.code) {
-      setDeliveryPrice(null);
-      setDeliveryDays(null);
+    let url = `${API_BASE}/api/delivery/cdek/calc?delivery_type=${deliveryType}&weight_grams=${totalWeightGrams}`;
+
+    if (deliveryType === DELIVERY_TYPES.CDEK_PVZ) {
+      if (!selectedCity?.code) return;
+      url += `&to_city_code=${selectedCity.code}`;
+    } else if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
+      // оставляем как было: город берём из address
+      // (если у тебя поле адреса другое — поменяй)
       return;
     }
-
-    // PVZ: нужен выбранный ПВЗ (для UX), но city_code уже есть => можем считать по городу
-    if (deliveryType === DELIVERY_TYPES.CDEK_PVZ && !selectedPvzCode) {
-      setDeliveryPrice(null);
-      setDeliveryDays(null);
-      return;
-    }
-
-    // DOOR: нужен адрес
-    if (deliveryType === DELIVERY_TYPES.CDEK_DOOR && !address.trim()) {
-      setDeliveryPrice(null);
-      setDeliveryDays(null);
-      return;
-    }
-
-    const url =
-      `${API_BASE}/api/delivery/cdek/calc?delivery_type=${encodeURIComponent(deliveryType)}` +
-      `&to_city_code=${encodeURIComponent(selectedCity.code)}` +
-      `&weight_grams=${encodeURIComponent(totalWeightGrams)}`;
 
     let cancelled = false;
     setDeliveryCalcLoading(true);
@@ -439,7 +456,7 @@ export default function CheckoutPage() {
         const data = await resp.json();
         if (cancelled) return;
 
-        if (data?.ok && data.price != null) {
+        if (data.ok && data.price != null) {
           setDeliveryPrice(Number(data.price));
           let daysText = null;
           if (data.period_min && data.period_max) {
@@ -455,8 +472,8 @@ export default function CheckoutPage() {
           setDeliveryCalcError("Не удалось рассчитать доставку");
         }
       } catch (e) {
-        console.error("cdek calc failed", e);
         if (cancelled) return;
+        console.error("cdek calc failed", e);
         setDeliveryPrice(null);
         setDeliveryDays(null);
         setDeliveryCalcError("Не удалось рассчитать доставку");
@@ -468,16 +485,10 @@ export default function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [
-    deliveryType,
-    selectedCity,
-    selectedPvzCode,
-    address,
-    totalWeightGrams,
-    cart,
-  ]);
+  }, [deliveryType, selectedCity?.code, selectedPvz, totalWeightGrams, cart]);
 
-  // ================= submit =================
+  // ================= отправка заказа =================
+
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
     if (!canSubmit) return;
@@ -506,7 +517,7 @@ export default function CheckoutPage() {
     try {
       setSending(true);
 
-      // save profile
+      // 1) сохранить профиль, если стоит галка
       if (saveProfile) {
         try {
           localStorage.setItem(
@@ -550,15 +561,10 @@ export default function CheckoutPage() {
       let deliveryPayload = { type: deliveryType };
 
       if (deliveryType === DELIVERY_TYPES.PICKUP) {
-        deliveryPayload = {
-          type: DELIVERY_TYPES.PICKUP,
-          title: "Самовывоз (г. Москва)",
-        };
+        deliveryPayload = { type: DELIVERY_TYPES.PICKUP, title: "Самовывоз (г. Москва)" };
       } else if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
         deliveryPayload = {
           type: DELIVERY_TYPES.CDEK_DOOR,
-          city: selectedCity || null,
-          address: address.trim(),
           calc_price: deliveryPrice,
           calc_days: deliveryDays,
         };
@@ -598,19 +604,16 @@ export default function CheckoutPage() {
       });
 
       const text = await res.text();
-      const data = text ? safeJsonParse(text) : null;
+      const data = text ? JSON.parse(text) : null;
 
       if (!res.ok) {
         throw new Error(
-          (data && (data.detail || data.message || data.error)) ||
-            `HTTP ${res.status}`
+          (data && (data.detail || data.message || data.error)) || `HTTP ${res.status}`
         );
       }
 
       clearCart();
-      showSuccess(
-        `Заказ №${data.order_id} отправлен!\nМенеджер свяжется с вами в ближайшее время.`
-      );
+      showSuccess(`Заказ №${data.order_id} отправлен!\nМенеджер свяжется с вами в ближайшее время.`);
       navigate("/");
     } catch (err) {
       console.error("Order submit error:", err);
@@ -623,6 +626,7 @@ export default function CheckoutPage() {
   };
 
   // ================= render =================
+
   if (!cart || cart.length === 0) {
     return (
       <Page>
@@ -665,11 +669,7 @@ export default function CheckoutPage() {
         </Field>
 
         <Field>
-          <Input
-            placeholder="tg @"
-            value={tgHandle}
-            onChange={(e) => setTgHandle(e.target.value)}
-          />
+          <Input placeholder="tg @" value={tgHandle} onChange={(e) => setTgHandle(e.target.value)} />
         </Field>
 
         <Field>
@@ -722,40 +722,40 @@ export default function CheckoutPage() {
           </DeliveryRadioRow>
         </Field>
 
-        {(deliveryType === DELIVERY_TYPES.CDEK_PVZ ||
-          deliveryType === DELIVERY_TYPES.CDEK_DOOR) && (
+        {deliveryType === DELIVERY_TYPES.CDEK_PVZ && (
           <Field>
-            <FieldLabel>Город:</FieldLabel>
+            <FieldLabel>Город СДЭК:</FieldLabel>
+
             <Input
-              placeholder="Начните вводить город (например: Моск...)"
-              value={cityQuery}
+              placeholder="Начните вводить город (например: Моск)"
+              value={cdekCityQuery}
               onChange={(e) => {
-                setCityQuery(e.target.value);
-                // если пользователь руками меняет — считаем, что выбор сбит
+                setCdekCityQuery(e.target.value);
                 setSelectedCity(null);
               }}
             />
-            {cityLoading && <Hint>Ищем города…</Hint>}
 
-            {!cityLoading && cityQuery.trim().length >= 2 && !selectedCity && (
+            {cdekCityLoading && <Hint>Ищем города…</Hint>}
+
+            {!cdekCityLoading && cdekCityQuery.trim().length >= 2 && !selectedCity && (
               <>
-                {cityList.length === 0 && <Hint>Города не найдены</Hint>}
-                {cityList.length > 0 && (
+                {cdekCityList.length === 0 && <Hint>Города не найдены</Hint>}
+                {cdekCityList.length > 0 && (
                   <CityList>
-                    {cityList.slice(0, 10).map((c) => {
-                      const title = [
-                        c.city,
-                        c.sub_region,
-                        c.region,
-                      ].filter(Boolean).join(", ");
+                    {cdekCityList.map((c) => {
+                      const label = `${c.city}${c.region ? ", " + c.region : ""}`;
                       return (
                         <CityItem
-                          key={String(c.code || title)}
+                          key={`${c.code}-${label}`}
                           type="button"
-                          onClick={() => selectCity(c)}
+                          onClick={() => {
+                            setSelectedCity(c);
+                            setCdekCityQuery(label);
+                            setCdekCityList([]);
+                          }}
                         >
-                          <b>{c.city}</b>
-                          <div>{[c.sub_region, c.region].filter(Boolean).join(", ")}</div>
+                          <b>{label}</b>
+                          <small>code: {c.code}</small>
                         </CityItem>
                       );
                     })}
@@ -765,98 +765,92 @@ export default function CheckoutPage() {
             )}
 
             {selectedCity?.code && (
-              <SelectedBadge>
-                Выбран: <b>{[selectedCity.city, selectedCity.region].filter(Boolean).join(", ")}</b>
-                <SmallMuted> • code: {selectedCity.code}</SmallMuted>
-              </SelectedBadge>
+              <SelectedCityLine>
+                Выбран: <b>{cdekCityQuery}</b> • code: <b>{selectedCity.code}</b>
+              </SelectedCityLine>
             )}
-          </Field>
-        )}
 
-        {deliveryType === DELIVERY_TYPES.CDEK_DOOR && (
-          <Field>
-            <FieldLabel>Адрес доставки:</FieldLabel>
-            <TextArea
-              placeholder="Улица, дом, квартира"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              required
-            />
-          </Field>
-        )}
-
-        {deliveryType === DELIVERY_TYPES.CDEK_PVZ && (
-          <Field>
-            <FieldLabel>ПВЗ СДЭК:</FieldLabel>
-
-            <SegmentRow>
-              <SegBtn
-                type="button"
-                $active={pvzView === "list"}
-                onClick={() => setPvzView("list")}
-              >
-                Список
-              </SegBtn>
-              <SegBtn
-                type="button"
-                $active={pvzView === "map"}
-                onClick={() => setPvzView("map")}
-              >
-                Карта
-              </SegBtn>
-            </SegmentRow>
-
-            <Input
-              placeholder="Поиск ПВЗ: адрес / название / метро"
-              value={pvzFilter}
-              onChange={(e) => setPvzFilter(e.target.value)}
-              disabled={!selectedCity?.code}
-            />
-
-            {!selectedCity?.code && <Hint>Сначала выберите город</Hint>}
-            {pvzLoading && selectedCity?.code && <Hint>Загружаем ПВЗ…</Hint>}
-
-            {!pvzLoading && selectedCity?.code && (
+            {!!selectedCity?.code && (
               <>
-                {filteredPvz.length === 0 ? (
-                  <Hint>ПВЗ не найдены (попробуйте другой фильтр)</Hint>
-                ) : pvzView === "list" ? (
-                  <PvzList>
-                    {filteredPvz.map((p) => (
-                      <PvzItem key={p.code}>
-                        <label>
-                          <input
-                            type="radio"
-                            name="pvz"
-                            value={p.code}
-                            checked={selectedPvzCode === p.code}
-                            onChange={() => setSelectedPvzCode(p.code)}
-                          />
-                          <span>
-                            <b>{p.name || p.code}</b>
-                            <br />
-                            {p.address}
-                            {(p.metro || p.nearest_metro_station) && (
-                              <>
-                                <br />
-                                <SmallMuted>
-                                  метро: {p.metro || p.nearest_metro_station}
-                                </SmallMuted>
-                              </>
-                            )}
-                          </span>
-                        </label>
-                      </PvzItem>
-                    ))}
-                  </PvzList>
-                ) : (
-                  <PvzMap
-                    apiKey={YMAPS_API_KEY}
-                    city={selectedCity}
-                    points={filteredPvz}
-                    selectedCode={selectedPvzCode}
-                    onSelect={(code) => setSelectedPvzCode(code)}
-                  />
+                <FieldLabel style={{ marginTop: 6 }}>ПВЗ СДЭК:</FieldLabel>
+
+                <PvzTabs>
+                  <TabBtn
+                    type="button"
+                    $active={pvzMode === "list"}
+                    onClick={() => setPvzMode("list")}
+                  >
+                    Список
+                  </TabBtn>
+                  <TabBtn
+                    type="button"
+                    $active={pvzMode === "map"}
+                    onClick={() => setPvzMode("map")}
+                  >
+                    Карта
+                  </TabBtn>
+                </PvzTabs>
+
+                {pvzMode === "list" && (
+                  <>
+                    <Input
+                      placeholder="Поиск ПВЗ: адрес / название / метро"
+                      value={pvzTerm}
+                      onChange={(e) => setPvzTerm(e.target.value)}
+                    />
+
+                    {pvzLoading && <Hint>Загружаем ПВЗ…</Hint>}
+
+                    {!pvzLoading && (
+                      <>
+                        {pvzList.length === 0 && (
+                          <Hint>ПВЗ для этого города не найдены</Hint>
+                        )}
+                        {pvzList.length > 0 && (
+                          <PvzList>
+                            {pvzList.map((p) => (
+                              <PvzItem key={p.code}>
+                                <label>
+                                  <input
+                                    type="radio"
+                                    name="pvz"
+                                    value={p.code}
+                                    checked={selectedPvzCode === p.code}
+                                    onChange={() => {
+                                      setSelectedPvzCode(p.code);
+                                      setSelectedPvz({ ...p, _fromWidget: false });
+                                    }}
+                                  />
+                                  <span>
+                                    <b>{p.name || p.code}</b>
+                                    <br />
+                                    {p.address}
+                                  </span>
+                                </label>
+                              </PvzItem>
+                            ))}
+                          </PvzList>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+
+                {pvzMode === "map" && (
+                  <>
+                    {!YM_API_KEY ? (
+                      <Hint>
+                        ⚠ Нет ключа Яндекса. Добавь <b>REACT_APP_YMAPS_API_KEY</b> в .env
+                      </Hint>
+                    ) : (
+                      <WidgetWrap>
+                        <div id={widgetRootId} />
+                      </WidgetWrap>
+                    )}
+                    <Hint>
+                      Выберите ПВЗ на карте — появится выбранный пункт и расчёт (если тариф пришёл из виджета).
+                    </Hint>
+                  </>
                 )}
               </>
             )}
@@ -894,15 +888,14 @@ export default function CheckoutPage() {
         )}
 
         {deliveryCalcError && <Hint>⚠ {deliveryCalcError}</Hint>}
+
         {error && <ErrorText>{error}</ErrorText>}
 
         <SubmitRow>
           <SubmitBtn
             type="submit"
             disabled={!canSubmit || sending}
-            {...makePointerPress((isPressed) =>
-              setPressedId(isPressed ? "submit" : null)
-            )}
+            {...makePointerPress((isPressed) => setPressedId(isPressed ? "submit" : null))}
             $pressed={pressedId === "submit"}
           >
             {sending ? "Отправляем…" : "Отправить"}
@@ -911,165 +904,6 @@ export default function CheckoutPage() {
       </FormCard>
     </Page>
   );
-}
-
-// ====== Map component (Yandex) ======
-function PvzMap({ apiKey, city, points, selectedCode, onSelect }) {
-  const boxRef = useRef(null);
-  const mapRef = useRef(null);
-  const placemarksRef = useRef([]);
-
-  // init map
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        await loadYmaps(apiKey);
-        if (cancelled) return;
-        if (!boxRef.current) return;
-
-        // cleanup old
-        try {
-          if (mapRef.current) {
-            mapRef.current.destroy();
-            mapRef.current = null;
-          }
-        } catch {
-          /* ignore */
-        }
-
-        // default center: first PVZ, else "Moscow-ish"
-        const first = points.find((p) => isFinite(p.latitude) && isFinite(p.longitude));
-        const center = first
-          ? [Number(first.latitude), Number(first.longitude)]
-          : [55.751244, 37.618423];
-
-        mapRef.current = new window.ymaps.Map(
-          boxRef.current,
-          {
-            center,
-            zoom: first ? 11 : 10,
-            controls: ["zoomControl"],
-          },
-          { suppressMapOpenBlock: true }
-        );
-
-        // add markers
-        placemarksRef.current = [];
-        for (const p of points) {
-          const lat = Number(p.latitude);
-          const lon = Number(p.longitude);
-          if (!isFinite(lat) || !isFinite(lon)) continue;
-
-          const pm = new window.ymaps.Placemark(
-            [lat, lon],
-            {
-              balloonContentHeader: `<b>${escapeHtml(p.name || p.code)}</b>`,
-              balloonContentBody:
-                `<div style="font-size:12px;">${escapeHtml(p.address || "")}</div>` +
-                (p.metro || p.nearest_metro_station
-                  ? `<div style="margin-top:6px;font-size:12px;opacity:.85;">метро: ${escapeHtml(
-                      p.metro || p.nearest_metro_station
-                    )}</div>`
-                  : ""),
-            },
-            {
-              preset:
-                p.code === selectedCode
-                  ? "islands#yellowIcon"
-                  : "islands#grayIcon",
-            }
-          );
-
-          pm.events.add("click", () => onSelect(p.code));
-          mapRef.current.geoObjects.add(pm);
-          placemarksRef.current.push({ code: p.code, pm });
-        }
-
-        // fit bounds if we have markers
-        const coords = placemarksRef.current.map((x) => x.pm.geometry.getCoordinates());
-        if (coords.length >= 2) {
-          mapRef.current.setBounds(window.ymaps.util.bounds.fromPoints(coords), {
-            checkZoomRange: true,
-            zoomMargin: 30,
-          });
-        }
-      } catch (e) {
-        console.error("ymaps init error", e);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [apiKey, city?.code]); // re-init on city change
-
-  // update markers on points/selection change
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !window.ymaps) return;
-
-    // remove old
-    try {
-      for (const { pm } of placemarksRef.current) {
-        map.geoObjects.remove(pm);
-      }
-    } catch {
-      /* ignore */
-    }
-    placemarksRef.current = [];
-
-    // add new
-    for (const p of points) {
-      const lat = Number(p.latitude);
-      const lon = Number(p.longitude);
-      if (!isFinite(lat) || !isFinite(lon)) continue;
-
-      const pm = new window.ymaps.Placemark(
-        [lat, lon],
-        {
-          balloonContentHeader: `<b>${escapeHtml(p.name || p.code)}</b>`,
-          balloonContentBody:
-            `<div style="font-size:12px;">${escapeHtml(p.address || "")}</div>` +
-            (p.metro || p.nearest_metro_station
-              ? `<div style="margin-top:6px;font-size:12px;opacity:.85;">метро: ${escapeHtml(
-                  p.metro || p.nearest_metro_station
-                )}</div>`
-              : ""),
-        },
-        {
-          preset:
-            p.code === selectedCode ? "islands#yellowIcon" : "islands#grayIcon",
-        }
-      );
-
-      pm.events.add("click", () => onSelect(p.code));
-      map.geoObjects.add(pm);
-      placemarksRef.current.push({ code: p.code, pm });
-    }
-  }, [points, selectedCode, onSelect]);
-
-  return (
-    <MapWrap>
-      {!apiKey ? (
-        <MapError>
-          Не задан <code>REACT_APP_YMAPS_API_KEY</code>
-        </MapError>
-      ) : (
-        <MapBox ref={boxRef} />
-      )}
-    </MapWrap>
-  );
-}
-
-function escapeHtml(s) {
-  return String(s || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }
 
 /* ============= styles ============= */
@@ -1108,6 +942,7 @@ const Header = styled.div`
 
 const IconImg = styled.img`
   width: 50px;
+  border: px solid rgba(0, 0, 0, 1);
   height: auto;
 `;
 
@@ -1141,10 +976,6 @@ const Input = styled.input`
   &:focus {
     outline: none;
     border-color: #f5b300;
-  }
-
-  &:disabled {
-    opacity: 0.7;
   }
 `;
 
@@ -1312,7 +1143,8 @@ const SubmitBtn = styled.button`
   }
 `;
 
-// cities dropdown
+/* ===== city dropdown ===== */
+
 const CityList = styled.div`
   margin-top: 4px;
   border-radius: 10px;
@@ -1324,83 +1156,65 @@ const CityList = styled.div`
 const CityItem = styled.button`
   width: 100%;
   text-align: left;
-  padding: 10px 10px;
-  border: none;
   background: transparent;
+  border: none;
+  padding: 10px 12px;
   color: #e6e6e6;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
   cursor: pointer;
-  border-bottom: 1px solid #222;
-
-  &:last-child {
-    border-bottom: none;
-  }
 
   b {
-    display: block;
     font-size: 13px;
   }
 
-  div {
-    font-size: 12px;
-    opacity: 0.85;
-    margin-top: 2px;
+  small {
+    opacity: 0.75;
+    white-space: nowrap;
   }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: #1c1c1c;
   }
 `;
 
-const SelectedBadge = styled.div`
+const SelectedCityLine = styled.div`
   margin-top: 4px;
   font-size: 12px;
-  color: #e6e6e6;
+  color: #d0d0d0;
 `;
 
-const SmallMuted = styled.span`
-  font-size: 12px;
-  opacity: 0.7;
-`;
+/* ===== tabs + widget ===== */
 
-// list/map segmented
-const SegmentRow = styled.div`
+const PvzTabs = styled.div`
+  margin-top: 6px;
   display: flex;
   gap: 8px;
-  margin-bottom: 6px;
 `;
 
-const SegBtn = styled.button`
+const TabBtn = styled.button`
   height: 34px;
   padding: 0 12px;
   border-radius: 10px;
   border: 2px solid ${(p) => (p.$active ? "#f5b300" : "#222")};
-  background: ${(p) => (p.$active ? "#f5b300" : "#141414")};
+  background: ${(p) => (p.$active ? "#f5b300" : "#121212")};
   color: ${(p) => (p.$active ? "#000" : "#e6e6e6")};
   font-weight: 800;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
 `;
 
-// map
-const MapWrap = styled.div`
+const WidgetWrap = styled.div`
   margin-top: 6px;
   border-radius: 12px;
-  border: 1px solid #222;
   overflow: hidden;
-  background: #0f0f0f;
-`;
+  border: 1px solid #222;
+  background: #111;
 
-const MapBox = styled.div`
-  width: 100%;
-  height: 320px;
-`;
-
-const MapError = styled.div`
-  padding: 12px;
-  color: #ffcb66;
-  font-size: 12px;
-
-  code {
-    color: #fff;
+  /* чтобы виджет нормально влезал */
+  #cdek-map {
+    width: 100%;
+    min-height: 360px;
   }
 `;
