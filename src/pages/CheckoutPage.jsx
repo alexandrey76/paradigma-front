@@ -6,12 +6,14 @@ import TopBar from "../components/TopBar";
 import { useCart } from "../context/CartContext";
 import makePointerPress from "../utils/makePointerPress";
 
+// ✅ CDEK widget (npm i @cdek-it/widget)
+import CDEKWidget from "@cdek-it/widget";
+
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
   "https://alexandrey76-paradigma-back-c956.twc1.net";
 
-const YM_API_KEY = process.env.REACT_APP_YMAPS_API_KEY || ""; // публичный ключ Yandex Maps
-
+const YM_API_KEY = process.env.REACT_APP_YMAPS_API_KEY || "";
 const LOCAL_KEY = "checkout_profile.v1";
 
 const DELIVERY_TYPES = {
@@ -19,46 +21,6 @@ const DELIVERY_TYPES = {
   CDEK_PVZ: "cdek_pvz",
   CDEK_DOOR: "cdek_door",
 };
-
-// ====== loader for CDEK widget script ======
-let __cdekScriptPromise = null;
-function loadCdekWidgetScript() {
-  if (typeof window === "undefined") return Promise.reject(new Error("No window"));
-  if (window.CDEKWidget) return Promise.resolve(true);
-  if (__cdekScriptPromise) return __cdekScriptPromise;
-
-  __cdekScriptPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[data-cdek-widget="1"]');
-    if (existing) {
-      const t = setInterval(() => {
-        if (window.CDEKWidget) {
-          clearInterval(t);
-          resolve(true);
-        }
-      }, 50);
-      setTimeout(() => {
-        clearInterval(t);
-        if (!window.CDEKWidget) reject(new Error("CDEKWidget not available"));
-      }, 10000);
-      return;
-    }
-
-    const s = document.createElement("script");
-    s.dataset.cdekWidget = "1";
-    s.type = "text/javascript";
-    s.charset = "utf-8";
-    // оф. установка 3.0: https://cdn.jsdelivr.net/npm/@cdek-it/widget@3
-    s.src = "https://cdn.jsdelivr.net/npm/@cdek-it/widget@3";
-    s.onload = () => {
-      if (window.CDEKWidget) resolve(true);
-      else reject(new Error("CDEKWidget loaded but not found on window"));
-    };
-    s.onerror = () => reject(new Error("Failed to load CDEK widget script"));
-    document.head.appendChild(s);
-  });
-
-  return __cdekScriptPromise;
-}
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -75,7 +37,7 @@ export default function CheckoutPage() {
   const [cdekCityQuery, setCdekCityQuery] = useState("");
   const [cdekCityLoading, setCdekCityLoading] = useState(false);
   const [cdekCityList, setCdekCityList] = useState([]);
-  const [selectedCity, setSelectedCity] = useState(null); // {code, city, region...}
+  const [selectedCity, setSelectedCity] = useState(null);
 
   const [pvzMode, setPvzMode] = useState("list"); // "list" | "map"
   const [pvzTerm, setPvzTerm] = useState("");
@@ -100,7 +62,23 @@ export default function CheckoutPage() {
 
   // ====== CDEK widget refs ======
   const widgetRef = useRef(null);
+
+  // IMPORTANT: root id должен совпадать с элементом в DOM
   const widgetRootId = "cdek-map";
+
+  // ====== inject CDEK widget CSS via CDN (фикс сборки / exports) ======
+  useEffect(() => {
+    const id = "cdek-widget-css";
+    if (document.getElementById(id)) return;
+
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    // можно зафиксировать версию (пример ниже) или оставить latest.
+    link.href =
+      "https://cdn.jsdelivr.net/npm/@cdek-it/widget@3.11.1/dist/cdek-widget.css";
+    document.head.appendChild(link);
+  }, []);
 
   const showSuccess = (msg) => {
     const tg = window?.Telegram?.WebApp;
@@ -155,7 +133,9 @@ export default function CheckoutPage() {
     if (!phoneOk) return false;
     if (!cart || cart.length === 0) return false;
 
-    if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) return true;
+    if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
+      return true;
+    }
 
     if (deliveryType === DELIVERY_TYPES.CDEK_PVZ) {
       if (!selectedCity?.code) return false;
@@ -187,15 +167,6 @@ export default function CheckoutPage() {
     setPhone(formatPhoneFromDigits(digits));
   }
 
-  // ===== expand TG webapp (важно, чтобы не ужимало карту) =====
-  useEffect(() => {
-    const tg = window?.Telegram?.WebApp;
-    try {
-      tg?.expand?.();
-      tg?.ready?.();
-    } catch {}
-  }, []);
-
   // ================= начальное заполнение =================
   useEffect(() => {
     const tg = window?.Telegram?.WebApp;
@@ -213,7 +184,9 @@ export default function CheckoutPage() {
     } catch {}
 
     if (user && !name) {
-      const fullName = `${user.first_name || ""}${user.last_name ? " " + user.last_name : ""}`.trim();
+      const fullName = `${user.first_name || ""}${
+        user.last_name ? " " + user.last_name : ""
+      }`.trim();
       if (fullName) setName(fullName);
     }
     if (user && !tgHandle) {
@@ -256,7 +229,9 @@ export default function CheckoutPage() {
 
     (async () => {
       try {
-        const resp = await fetch(`${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(q)}`);
+        const resp = await fetch(
+          `${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(q)}`
+        );
         if (!resp.ok) throw new Error("HTTP " + resp.status);
         const data = await resp.json();
         if (!aborted) setCdekCityList(Array.isArray(data.cities) ? data.cities : []);
@@ -275,7 +250,7 @@ export default function CheckoutPage() {
     };
   }, [cdekCityQuery, deliveryType]);
 
-  // при смене города — сброс ПВЗ/доставки
+  // при смене выбранного города — сбрасываем ПВЗ/доставку
   useEffect(() => {
     setSelectedPvzCode("");
     setSelectedPvz(null);
@@ -340,104 +315,76 @@ export default function CheckoutPage() {
       return;
     }
 
-    // чистим старый
+    // destroy previous
     if (widgetRef.current) {
       try {
-        widgetRef.current.destroy?.();
+        widgetRef.current.destroy();
       } catch {}
       widgetRef.current = null;
     }
 
-    const servicePath = `${API_BASE}/api/cdek-widget/service`;
-
-    // вес (кг)
     const weightKg = Math.max(0.1, Math.round((totalWeightGrams / 1000) * 10) / 10);
 
-    let cancelled = false;
+    const servicePath = `${API_BASE}/api/cdek-widget/service`;
 
-    (async () => {
-      try {
-        await loadCdekWidgetScript();
-        if (cancelled) return;
+    // IMPORTANT: root = "cdek-map", и DOM-элемент должен иметь id="cdek-map"
+    const widget = new CDEKWidget({
+      apiKey: YM_API_KEY,
+      root: widgetRootId,
+      servicePath,
+      lang: "rus",
+      currency: "RUB",
+      hideDeliveryOptions: { door: true, office: false },
+      popup: false,
+      defaultLocation: `${selectedCity.city}${selectedCity.region ? ", " + selectedCity.region : ""}`,
+      goods: [{ length: 10, width: 10, height: 10, weight: weightKg }],
 
-        // IMPORTANT: root должен реально существовать в DOM!
-        const rootEl = document.getElementById(widgetRootId);
-        if (!rootEl) {
-          console.warn("CDEK root element not found:", widgetRootId);
-          return;
-        }
+      onChoose: (type, tariff, target) => {
+        if (type !== "office") return;
+        const office = target;
+        const code = office?.code;
+        if (!code) return;
 
-        // иногда Telegram/WebView даёт 0px на первом тике — подождём кадр
-        await new Promise((r) => requestAnimationFrame(() => r()));
-
-        const widget = new window.CDEKWidget({
-          apiKey: YM_API_KEY,
-          root: widgetRootId,
-          servicePath,
-          lang: "rus",
-          currency: "RUB",
-
-          // только ПВЗ
-          hideDeliveryOptions: { door: true, office: false },
-
-          // встраиваем
-          popup: false,
-
-          defaultLocation: `${selectedCity.city}${selectedCity.region ? ", " + selectedCity.region : ""}`,
-
-          goods: [
-            {
-              length: 10,
-              width: 10,
-              height: 10,
-              weight: weightKg,
-            },
-          ],
-
-          onChoose: (type, tariff, target) => {
-            if (type !== "office") return;
-            const office = target;
-            const code = office?.code;
-            if (!code) return;
-
-            setSelectedPvzCode(code);
-            setSelectedPvz({
-              code: office.code,
-              name: office.name || office.code,
-              address: office.address,
-              city_code: office.city_code,
-              lat: office.location?.[0] ?? null,
-              lon: office.location?.[1] ?? null,
-              work_time: office.work_time || "",
-              _fromWidget: true,
-            });
-
-            if (tariff) {
-              setDeliveryPrice(Number(tariff.delivery_sum));
-              const daysText =
-                tariff.period_min && tariff.period_max
-                  ? tariff.period_min === tariff.period_max
-                    ? `${tariff.period_min} дн.`
-                    : `${tariff.period_min}–${tariff.period_max} дн.`
-                  : null;
-              setDeliveryDays(daysText);
-              setDeliveryCalcError("");
-            }
-          },
+        setSelectedPvzCode(code);
+        setSelectedPvz({
+          code: office.code,
+          name: office.name || office.code,
+          address: office.address,
+          city_code: office.city_code,
+          lat: office.location?.[0] ?? null,
+          lon: office.location?.[1] ?? null,
+          work_time: office.work_time || "",
+          _fromWidget: true,
         });
 
-        widgetRef.current = widget;
-      } catch (e) {
-        console.error("CDEK widget init failed:", e);
-        // покажем пользователю аккуратно
-      }
-    })();
+        if (tariff) {
+          setDeliveryPrice(Number(tariff.delivery_sum));
+          const daysText =
+            tariff.period_min && tariff.period_max
+              ? tariff.period_min === tariff.period_max
+                ? `${tariff.period_min} дн.`
+                : `${tariff.period_min}–${tariff.period_max} дн.`
+              : null;
+          setDeliveryDays(daysText);
+          setDeliveryCalcError("");
+        }
+      },
+    });
+
+    widgetRef.current = widget;
+
+    // небольшой “пинок” для Telegram WebView (иногда нужно после рендера)
+    const t = setTimeout(() => {
+      try {
+        window.dispatchEvent(new Event("resize"));
+      } catch {}
+    }, 300);
 
     return () => {
-      cancelled = true;
+      clearTimeout(t);
       if (widgetRef.current) {
         try {
-          widgetRef.current.destroy?.();
+          widgetRef.current.destroy();
         } catch {}
         widgetRef.current = null;
       }
@@ -445,7 +392,6 @@ export default function CheckoutPage() {
   }, [deliveryType, pvzMode, selectedCity?.city, selectedCity?.region, totalWeightGrams]);
 
   // ================= расчет доставки (старый: бэком) =================
-  // если ПВЗ выбрали через виджет и тариф уже пришёл — не перетираем
   useEffect(() => {
     setDeliveryCalcError("");
 
@@ -548,7 +494,12 @@ export default function CheckoutPage() {
         try {
           localStorage.setItem(
             LOCAL_KEY,
-            JSON.stringify({ name, phone, tgHandle, deliveryType })
+            JSON.stringify({
+              name,
+              phone,
+              tgHandle,
+              deliveryType,
+            })
           );
         } catch {}
 
@@ -626,7 +577,9 @@ export default function CheckoutPage() {
       const data = text ? JSON.parse(text) : null;
 
       if (!res.ok) {
-        throw new Error((data && (data.detail || data.message || data.error)) || `HTTP ${res.status}`);
+        throw new Error(
+          (data && (data.detail || data.message || data.error)) || `HTTP ${res.status}`
+        );
       }
 
       clearCart();
@@ -642,6 +595,7 @@ export default function CheckoutPage() {
     }
   };
 
+  // ================= render =================
   if (!cart || cart.length === 0) {
     return (
       <Page>
@@ -790,10 +744,18 @@ export default function CheckoutPage() {
                 <FieldLabel style={{ marginTop: 6 }}>ПВЗ СДЭК:</FieldLabel>
 
                 <PvzTabs>
-                  <TabBtn type="button" $active={pvzMode === "list"} onClick={() => setPvzMode("list")}>
+                  <TabBtn
+                    type="button"
+                    $active={pvzMode === "list"}
+                    onClick={() => setPvzMode("list")}
+                  >
                     Список
                   </TabBtn>
-                  <TabBtn type="button" $active={pvzMode === "map"} onClick={() => setPvzMode("map")}>
+                  <TabBtn
+                    type="button"
+                    $active={pvzMode === "map"}
+                    onClick={() => setPvzMode("map")}
+                  >
                     Карта
                   </TabBtn>
                 </PvzTabs>
@@ -845,11 +807,11 @@ export default function CheckoutPage() {
                   <>
                     {!YM_API_KEY ? (
                       <Hint>
-                        ⚠ Нет ключа Яндекса. Добавь <b>REACT_APP_YMAPS_API_KEY</b> в env на Timeweb
+                        ⚠ Нет ключа Яндекса. Добавь <b>REACT_APP_YMAPS_API_KEY</b> в .env
                       </Hint>
                     ) : (
                       <MapWrap>
-                        {/* ВАЖНО: id должен совпадать с root */}
+                        {/* ВАЖНО: id должен быть widgetRootId (cdek-map) */}
                         <MapInner id={widgetRootId} />
                       </MapWrap>
                     )}
@@ -865,7 +827,11 @@ export default function CheckoutPage() {
 
         <Field>
           <SaveLabel>
-            <input type="checkbox" checked={saveProfile} onChange={(e) => setSaveProfile(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={saveProfile}
+              onChange={(e) => setSaveProfile(e.target.checked)}
+            />
             <span>Сохранить данные для последующих заказов</span>
           </SaveLabel>
         </Field>
@@ -939,29 +905,25 @@ const Header = styled.div`
 
 const MapWrap = styled.div`
   width: 100%;
-  height: 360px;
+  /* по высоте — чтобы нормально работало на телефонах в Telegram */
+  height: min(62vh, 520px);
+  min-height: 340px;
+
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid #222;
   background: #0f0f0f;
-  position: relative;
 
-  @media (max-height: 740px) {
-    height: 300px;
-  }
+  /* root должен быть “чистым” */
+  padding: 0;
+  margin: 0;
+  position: relative;
 `;
 
 const MapInner = styled.div`
   width: 100%;
   height: 100%;
-  /* помогает не “съезжать” */
-  display: block;
-
-  /* страховка от странных глобальных стилей */
-  &,
-  * {
-    box-sizing: border-box;
-  }
+  position: relative;
 `;
 
 const IconImg = styled.img`
@@ -1166,8 +1128,6 @@ const SubmitBtn = styled.button`
   }
 `;
 
-/* ===== city dropdown ===== */
-
 const CityList = styled.div`
   margin-top: 4px;
   border-radius: 10px;
@@ -1207,8 +1167,6 @@ const SelectedCityLine = styled.div`
   font-size: 12px;
   color: #d0d0d0;
 `;
-
-/* ===== tabs ===== */
 
 const PvzTabs = styled.div`
   margin-top: 6px;
