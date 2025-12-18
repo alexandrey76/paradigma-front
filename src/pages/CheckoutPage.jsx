@@ -6,16 +6,15 @@ import TopBar from "../components/TopBar";
 import { useCart } from "../context/CartContext";
 import makePointerPress from "../utils/makePointerPress";
 
-// ✅ CDEK widget (npm i @cdek-it/widget)
+// ✅ CDEK widget
 import CDEKWidget from "@cdek-it/widget";
-import '@cdek-it/widget';
+import "@cdek-it/widget/dist/cdek-widget.css";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
   "https://alexandrey76-paradigma-back-c956.twc1.net";
 
-const YM_API_KEY = process.env.REACT_APP_YMAPS_API_KEY || ""; // твой Yandex Maps API key (публичный)
-
+const YM_API_KEY = process.env.REACT_APP_YMAPS_API_KEY || ""; // Yandex Maps API key (публичный)
 const LOCAL_KEY = "checkout_profile.v1";
 
 const DELIVERY_TYPES = {
@@ -67,6 +66,19 @@ export default function CheckoutPage() {
   const widgetRootId = "cdek-map";
 
   // ================= helpers =================
+
+  const kickResize = () => {
+    // максимально безопасный "пинок" под iOS/Telegram
+    try {
+      window?.Telegram?.WebApp?.expand?.();
+    } catch {}
+    try {
+      widgetRef.current?.resize?.();
+    } catch {}
+    try {
+      window.dispatchEvent(new Event("resize"));
+    } catch {}
+  };
 
   const showSuccess = (msg) => {
     const tg = window?.Telegram?.WebApp;
@@ -121,11 +133,7 @@ export default function CheckoutPage() {
     if (!phoneOk) return false;
     if (!cart || cart.length === 0) return false;
 
-    if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
-      // дверь: нужен адрес (оставим как было — textarea ниже)
-      // тут мы не правим, чтоб не ломать
-      return true;
-    }
+    if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) return true;
 
     if (deliveryType === DELIVERY_TYPES.CDEK_PVZ) {
       if (!selectedCity?.code) return false;
@@ -164,7 +172,6 @@ export default function CheckoutPage() {
     const tg = window?.Telegram?.WebApp;
     const user = tg?.initDataUnsafe?.user;
 
-    // 1) данные из localStorage
     try {
       const savedRaw = localStorage.getItem(LOCAL_KEY);
       if (savedRaw) {
@@ -174,22 +181,16 @@ export default function CheckoutPage() {
         if (saved.tgHandle) setTgHandle(saved.tgHandle);
         if (saved.deliveryType) setDeliveryType(saved.deliveryType);
       }
-    } catch {
-      /* ignore */
-    }
+    } catch {}
 
-    // 2) имя / username из Telegram
     if (user && !name) {
-      const fullName = `${user.first_name || ""}${
-        user.last_name ? " " + user.last_name : ""
-      }`.trim();
+      const fullName = `${user.first_name || ""}${user.last_name ? " " + user.last_name : ""}`.trim();
       if (fullName) setName(fullName);
     }
     if (user && !tgHandle) {
       if (user.username) setTgHandle("@" + user.username);
     }
 
-    // 3) профиль с бэка
     (async () => {
       try {
         const initData = tg?.initData || "";
@@ -206,9 +207,7 @@ export default function CheckoutPage() {
 
         if (profile.tg_first_name && !name) setName(profile.tg_first_name);
         if (profile.tg_username && !tgHandle) setTgHandle("@" + profile.tg_username);
-      } catch {
-        /* ignore */
-      }
+      } catch {}
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -229,9 +228,7 @@ export default function CheckoutPage() {
 
     (async () => {
       try {
-        const resp = await fetch(
-          `${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(q)}`
-        );
+        const resp = await fetch(`${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(q)}`);
         if (!resp.ok) throw new Error("HTTP " + resp.status);
         const data = await resp.json();
         if (!aborted) setCdekCityList(Array.isArray(data.cities) ? data.cities : []);
@@ -296,6 +293,26 @@ export default function CheckoutPage() {
     };
   }, [deliveryType, selectedCity?.code, pvzTerm, pvzMode]);
 
+  // Telegram/iOS resize support
+  useEffect(() => {
+    const tg = window?.Telegram?.WebApp;
+    if (tg?.expand) tg.expand();
+
+    const onResize = () => kickResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // когда переключили на карту — после рендера контейнера "пнуть" пересчёт размеров
+  useEffect(() => {
+    if (deliveryType !== DELIVERY_TYPES.CDEK_PVZ) return;
+    if (pvzMode !== "map") return;
+    const t = setTimeout(() => kickResize(), 180);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pvzMode, deliveryType]);
+
   useEffect(() => {
     if (!selectedPvzCode) {
       setSelectedPvz(null);
@@ -312,7 +329,6 @@ export default function CheckoutPage() {
     if (pvzMode !== "map") return;
     if (!selectedCity?.city) return;
 
-    // если ключа Яндекса нет — виджет не заведётся
     if (!YM_API_KEY) {
       console.warn("Missing REACT_APP_YMAPS_API_KEY");
       return;
@@ -330,23 +346,18 @@ export default function CheckoutPage() {
     const weightKg = Math.max(0.1, Math.round((totalWeightGrams / 1000) * 10) / 10);
 
     // ⚠️ servicePath должен вести на твой бэк-энд “service.php”-совместимый роут
-    // (мы его делаем в FastAPI). Если у тебя роут другой — поменяй здесь.
     const servicePath = `${API_BASE}/api/cdek-widget/service`;
 
     const widget = new CDEKWidget({
       apiKey: YM_API_KEY,
-      root: widgetRootId,
+      root: widgetRootId, // ✅ важно: совпадает с id контейнера
       servicePath,
       lang: "rus",
       currency: "RUB",
 
-      // показываем выбор ПВЗ
       hideDeliveryOptions: { door: true, office: false },
-
-      // удобнее как на widget.cdek.ru — встраиваем прямо в страницу
       popup: false,
 
-      // стартовая локация
       defaultLocation: `${selectedCity.city}${selectedCity.region ? ", " + selectedCity.region : ""}`,
 
       goods: [
@@ -359,11 +370,11 @@ export default function CheckoutPage() {
       ],
 
       onReady: () => {
-        // можно что-то логнуть
+        // критично для iOS: пересчитать после готовности
+        setTimeout(() => kickResize(), 220);
       },
 
       onChoose: (type, tariff, target) => {
-        // target для office — это iOffice
         if (type !== "office") return;
         const office = target;
         const code = office?.code;
@@ -393,17 +404,15 @@ export default function CheckoutPage() {
           setDeliveryCalcError("");
         }
       },
-
-      onCalculate: (prices) => {
-        // по желанию: можно подсветить/выбрать самый дешевый тариф office
-        // мы НЕ форсим — финально всё равно выставляется в onChoose
-        // prices.office: массив тарифов
-      },
     });
 
     widgetRef.current = widget;
 
+    // ещё один пинок после полной отрисовки DOM
+    const t = setTimeout(() => kickResize(), 300);
+
     return () => {
+      clearTimeout(t);
       if (widgetRef.current) {
         try {
           widgetRef.current.destroy();
@@ -411,10 +420,10 @@ export default function CheckoutPage() {
         widgetRef.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deliveryType, pvzMode, selectedCity?.city, selectedCity?.region, totalWeightGrams]);
 
   // ================= расчет доставки (старый: бэком) =================
-  // ВАЖНО: если ПВЗ выбрали через виджет и он уже отдал тариф — не перетираем.
   useEffect(() => {
     setDeliveryCalcError("");
 
@@ -425,7 +434,6 @@ export default function CheckoutPage() {
     }
 
     if (deliveryType === DELIVERY_TYPES.CDEK_PVZ && selectedPvz?._fromWidget) {
-      // тариф уже пришёл из виджета
       return;
     }
 
@@ -441,8 +449,6 @@ export default function CheckoutPage() {
       if (!selectedCity?.code) return;
       url += `&to_city_code=${selectedCity.code}`;
     } else if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
-      // оставляем как было: город берём из address
-      // (если у тебя поле адреса другое — поменяй)
       return;
     }
 
@@ -517,7 +523,6 @@ export default function CheckoutPage() {
     try {
       setSending(true);
 
-      // 1) сохранить профиль, если стоит галка
       if (saveProfile) {
         try {
           localStorage.setItem(
@@ -529,9 +534,7 @@ export default function CheckoutPage() {
               deliveryType,
             })
           );
-        } catch {
-          /* ignore */
-        }
+        } catch {}
 
         try {
           await fetch(`${API_BASE}/api/profile`, {
@@ -785,7 +788,10 @@ export default function CheckoutPage() {
                   <TabBtn
                     type="button"
                     $active={pvzMode === "map"}
-                    onClick={() => setPvzMode("map")}
+                    onClick={() => {
+                      setPvzMode("map");
+                      setTimeout(() => kickResize(), 180);
+                    }}
                   >
                     Карта
                   </TabBtn>
@@ -803,9 +809,7 @@ export default function CheckoutPage() {
 
                     {!pvzLoading && (
                       <>
-                        {pvzList.length === 0 && (
-                          <Hint>ПВЗ для этого города не найдены</Hint>
-                        )}
+                        {pvzList.length === 0 && <Hint>ПВЗ для этого города не найдены</Hint>}
                         {pvzList.length > 0 && (
                           <PvzList>
                             {pvzList.map((p) => (
@@ -843,9 +847,10 @@ export default function CheckoutPage() {
                         ⚠ Нет ключа Яндекса. Добавь <b>REACT_APP_YMAPS_API_KEY</b> в .env
                       </Hint>
                     ) : (
-                      <WidgetWrap>
-                        <div id={widgetRootId} />
-                      </WidgetWrap>
+                      <MapWrap>
+                        {/* ✅ id должен совпадать с widgetRootId */}
+                        <MapInner id="cdek-map" />
+                      </MapWrap>
                     )}
                     <Hint>
                       Выберите ПВЗ на карте — появится выбранный пункт и расчёт (если тариф пришёл из виджета).
@@ -880,15 +885,12 @@ export default function CheckoutPage() {
             {deliveryCalcLoading
               ? "рассчитываем…"
               : deliveryPrice != null
-              ? `${deliveryPrice.toLocaleString("ru-RU")} ₽${
-                  deliveryDays ? ` • ${deliveryDays}` : ""
-                }`
+              ? `${deliveryPrice.toLocaleString("ru-RU")} ₽${deliveryDays ? ` • ${deliveryDays}` : ""}`
               : "будет рассчитана позже"}
           </DeliverySummary>
         )}
 
         {deliveryCalcError && <Hint>⚠ {deliveryCalcError}</Hint>}
-
         {error && <ErrorText>{error}</ErrorText>}
 
         <SubmitRow>
@@ -912,10 +914,8 @@ const Page = styled.main`
   min-height: 100dvh;
   background: #000;
   color: #fff;
-  padding: 12px var(--side-pad, 16px)
-    calc(110px + env(safe-area-inset-bottom));
-  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial,
-    sans-serif;
+  padding: 12px var(--side-pad, 16px) calc(110px + env(safe-area-inset-bottom));
+  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 `;
 
 const Empty = styled.div`
@@ -940,9 +940,28 @@ const Header = styled.div`
   margin-bottom: 16px;
 `;
 
+const MapWrap = styled.div`
+  width: 100%;
+  height: 360px;
+  max-height: 55vh;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #222;
+  background: #0f0f0f;
+  position: relative;
+
+  @media (max-height: 740px) {
+    height: 300px;
+  }
+`;
+
+const MapInner = styled.div`
+  width: 100%;
+  height: 100%;
+`;
+
 const IconImg = styled.img`
   width: 50px;
-  border: px solid rgba(0, 0, 0, 1);
   height: auto;
 `;
 
@@ -1185,7 +1204,7 @@ const SelectedCityLine = styled.div`
   color: #d0d0d0;
 `;
 
-/* ===== tabs + widget ===== */
+/* ===== tabs ===== */
 
 const PvzTabs = styled.div`
   margin-top: 6px;
@@ -1203,18 +1222,4 @@ const TabBtn = styled.button`
   font-weight: 800;
   font-size: 13px;
   cursor: pointer;
-`;
-
-const WidgetWrap = styled.div`
-  margin-top: 6px;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid #222;
-  background: #111;
-
-  /* чтобы виджет нормально влезал */
-  #cdek-map {
-    width: 100%;
-    min-height: 360px;
-  }
 `;
