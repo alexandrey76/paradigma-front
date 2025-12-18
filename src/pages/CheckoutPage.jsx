@@ -811,7 +811,7 @@ export default function CheckoutPage() {
                       </Hint>
                     ) : (
                       <MapWrap>
-                        {/* ВАЖНО: id должен быть widgetRootId (cdek-map) */}
+                        {/* ВАЖНО: id должен совпадать с widgetRootId */}
                         <MapInner id={widgetRootId} />
                       </MapWrap>
                     )}
@@ -820,6 +820,7 @@ export default function CheckoutPage() {
                     </Hint>
                   </>
                 )}
+
               </>
             )}
           </Field>
