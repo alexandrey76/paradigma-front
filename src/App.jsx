@@ -26,7 +26,7 @@ import CheckoutPage from "./pages/CheckoutPage";
 import { ensureUserOnServer } from "./api/userApi";
 
 /* ====== версия фронта ====== */
-const BUILD_VERSION = "2025-11-24-01";
+const BUILD_VERSION = "2025-12-19-01";
 
 /* ====== AgeGate настройки ====== */
 const AGE_KEY = "age_gate_last_pass";

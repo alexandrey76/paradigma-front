@@ -377,11 +377,12 @@ export default function CartPage() {
             <Total>
               Итого: <b>{formattedTotal} ₽</b>
             </Total>
-            <SendBtn 
+            <SendBtn
               {...makePointerPress(setSubmitPressed)}
               $pressed={submitPressed} 
               onClick={() => navigate("/checkout")}
               disabled={sending}>
+                Сделать заказ
             </SendBtn>
           </BottomBar>
         </>
