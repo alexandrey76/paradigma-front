@@ -9,6 +9,9 @@ import makePointerPress from "../utils/makePointerPress";
 // ✅ CDEK widget (npm i @cdek-it/widget)
 import CDEKWidget from "@cdek-it/widget";
 
+// ✅ PRODUCTS (weight + dimensions)
+import products from "../data/products"; // <-- проверь путь!
+
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
   "https://alexandrey76-paradigma-back-c956.twc1.net";
@@ -21,6 +24,62 @@ const DELIVERY_TYPES = {
   CDEK_PVZ: "cdek_pvz",
   CDEK_DOOR: "cdek_door",
 };
+
+// ===== product meta helpers =====
+const DEFAULT_ITEM = {
+  weightGrams: 500,
+  dimensionsCm: { length: 10, width: 10, height: 10 },
+};
+
+function getProductMetaById(productId) {
+  const p = products?.find((x) => Number(x.id) === Number(productId));
+  return {
+    weightGrams: Number(p?.weightGrams ?? DEFAULT_ITEM.weightGrams),
+    dimensionsCm: {
+      length: Number(p?.dimensionsCm?.length ?? DEFAULT_ITEM.dimensionsCm.length),
+      width: Number(p?.dimensionsCm?.width ?? DEFAULT_ITEM.dimensionsCm.width),
+      height: Number(p?.dimensionsCm?.height ?? DEFAULT_ITEM.dimensionsCm.height),
+    },
+  };
+}
+
+/**
+ * Простая упаковка "в одну коробку":
+ * - вес = сумма весов
+ * - основание = max(length), max(width)
+ * - высота = сумма высот всех единиц
+ * Это даёт реалистичнее, чем 10×10×10 и корректно меняется при qty.
+ */
+function buildPackageFromCart(cartItems) {
+  let totalWeight = 0;
+
+  let maxL = 0;
+  let maxW = 0;
+  let sumH = 0;
+
+  for (const item of cartItems || []) {
+    const qty = Math.max(0, Number(item.qty || 0));
+    if (!qty) continue;
+
+    const meta = getProductMetaById(item.id);
+
+    totalWeight += meta.weightGrams * qty;
+    maxL = Math.max(maxL, meta.dimensionsCm.length);
+    maxW = Math.max(maxW, meta.dimensionsCm.width);
+    sumH += meta.dimensionsCm.height * qty;
+  }
+
+  // минималки
+  totalWeight = Math.max(1, Math.round(totalWeight));
+  maxL = Math.max(1, Math.round(maxL));
+  maxW = Math.max(1, Math.round(maxW));
+  sumH = Math.max(1, Math.round(sumH));
+
+  return {
+    weightGrams: totalWeight,
+    dimensionsCm: { length: maxL, width: maxW, height: sumH },
+  };
+}
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -62,11 +121,9 @@ export default function CheckoutPage() {
 
   // ====== CDEK widget refs ======
   const widgetRef = useRef(null);
-
-  // IMPORTANT: root id должен совпадать с элементом в DOM
   const widgetRootId = "cdek-map";
 
-  // ====== inject CDEK widget CSS via CDN (фикс сборки / exports) ======
+  // ====== inject CDEK widget CSS via CDN ======
   useEffect(() => {
     const id = "cdek-widget-css";
     if (document.getElementById(id)) return;
@@ -74,7 +131,6 @@ export default function CheckoutPage() {
     const link = document.createElement("link");
     link.id = id;
     link.rel = "stylesheet";
-    // можно зафиксировать версию (пример ниже) или оставить latest.
     link.href =
       "https://cdn.jsdelivr.net/npm/@cdek-it/widget@3.11.1/dist/cdek-widget.css";
     document.head.appendChild(link);
@@ -115,13 +171,10 @@ export default function CheckoutPage() {
     [total]
   );
 
-  // примерно считаем вес: каждая штука 500г, минимум 500г
-  const totalWeightGrams = useMemo(() => {
-    if (!cart || !cart.length) return 0;
-    let qtySum = 0;
-    for (const item of cart) qtySum += Number(item.qty || 0);
-    return Math.max(500, qtySum * 500);
-  }, [cart]);
+  // ✅ Реальный вес/габариты из products.js
+  const pack = useMemo(() => buildPackageFromCart(cart), [cart]);
+  const totalWeightGrams = pack.weightGrams;
+  const packDims = pack.dimensionsCm; // {length,width,height}
 
   const phoneOk = useMemo(() => {
     const digits = phone.replace(/\D/g, "");
@@ -133,9 +186,7 @@ export default function CheckoutPage() {
     if (!phoneOk) return false;
     if (!cart || cart.length === 0) return false;
 
-    if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
-      return true;
-    }
+    if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) return true;
 
     if (deliveryType === DELIVERY_TYPES.CDEK_PVZ) {
       if (!selectedCity?.code) return false;
@@ -261,6 +312,24 @@ export default function CheckoutPage() {
     setDeliveryCalcError("");
   }, [selectedCity?.code]);
 
+  // ✅ если корзина изменилась — тариф/выбор из виджета устаревает
+  useEffect(() => {
+    if (deliveryType !== DELIVERY_TYPES.CDEK_PVZ) return;
+    if (!selectedPvz?._fromWidget) return;
+
+    setDeliveryPrice(null);
+    setDeliveryDays(null);
+    setDeliveryCalcError("");
+    // ПВЗ можно оставить выбранным, но тариф надо получить заново
+  }, [
+    deliveryType,
+    selectedPvz?._fromWidget,
+    totalWeightGrams,
+    packDims.length,
+    packDims.width,
+    packDims.height,
+  ]);
+
   // ================= список ПВЗ (по городу + term) =================
   useEffect(() => {
     if (deliveryType !== DELIVERY_TYPES.CDEK_PVZ) return;
@@ -323,11 +392,9 @@ export default function CheckoutPage() {
       widgetRef.current = null;
     }
 
-    const weightKg = Math.max(0.1, Math.round((totalWeightGrams / 1000) * 10) / 10);
-
+    const weightKg = Math.max(0.1, Math.round((totalWeightGrams / 1000) * 100) / 100);
     const servicePath = `${API_BASE}/api/cdek-widget/service`;
 
-    // IMPORTANT: root = "cdek-map", и DOM-элемент должен иметь id="cdek-map"
     const widget = new CDEKWidget({
       apiKey: YM_API_KEY,
       root: widgetRootId,
@@ -337,7 +404,16 @@ export default function CheckoutPage() {
       hideDeliveryOptions: { door: true, office: false },
       popup: false,
       defaultLocation: `${selectedCity.city}${selectedCity.region ? ", " + selectedCity.region : ""}`,
-      goods: [{ length: 10, width: 10, height: 10, weight: weightKg }],
+
+      // ✅ реальные габариты
+      goods: [
+        {
+          length: packDims.length,
+          width: packDims.width,
+          height: packDims.height,
+          weight: weightKg,
+        },
+      ],
 
       onChoose: (type, tariff, target) => {
         if (type !== "office") return;
@@ -373,7 +449,7 @@ export default function CheckoutPage() {
 
     widgetRef.current = widget;
 
-    // небольшой “пинок” для Telegram WebView (иногда нужно после рендера)
+    // пинок для Telegram WebView
     const t = setTimeout(() => {
       try {
         window.dispatchEvent(new Event("resize"));
@@ -389,9 +465,19 @@ export default function CheckoutPage() {
         widgetRef.current = null;
       }
     };
-  }, [deliveryType, pvzMode, selectedCity?.city, selectedCity?.region, totalWeightGrams]);
+  }, [
+    deliveryType,
+    pvzMode,
+    selectedCity?.city,
+    selectedCity?.region,
+    totalWeightGrams,
+    packDims.length,
+    packDims.width,
+    packDims.height,
+  ]);
 
-  // ================= расчет доставки (старый: бэком) =================
+  // ================= расчет доставки (бэком) =================
+  // если ПВЗ выбрали через виджет и он прислал тариф — не перетираем
   useEffect(() => {
     setDeliveryCalcError("");
 
@@ -402,7 +488,8 @@ export default function CheckoutPage() {
     }
 
     if (deliveryType === DELIVERY_TYPES.CDEK_PVZ && selectedPvz?._fromWidget) {
-      return;
+      // тариф должен прийти из onChoose — если не пришёл, ниже всё равно пересчитаем бэком
+      if (deliveryPrice != null) return;
     }
 
     if (!cart || !cart.length || !totalWeightGrams) {
@@ -411,12 +498,17 @@ export default function CheckoutPage() {
       return;
     }
 
-    let url = `${API_BASE}/api/delivery/cdek/calc?delivery_type=${deliveryType}&weight_grams=${totalWeightGrams}`;
+    // ✅ передаём и вес, и габариты
+    let url =
+      `${API_BASE}/api/delivery/cdek/calc?delivery_type=${deliveryType}` +
+      `&weight_grams=${totalWeightGrams}` +
+      `&length_cm=${packDims.length}&width_cm=${packDims.width}&height_cm=${packDims.height}`;
 
     if (deliveryType === DELIVERY_TYPES.CDEK_PVZ) {
       if (!selectedCity?.code) return;
       url += `&to_city_code=${selectedCity.code}`;
     } else if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
+      // дверь: если захочешь — добавим ввод адреса/города и calc по to_location
       return;
     }
 
@@ -459,7 +551,17 @@ export default function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [deliveryType, selectedCity?.code, selectedPvz, totalWeightGrams, cart]);
+  }, [
+    deliveryType,
+    selectedCity?.code,
+    selectedPvz,
+    deliveryPrice,
+    totalWeightGrams,
+    packDims.length,
+    packDims.width,
+    packDims.height,
+    cart,
+  ]);
 
   // ================= отправка заказа =================
   const handleSubmit = async (e) => {
@@ -537,6 +639,10 @@ export default function CheckoutPage() {
           type: DELIVERY_TYPES.CDEK_DOOR,
           calc_price: deliveryPrice,
           calc_days: deliveryDays,
+          package: {
+            weight_grams: totalWeightGrams,
+            dimensions_cm: packDims,
+          },
         };
       } else if (deliveryType === DELIVERY_TYPES.CDEK_PVZ) {
         deliveryPayload = {
@@ -546,6 +652,10 @@ export default function CheckoutPage() {
           pvz: selectedPvz || null,
           calc_price: deliveryPrice,
           calc_days: deliveryDays,
+          package: {
+            weight_grams: totalWeightGrams,
+            dimensions_cm: packDims,
+          },
         };
       }
 
@@ -583,7 +693,9 @@ export default function CheckoutPage() {
       }
 
       clearCart();
-      showSuccess(`Заказ №${data.order_id} отправлен!\nМенеджер свяжется с вами в ближайшее время.`);
+      showSuccess(
+        `Заказ №${data.order_id} отправлен!\nМенеджер свяжется с вами в ближайшее время.`
+      );
       navigate("/");
     } catch (err) {
       console.error("Order submit error:", err);
@@ -638,7 +750,11 @@ export default function CheckoutPage() {
         </Field>
 
         <Field>
-          <Input placeholder="tg @" value={tgHandle} onChange={(e) => setTgHandle(e.target.value)} />
+          <Input
+            placeholder="tg @"
+            value={tgHandle}
+            onChange={(e) => setTgHandle(e.target.value)}
+          />
         </Field>
 
         <Field>
@@ -772,7 +888,9 @@ export default function CheckoutPage() {
 
                     {!pvzLoading && (
                       <>
-                        {pvzList.length === 0 && <Hint>ПВЗ для этого города не найдены</Hint>}
+                        {pvzList.length === 0 && (
+                          <Hint>ПВЗ для этого города не найдены</Hint>
+                        )}
                         {pvzList.length > 0 && (
                           <PvzList>
                             {pvzList.map((p) => (
@@ -811,16 +929,14 @@ export default function CheckoutPage() {
                       </Hint>
                     ) : (
                       <MapWrap>
-                        {/* ВАЖНО: id должен совпадать с widgetRootId */}
                         <MapInner id={widgetRootId} />
                       </MapWrap>
                     )}
                     <Hint>
-                      Выберите ПВЗ на карте — появится выбранный пункт и расчёт (если тариф пришёл из виджета).
+                      Выберите ПВЗ на карте — появится выбранный пункт и расчёт.
                     </Hint>
                   </>
                 )}
-
               </>
             )}
           </Field>
@@ -849,10 +965,17 @@ export default function CheckoutPage() {
             {deliveryCalcLoading
               ? "рассчитываем…"
               : deliveryPrice != null
-              ? `${deliveryPrice.toLocaleString("ru-RU")} ₽${deliveryDays ? ` • ${deliveryDays}` : ""}`
+              ? `${deliveryPrice.toLocaleString("ru-RU")} ₽${
+                  deliveryDays ? ` • ${deliveryDays}` : ""
+                }`
               : "будет рассчитана позже"}
           </DeliverySummary>
         )}
+
+        <DeliverySummary>Вес: {totalWeightGrams} г</DeliverySummary>
+        <DeliverySummary>
+          Габариты: {packDims.length}×{packDims.width}×{packDims.height} см
+        </DeliverySummary>
 
         {deliveryCalcError && <Hint>⚠ {deliveryCalcError}</Hint>}
         {error && <ErrorText>{error}</ErrorText>}
@@ -879,7 +1002,8 @@ const Page = styled.main`
   background: #000;
   color: #fff;
   padding: 12px var(--side-pad, 16px) calc(110px + env(safe-area-inset-bottom));
-  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial,
+    sans-serif;
 `;
 
 const Empty = styled.div`
@@ -906,16 +1030,12 @@ const Header = styled.div`
 
 const MapWrap = styled.div`
   width: 100%;
-  /* по высоте — чтобы нормально работало на телефонах в Telegram */
   height: min(62vh, 520px);
   min-height: 340px;
-
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid #222;
   background: #0f0f0f;
-
-  /* root должен быть “чистым” */
   padding: 0;
   margin: 0;
   position: relative;

@@ -17,10 +17,10 @@ const products = [
 • Инструкция
 `,
     price: 19900,
-    oldPrice: 21890, // +10%
+    oldPrice: 21890,
     inStock: true,
-    color: {name: "Черный", hex:"#000000"},
-    status: "preorder", 
+    color: { name: "Черный", hex: "#000000" },
+    status: "preorder",
     variantIds: [1, 5],
     images: [
       `${P}/paradigmaone.jpg`,
@@ -28,6 +28,10 @@ const products = [
       `${P}/paradigmaone3.jpg`,
       `${P}/paradigmaone4.jpg`,
     ],
+
+    // ✅ доставка: вес/габариты одной позиции
+    weightGrams: 4000,
+    dimensionsCm: { length: 38, width: 18, height: 14 },
   },
 
   {
@@ -46,13 +50,17 @@ const products = [
 • Инструкция
 `,
     price: 46500,
-    oldPrice: null, // +10%
+    oldPrice: null,
     inStock: true,
     images: [
       `${P}/paradigmalukah.jpg`,
       `${P}/paradigmalukah2.jpg`,
       `${P}/paradigmalukah3.jpg`,
     ],
+
+    // ✅ доставка
+    weightGrams: 6000,
+    dimensionsCm: { length: 42, width: 20, height: 16 },
   },
 
   {
@@ -71,13 +79,17 @@ const products = [
 • Инструкция
 `,
     price: 26900,
-    oldPrice: 29590, // +10%
+    oldPrice: 29590,
     inStock: true,
     images: [
       `${P}/paradigmaneo.jpg`,
       `${P}/paradigmaneo2.jpg`,
       `${P}/paradigmaneo3.jpg`,
     ],
+
+    // ✅ доставка
+    weightGrams: 4200,
+    dimensionsCm: { length: 40, width: 19, height: 15 },
   },
 
   {
@@ -100,6 +112,10 @@ const products = [
       `${P}/paradigmaportative2.jpg`,
       `${P}/paradigmaportative3.jpg`,
     ],
+
+    // ✅ доставка
+    weightGrams: 1900,
+    dimensionsCm: { length: 32, width: 16, height: 12 },
   },
 
   {
@@ -117,16 +133,19 @@ const products = [
 • Инструкция
 `,
     price: 19900,
-    oldPrice: 21890, // +10%
+    oldPrice: 21890,
     inStock: true,
-    color: {name: "Белый", hex:"#ffffffff"},
+    color: { name: "Белый", hex: "#ffffffff" },
     variantIds: [1, 5],
     images: [
       `${P}/paradigmaonewhite.jpg`,
       `${P}/paradigmaonewhite2.jpg`,
     ],
+
+    // ✅ доставка
+    weightGrams: 4000,
+    dimensionsCm: { length: 38, width: 18, height: 14 },
   },
-  
 ];
 
 export default products;
