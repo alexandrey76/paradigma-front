@@ -31,7 +31,7 @@ const products = [
 
     // ✅ доставка: вес/габариты одной позиции
     weightGrams: 4000,
-    dimensionsCm: { length: 38, width: 18, height: 14 },
+    dimensionsCm: { length: 40, width: 35, height: 28 },
   },
 
   {
@@ -60,7 +60,7 @@ const products = [
 
     // ✅ доставка
     weightGrams: 6000,
-    dimensionsCm: { length: 42, width: 20, height: 16 },
+    dimensionsCm: { length: 69, width: 39, height: 42 },
   },
 
   {
@@ -89,7 +89,7 @@ const products = [
 
     // ✅ доставка
     weightGrams: 4200,
-    dimensionsCm: { length: 40, width: 19, height: 15 },
+    dimensionsCm: { length: 40, width: 35, height: 28 },
   },
 
   {
@@ -144,7 +144,7 @@ const products = [
 
     // ✅ доставка
     weightGrams: 4000,
-    dimensionsCm: { length: 38, width: 18, height: 14 },
+    dimensionsCm: { length: 40, width: 35, height: 28 },
   },
 ];
 
