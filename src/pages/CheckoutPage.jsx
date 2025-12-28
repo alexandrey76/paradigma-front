@@ -966,7 +966,7 @@ export default function CheckoutPage() {
 
       clearCart();
       showSuccess(
-        `Заказ №${data.order_id} отправлен!\n Вы можете отслеживать статус заказ в своем личном кабинете.`
+        `Заказ №${data.order_id} отправлен!\nВы можете отслеживать статус заказа в своем личном кабинете.`
       );
       navigate("/");
     } catch (err) {
