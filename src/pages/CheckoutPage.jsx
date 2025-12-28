@@ -966,7 +966,7 @@ export default function CheckoutPage() {
 
       clearCart();
       showSuccess(
-        `Заказ №${data.order_id} отправлен!\nМенеджер свяжется с вами в ближайшее время.`
+        `Заказ №${data.order_id} отправлен!`
       );
       navigate("/");
     } catch (err) {
@@ -1424,11 +1424,6 @@ export default function CheckoutPage() {
               : "будет рассчитана позже"}
           </DeliverySummary>
         )}
-
-        <DeliverySummary>Вес: {totalWeightGrams} г</DeliverySummary>
-        <DeliverySummary>
-          Габариты: {packDims.length}×{packDims.width}×{packDims.height} см
-        </DeliverySummary>
 
         {deliveryCalcError && <Hint>⚠ {deliveryCalcError}</Hint>}
         {error && <ErrorText>{error}</ErrorText>}
