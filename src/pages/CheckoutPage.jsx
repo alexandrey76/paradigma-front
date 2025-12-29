@@ -68,7 +68,6 @@ function buildPackageFromCart(cartItems) {
     sumH += meta.dimensionsCm.height * qty;
   }
 
-  // минималки
   totalWeight = Math.max(1, Math.round(totalWeight));
   maxL = Math.max(1, Math.round(maxL));
   maxW = Math.max(1, Math.round(maxW));
@@ -78,10 +77,6 @@ function buildPackageFromCart(cartItems) {
     weightGrams: totalWeight,
     dimensionsCm: { length: maxL, width: maxW, height: sumH },
   };
-}
-
-function pickComp(components = [], kind) {
-  return components?.find?.((c) => c?.kind === kind)?.name || "";
 }
 
 export default function CheckoutPage() {
@@ -95,7 +90,7 @@ export default function CheckoutPage() {
 
   const [deliveryType, setDeliveryType] = useState(DELIVERY_TYPES.PICKUP);
 
-  // ====== CDEK PVZ: город + ПВЗ ======
+  // ====== CDEK: город + ПВЗ ======
   const [cdekCityQuery, setCdekCityQuery] = useState("");
   const [cdekCityLoading, setCdekCityLoading] = useState(false);
   const [cdekCityList, setCdekCityList] = useState([]);
@@ -109,29 +104,24 @@ export default function CheckoutPage() {
   const [selectedPvzCode, setSelectedPvzCode] = useState("");
   const [selectedPvz, setSelectedPvz] = useState(null);
 
-  // ====== CDEK DOOR: город + адрес ======
+  // ====== CDEK: дверь (город + адрес) ======
   const [doorCityQuery, setDoorCityQuery] = useState("");
   const [doorCityLoading, setDoorCityLoading] = useState(false);
   const [doorCityList, setDoorCityList] = useState([]);
-  const [selectedDoorCity, setSelectedDoorCity] = useState(null);
+  const [doorSelectedCity, setDoorSelectedCity] = useState(null);
 
   const [doorMode, setDoorMode] = useState("manual"); // "manual" | "map"
+
   const [doorAddress, setDoorAddress] = useState({
-    full: "",
-    city: "",
-    region: "",
     postal_code: "",
     street: "",
     house: "",
-    building: "", // корпус/строение
-    apartment: "", // квартира
+    building: "",
+    structure: "",
+    apartment: "",
     entrance: "",
     floor: "",
     intercom: "",
-    comment: "",
-    lat: null,
-    lon: null,
-    _fromWidget: false,
   });
 
   // калькуляция доставки
@@ -148,8 +138,8 @@ export default function CheckoutPage() {
   const PUB = process.env.PUBLIC_URL || "";
 
   // ====== CDEK widget refs ======
-  const widgetRef = useRef(null);
-  const widgetRootId = "cdek-map";
+  const pvzWidgetRef = useRef(null);
+  const pvzWidgetRootId = "cdek-pvz-map";
 
   const doorWidgetRef = useRef(null);
   const doorWidgetRootId = "cdek-door-map";
@@ -212,35 +202,42 @@ export default function CheckoutPage() {
     return digits.length === 11;
   }, [phone]);
 
+  const doorFieldsOk = useMemo(() => {
+    if (deliveryType !== DELIVERY_TYPES.CDEK_DOOR) return true;
+    if (!doorSelectedCity?.code) return false;
+
+    const streetOk = !!doorAddress.street.trim();
+    const houseOk = !!doorAddress.house.trim();
+    const aptOk = !!doorAddress.apartment.trim();
+    const entranceOk = !!doorAddress.entrance.trim();
+    const floorOk = !!doorAddress.floor.trim();
+
+    return streetOk && houseOk && aptOk && entranceOk && floorOk;
+  }, [deliveryType, doorSelectedCity?.code, doorAddress]);
+
   const canSubmit = useMemo(() => {
     if (!name.trim()) return false;
     if (!phoneOk) return false;
     if (!cart || cart.length === 0) return false;
 
     if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
-      if (!selectedDoorCity?.code) return false;
-      if (!doorAddress.street.trim()) return false;
-      if (!doorAddress.house.trim()) return false;
-      return true;
+      return doorFieldsOk;
     }
 
     if (deliveryType === DELIVERY_TYPES.CDEK_PVZ) {
       if (!selectedCity?.code) return false;
       if (!selectedPvzCode) return false;
-      return true;
     }
 
-    return true; // pickup
+    return true;
   }, [
     name,
     phoneOk,
     cart,
     deliveryType,
     selectedPvzCode,
-    selectedCity,
-    selectedDoorCity,
-    doorAddress.street,
-    doorAddress.house,
+    selectedCity?.code,
+    doorFieldsOk,
   ]);
 
   function formatPhoneFromDigits(raw) {
@@ -278,6 +275,11 @@ export default function CheckoutPage() {
         if (saved.phone) setPhone(saved.phone);
         if (saved.tgHandle) setTgHandle(saved.tgHandle);
         if (saved.deliveryType) setDeliveryType(saved.deliveryType);
+
+        // optional: сохранить введённый адрес двери
+        if (saved.doorCityQuery) setDoorCityQuery(saved.doorCityQuery);
+        if (saved.doorSelectedCity) setDoorSelectedCity(saved.doorSelectedCity);
+        if (saved.doorAddress) setDoorAddress((prev) => ({ ...prev, ...saved.doorAddress }));
       }
     } catch {}
 
@@ -312,7 +314,7 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ================= PVZ города: автодополнение =================
+  // ================= города: автодополнение (для ПВЗ) =================
   useEffect(() => {
     if (deliveryType !== DELIVERY_TYPES.CDEK_PVZ) return;
 
@@ -348,7 +350,7 @@ export default function CheckoutPage() {
     };
   }, [cdekCityQuery, deliveryType]);
 
-  // ================= DOOR города: автодополнение =================
+  // ================= города: автодополнение (для ДВЕРИ, fuzzy) =================
   useEffect(() => {
     if (deliveryType !== DELIVERY_TYPES.CDEK_DOOR) return;
 
@@ -364,7 +366,9 @@ export default function CheckoutPage() {
     (async () => {
       try {
         const resp = await fetch(
-          `${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(q)}`
+          `${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(
+            q
+          )}&fuzzy=1&threshold=0.9`
         );
         if (!resp.ok) throw new Error("HTTP " + resp.status);
         const data = await resp.json();
@@ -384,7 +388,7 @@ export default function CheckoutPage() {
     };
   }, [doorCityQuery, deliveryType]);
 
-  // при смене выбранного города (PVZ) — сбрасываем ПВЗ/доставку
+  // при смене выбранного города ПВЗ — сбрасываем ПВЗ/доставку
   useEffect(() => {
     setSelectedPvzCode("");
     setSelectedPvz(null);
@@ -395,24 +399,16 @@ export default function CheckoutPage() {
     setDeliveryCalcError("");
   }, [selectedCity?.code]);
 
-  // при смене выбранного города (DOOR) — сбрасываем адрес/доставку
+  // при смене города двери — сбрасываем расчёт
   useEffect(() => {
-    setDoorAddress((a) => ({
-      ...a,
-      full: "",
-      postal_code: "",
-      street: "",
-      house: "",
-      lat: null,
-      lon: null,
-      _fromWidget: false,
-    }));
+    if (deliveryType !== DELIVERY_TYPES.CDEK_DOOR) return;
     setDeliveryPrice(null);
     setDeliveryDays(null);
     setDeliveryCalcError("");
-  }, [selectedDoorCity?.code]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doorSelectedCity?.code]);
 
-  // ✅ если корзина изменилась — тариф/выбор из виджета устаревает (PVZ)
+  // ✅ если корзина изменилась — тариф/выбор из виджета устаревает
   useEffect(() => {
     if (deliveryType !== DELIVERY_TYPES.CDEK_PVZ) return;
     if (!selectedPvz?._fromWidget) return;
@@ -423,23 +419,6 @@ export default function CheckoutPage() {
   }, [
     deliveryType,
     selectedPvz?._fromWidget,
-    totalWeightGrams,
-    packDims.length,
-    packDims.width,
-    packDims.height,
-  ]);
-
-  // ✅ если корзина изменилась — тариф/выбор из виджета устаревает (DOOR)
-  useEffect(() => {
-    if (deliveryType !== DELIVERY_TYPES.CDEK_DOOR) return;
-    if (!doorAddress?._fromWidget) return;
-
-    setDeliveryPrice(null);
-    setDeliveryDays(null);
-    setDeliveryCalcError("");
-  }, [
-    deliveryType,
-    doorAddress?._fromWidget,
     totalWeightGrams,
     packDims.length,
     packDims.width,
@@ -489,7 +468,7 @@ export default function CheckoutPage() {
     if (found) setSelectedPvz(found);
   }, [selectedPvzCode, pvzList]);
 
-  // ================= CDEK widget init (PVZ карта) =================
+  // ================= CDEK widget init (карта ПВЗ) =================
   useEffect(() => {
     if (deliveryType !== DELIVERY_TYPES.CDEK_PVZ) return;
     if (pvzMode !== "map") return;
@@ -501,11 +480,11 @@ export default function CheckoutPage() {
     }
 
     // destroy previous
-    if (widgetRef.current) {
+    if (pvzWidgetRef.current) {
       try {
-        widgetRef.current.destroy();
+        pvzWidgetRef.current.destroy();
       } catch {}
-      widgetRef.current = null;
+      pvzWidgetRef.current = null;
     }
 
     const weightKg = Math.max(0.1, Math.round((totalWeightGrams / 1000) * 100) / 100);
@@ -513,7 +492,7 @@ export default function CheckoutPage() {
 
     const widget = new CDEKWidget({
       apiKey: YM_API_KEY,
-      root: widgetRootId,
+      root: pvzWidgetRootId,
       servicePath,
       lang: "rus",
       currency: "RUB",
@@ -562,9 +541,8 @@ export default function CheckoutPage() {
       },
     });
 
-    widgetRef.current = widget;
+    pvzWidgetRef.current = widget;
 
-    // пинок для Telegram WebView
     const t = setTimeout(() => {
       try {
         window.dispatchEvent(new Event("resize"));
@@ -573,11 +551,11 @@ export default function CheckoutPage() {
 
     return () => {
       clearTimeout(t);
-      if (widgetRef.current) {
+      if (pvzWidgetRef.current) {
         try {
-          widgetRef.current.destroy();
+          pvzWidgetRef.current.destroy();
         } catch {}
-        widgetRef.current = null;
+        pvzWidgetRef.current = null;
       }
     };
   }, [
@@ -591,38 +569,11 @@ export default function CheckoutPage() {
     packDims.height,
   ]);
 
-  // ================= helper: fill DOOR address from geocoder =================
-  function fillDoorFromGeocoder(member) {
-    const components = member?.components || [];
-    const street = pickComp(components, "street");
-    const house = pickComp(components, "house");
-    const locality = pickComp(components, "locality");
-    const province = pickComp(components, "province");
-
-    // Yandex LngLat обычно [lng, lat]
-    const pos = member?.position;
-    const lon = Array.isArray(pos) ? pos[0] : null;
-    const lat = Array.isArray(pos) ? pos[1] : null;
-
-    setDoorAddress((prev) => ({
-      ...prev,
-      full: member?.formatted || prev.full,
-      postal_code: member?.postal_code || prev.postal_code,
-      street: street || prev.street,
-      house: house || prev.house,
-      city: locality || prev.city,
-      region: province || prev.region,
-      lon,
-      lat,
-      _fromWidget: true,
-    }));
-  }
-
-  // ================= CDEK widget init (DOOR карта) =================
+  // ================= CDEK widget init (карта ДВЕРЬ) =================
   useEffect(() => {
     if (deliveryType !== DELIVERY_TYPES.CDEK_DOOR) return;
     if (doorMode !== "map") return;
-    if (!selectedDoorCity?.city) return;
+    if (!doorSelectedCity?.city) return;
 
     if (!YM_API_KEY) {
       console.warn("Missing REACT_APP_YMAPS_API_KEY");
@@ -646,14 +597,10 @@ export default function CheckoutPage() {
       servicePath,
       lang: "rus",
       currency: "RUB",
-      popup: false,
-
-      // показываем ДО ДВЕРИ, скрываем ПВЗ
+      // показываем только доставку "до двери"
       hideDeliveryOptions: { door: false, office: true },
-
-      defaultLocation: `${selectedDoorCity.city}${
-        selectedDoorCity.region ? ", " + selectedDoorCity.region : ""
-      }`,
+      popup: false,
+      defaultLocation: `${doorSelectedCity.city}${doorSelectedCity.region ? ", " + doorSelectedCity.region : ""}`,
 
       goods: [
         {
@@ -665,10 +612,23 @@ export default function CheckoutPage() {
       ],
 
       onChoose: (type, tariff, target) => {
+        // у виджета тип может отличаться между версиями, поэтому делаем мягко:
+        // цель — получить хоть какой-то адрес/строку и дальше дополнять руками.
         if (type !== "door") return;
 
-        // target = geocoder member
-        fillDoorFromGeocoder(target);
+        const t = target || {};
+        const addrStr =
+          t?.address ||
+          t?.address_full ||
+          t?.location?.address_full ||
+          t?.location?.address ||
+          "";
+
+        setDoorAddress((prev) => ({
+          ...prev,
+          street: prev.street || (typeof addrStr === "string" ? addrStr : ""),
+          postal_code: prev.postal_code || String(t?.postal_code || ""),
+        }));
 
         if (tariff) {
           setDeliveryPrice(Number(tariff.delivery_sum));
@@ -686,7 +646,6 @@ export default function CheckoutPage() {
 
     doorWidgetRef.current = widget;
 
-    // пинок для Telegram WebView
     const t = setTimeout(() => {
       try {
         window.dispatchEvent(new Event("resize"));
@@ -705,8 +664,8 @@ export default function CheckoutPage() {
   }, [
     deliveryType,
     doorMode,
-    selectedDoorCity?.city,
-    selectedDoorCity?.region,
+    doorSelectedCity?.city,
+    doorSelectedCity?.region,
     totalWeightGrams,
     packDims.length,
     packDims.width,
@@ -714,7 +673,7 @@ export default function CheckoutPage() {
   ]);
 
   // ================= расчет доставки (бэком) =================
-  // если ПВЗ/дверь выбрали через виджет и он прислал тариф — не перетираем
+  // если ПВЗ выбрали через виджет и он прислал тариф — не перетираем
   useEffect(() => {
     setDeliveryCalcError("");
 
@@ -724,13 +683,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    // PVZ: тариф пришёл из виджета
     if (deliveryType === DELIVERY_TYPES.CDEK_PVZ && selectedPvz?._fromWidget) {
-      if (deliveryPrice != null) return;
-    }
-
-    // DOOR: тариф пришёл из виджета
-    if (deliveryType === DELIVERY_TYPES.CDEK_DOOR && doorAddress?._fromWidget) {
       if (deliveryPrice != null) return;
     }
 
@@ -750,29 +703,9 @@ export default function CheckoutPage() {
       if (!selectedCity?.code) return;
       url += `&to_city_code=${selectedCity.code}`;
     } else if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
-      if (!selectedDoorCity?.code) return;
-      url += `&to_city_code=${selectedDoorCity.code}`;
-
-      // минималка для ручного расчёта "до двери" (бек должен уметь это принять)
-      const street = doorAddress.street?.trim?.() || "";
-      const house = doorAddress.house?.trim?.() || "";
-      const postal = doorAddress.postal_code?.trim?.() || "";
-
-      if (street) url += `&to_street=${encodeURIComponent(street)}`;
-      if (house) url += `&to_house=${encodeURIComponent(house)}`;
-      if (postal) url += `&to_postal_code=${encodeURIComponent(postal)}`;
-
-      if (doorAddress.lat != null && doorAddress.lon != null) {
-        url += `&to_lat=${encodeURIComponent(String(doorAddress.lat))}`;
-        url += `&to_lon=${encodeURIComponent(String(doorAddress.lon))}`;
-      }
-
-      // если улица/дом ещё пустые — можно не считать пока
-      if (!street || !house) {
-        setDeliveryPrice(null);
-        setDeliveryDays(null);
-        return;
-      }
+      if (!doorSelectedCity?.code) return;
+      url += `&to_city_code=${doorSelectedCity.code}`;
+      // если захочешь более точный расчёт — можно передавать индекс/адрес отдельным эндпоинтом
     }
 
     let cancelled = false;
@@ -817,7 +750,6 @@ export default function CheckoutPage() {
   }, [
     deliveryType,
     selectedCity?.code,
-    selectedDoorCity?.code,
     selectedPvz,
     deliveryPrice,
     totalWeightGrams,
@@ -825,12 +757,7 @@ export default function CheckoutPage() {
     packDims.width,
     packDims.height,
     cart,
-    doorAddress.street,
-    doorAddress.house,
-    doorAddress.postal_code,
-    doorAddress.lat,
-    doorAddress.lon,
-    doorAddress._fromWidget,
+    doorSelectedCity?.code,
   ]);
 
   // ================= отправка заказа =================
@@ -871,6 +798,9 @@ export default function CheckoutPage() {
               phone,
               tgHandle,
               deliveryType,
+              doorCityQuery,
+              doorSelectedCity,
+              doorAddress,
             })
           );
         } catch {}
@@ -907,8 +837,21 @@ export default function CheckoutPage() {
       } else if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
         deliveryPayload = {
           type: DELIVERY_TYPES.CDEK_DOOR,
-          city: selectedDoorCity || null,
-          address: doorAddress,
+          city: doorSelectedCity || null,
+          address: {
+            city_code: doorSelectedCity?.code ?? null,
+            city: doorSelectedCity?.city ?? "",
+            region: doorSelectedCity?.region ?? "",
+            postal_code: doorAddress.postal_code.trim(),
+            street: doorAddress.street.trim(),
+            house: doorAddress.house.trim(),
+            building: doorAddress.building.trim(),
+            structure: doorAddress.structure.trim(),
+            apartment: doorAddress.apartment.trim(),
+            entrance: doorAddress.entrance.trim(),
+            floor: doorAddress.floor.trim(),
+            intercom: doorAddress.intercom.trim(),
+          },
           calc_price: deliveryPrice,
           calc_days: deliveryDays,
           package: {
@@ -966,7 +909,7 @@ export default function CheckoutPage() {
 
       clearCart();
       showSuccess(
-        `Заказ №${data.order_id} отправлен!\nВы можете отслеживать статус заказа в своем личном кабинете.`
+        `Заказ №${data.order_id} отправлен!\nМенеджер свяжется с вами в ближайшее время.`
       );
       navigate("/");
     } catch (err) {
@@ -1079,7 +1022,7 @@ export default function CheckoutPage() {
           </DeliveryRadioRow>
         </Field>
 
-        {/* ================= CDEK PVZ ================= */}
+        {/* ====== CDEK PVZ ====== */}
         {deliveryType === DELIVERY_TYPES.CDEK_PVZ && (
           <Field>
             <FieldLabel>Город СДЭК:</FieldLabel>
@@ -1202,12 +1145,10 @@ export default function CheckoutPage() {
                       </Hint>
                     ) : (
                       <MapWrap>
-                        <MapInner id={widgetRootId} />
+                        <MapInner id={pvzWidgetRootId} />
                       </MapWrap>
                     )}
-                    <Hint>
-                      Выберите ПВЗ на карте — появится выбранный пункт и расчёт.
-                    </Hint>
+                    <Hint>Выберите ПВЗ на карте — появится выбранный пункт и расчёт.</Hint>
                   </>
                 )}
               </>
@@ -1215,23 +1156,24 @@ export default function CheckoutPage() {
           </Field>
         )}
 
-        {/* ================= CDEK DOOR ================= */}
+        {/* ====== CDEK DOOR ====== */}
         {deliveryType === DELIVERY_TYPES.CDEK_DOOR && (
           <Field>
-            <FieldLabel>Город (для доставки до двери):</FieldLabel>
+            <FieldLabel>Город доставки:</FieldLabel>
 
             <Input
-              placeholder="Начните вводить город"
+              placeholder="Начните вводить город (например: Моск / масква)"
               value={doorCityQuery}
               onChange={(e) => {
                 setDoorCityQuery(e.target.value);
-                setSelectedDoorCity(null);
+                setDoorSelectedCity(null);
               }}
+              required
             />
 
             {doorCityLoading && <Hint>Ищем города…</Hint>}
 
-            {!doorCityLoading && doorCityQuery.trim().length >= 2 && !selectedDoorCity && (
+            {!doorCityLoading && doorCityQuery.trim().length >= 2 && !doorSelectedCity && (
               <>
                 {doorCityList.length === 0 && <Hint>Города не найдены</Hint>}
                 {doorCityList.length > 0 && (
@@ -1243,14 +1185,9 @@ export default function CheckoutPage() {
                           key={`${c.code}-${label}`}
                           type="button"
                           onClick={() => {
-                            setSelectedDoorCity(c);
+                            setDoorSelectedCity(c);
                             setDoorCityQuery(label);
                             setDoorCityList([]);
-                            setDoorAddress((a) => ({
-                              ...a,
-                              city: c.city || a.city,
-                              region: c.region || a.region,
-                            }));
                           }}
                         >
                           <b>{label}</b>
@@ -1263,134 +1200,127 @@ export default function CheckoutPage() {
               </>
             )}
 
-            {selectedDoorCity?.code && (
+            {doorSelectedCity?.code && (
               <SelectedCityLine>
-                Выбран: <b>{doorCityQuery}</b> • code: <b>{selectedDoorCity.code}</b>
+                Выбран: <b>{doorCityQuery}</b> • code: <b>{doorSelectedCity.code}</b>
               </SelectedCityLine>
             )}
 
-            {!!selectedDoorCity?.code && (
+            <FieldLabel style={{ marginTop: 6 }}>Адрес (до двери):</FieldLabel>
+
+            <PvzTabs>
+              <TabBtn
+                type="button"
+                $active={doorMode === "manual"}
+                onClick={() => setDoorMode("manual")}
+              >
+                Ввод
+              </TabBtn>
+              <TabBtn
+                type="button"
+                $active={doorMode === "map"}
+                onClick={() => setDoorMode("map")}
+                disabled={!doorSelectedCity?.code}
+                title={!doorSelectedCity?.code ? "Сначала выберите город" : ""}
+              >
+                Карта
+              </TabBtn>
+            </PvzTabs>
+
+            {doorMode === "map" && (
               <>
-                <FieldLabel style={{ marginTop: 6 }}>Адрес доставки:</FieldLabel>
-
-                <PvzTabs>
-                  <TabBtn
-                    type="button"
-                    $active={doorMode === "manual"}
-                    onClick={() => setDoorMode("manual")}
-                  >
-                    Вручную
-                  </TabBtn>
-                  <TabBtn
-                    type="button"
-                    $active={doorMode === "map"}
-                    onClick={() => setDoorMode("map")}
-                  >
-                    По карте
-                  </TabBtn>
-                </PvzTabs>
-
-                {doorMode === "map" && (
-                  <>
-                    {!YM_API_KEY ? (
-                      <Hint>
-                        ⚠ Нет ключа Яндекса. Добавь <b>REACT_APP_YMAPS_API_KEY</b> в .env
-                      </Hint>
-                    ) : (
-                      <MapWrap>
-                        <MapInner id={doorWidgetRootId} />
-                      </MapWrap>
-                    )}
-                    <Hint>
-                      Выберите точный адрес на карте — потом можно дописать квартиру/подъезд.
-                    </Hint>
-                  </>
+                {!YM_API_KEY ? (
+                  <Hint>
+                    ⚠ Нет ключа Яндекса. Добавь <b>REACT_APP_YMAPS_API_KEY</b> в .env
+                  </Hint>
+                ) : (
+                  <MapWrap>
+                    <MapInner id={doorWidgetRootId} />
+                  </MapWrap>
                 )}
-
-                {/* Поля всегда доступны, чтобы дополнять после карты */}
-                <Input
-                  placeholder="Улица"
-                  value={doorAddress.street}
-                  onChange={(e) =>
-                    setDoorAddress((a) => ({
-                      ...a,
-                      street: e.target.value,
-                      _fromWidget: false,
-                    }))
-                  }
-                />
-                <Input
-                  placeholder="Дом"
-                  value={doorAddress.house}
-                  onChange={(e) =>
-                    setDoorAddress((a) => ({
-                      ...a,
-                      house: e.target.value,
-                      _fromWidget: false,
-                    }))
-                  }
-                />
-
-                <TwoCols>
-                  <Input
-                    placeholder="Корпус/стр."
-                    value={doorAddress.building}
-                    onChange={(e) =>
-                      setDoorAddress((a) => ({ ...a, building: e.target.value }))
-                    }
-                  />
-                  <Input
-                    placeholder="Квартира"
-                    value={doorAddress.apartment}
-                    onChange={(e) =>
-                      setDoorAddress((a) => ({ ...a, apartment: e.target.value }))
-                    }
-                  />
-                </TwoCols>
-
-                <TwoCols>
-                  <Input
-                    placeholder="Подъезд"
-                    value={doorAddress.entrance}
-                    onChange={(e) =>
-                      setDoorAddress((a) => ({ ...a, entrance: e.target.value }))
-                    }
-                  />
-                  <Input
-                    placeholder="Этаж"
-                    value={doorAddress.floor}
-                    onChange={(e) =>
-                      setDoorAddress((a) => ({ ...a, floor: e.target.value }))
-                    }
-                  />
-                </TwoCols>
-
-                <Input
-                  placeholder="Домофон"
-                  value={doorAddress.intercom}
-                  onChange={(e) =>
-                    setDoorAddress((a) => ({ ...a, intercom: e.target.value }))
-                  }
-                />
-
-                <Input
-                  placeholder="Индекс (если известен)"
-                  value={doorAddress.postal_code || ""}
-                  onChange={(e) =>
-                    setDoorAddress((a) => ({ ...a, postal_code: e.target.value }))
-                  }
-                />
-
-                <TextArea
-                  placeholder="Комментарий курьеру (ориентир и т.п.)"
-                  value={doorAddress.comment}
-                  onChange={(e) =>
-                    setDoorAddress((a) => ({ ...a, comment: e.target.value }))
-                  }
-                />
-
-                {!!doorAddress.full && <Hint>Выбрано по карте: {doorAddress.full}</Hint>}
+                <Hint>
+                  Выберите точку доставки на карте (виджет попробует подставить адрес). После этого
+                  обязательно допишите улицу/дом/квартиру/подъезд/этаж.
+                </Hint>
               </>
+            )}
+
+            <Grid2>
+              <Input
+                placeholder="Индекс (необязательно)"
+                value={doorAddress.postal_code}
+                onChange={(e) =>
+                  setDoorAddress((p) => ({ ...p, postal_code: e.target.value }))
+                }
+                inputMode="numeric"
+              />
+
+              <Input
+                placeholder="Домофон (необязательно)"
+                value={doorAddress.intercom}
+                onChange={(e) =>
+                  setDoorAddress((p) => ({ ...p, intercom: e.target.value }))
+                }
+              />
+            </Grid2>
+
+            <Input
+              placeholder="Улица *"
+              value={doorAddress.street}
+              onChange={(e) => setDoorAddress((p) => ({ ...p, street: e.target.value }))}
+              required
+            />
+
+            <Grid3>
+              <Input
+                placeholder="Дом *"
+                value={doorAddress.house}
+                onChange={(e) => setDoorAddress((p) => ({ ...p, house: e.target.value }))}
+                required
+              />
+              <Input
+                placeholder="Корпус"
+                value={doorAddress.building}
+                onChange={(e) =>
+                  setDoorAddress((p) => ({ ...p, building: e.target.value }))
+                }
+              />
+              <Input
+                placeholder="Строение"
+                value={doorAddress.structure}
+                onChange={(e) =>
+                  setDoorAddress((p) => ({ ...p, structure: e.target.value }))
+                }
+              />
+            </Grid3>
+
+            <Grid3>
+              <Input
+                placeholder="Квартира *"
+                value={doorAddress.apartment}
+                onChange={(e) =>
+                  setDoorAddress((p) => ({ ...p, apartment: e.target.value }))
+                }
+                required
+              />
+              <Input
+                placeholder="Подъезд *"
+                value={doorAddress.entrance}
+                onChange={(e) =>
+                  setDoorAddress((p) => ({ ...p, entrance: e.target.value }))
+                }
+                required
+              />
+              <Input
+                placeholder="Этаж *"
+                value={doorAddress.floor}
+                onChange={(e) => setDoorAddress((p) => ({ ...p, floor: e.target.value }))}
+                required
+              />
+            </Grid3>
+
+            {!doorFieldsOk && (
+              <Hint>Заполните обязательно: город, улица, дом, квартира, подъезд и этаж.</Hint>
             )}
           </Field>
         )}
@@ -1424,6 +1354,11 @@ export default function CheckoutPage() {
               : "будет рассчитана позже"}
           </DeliverySummary>
         )}
+
+        <DeliverySummary>Вес: {totalWeightGrams} г</DeliverySummary>
+        <DeliverySummary>
+          Габариты: {packDims.length}×{packDims.width}×{packDims.height} см
+        </DeliverySummary>
 
         {deliveryCalcError && <Hint>⚠ {deliveryCalcError}</Hint>}
         {error && <ErrorText>{error}</ErrorText>}
@@ -1753,10 +1688,21 @@ const TabBtn = styled.button`
   font-weight: 800;
   font-size: 13px;
   cursor: pointer;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
 `;
 
-const TwoCols = styled.div`
+const Grid2 = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: 8px;
+`;
+
+const Grid3 = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
 `;
