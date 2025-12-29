@@ -377,7 +377,7 @@ useEffect(() => {
 
 
   // ================= города: автодополнение (для ДВЕРИ, fuzzy) =================
-  ect(() => {
+  useEffect(() => {
     if (deliveryType !== DELIVERY_TYPES.CDEK_DOOR) return;
 
     const q = doorCityQuery.trim();
@@ -431,7 +431,7 @@ useEffect(() => {
     setDeliveryPrice(null);
     setDeliveryDays(null);
     setDeliveryCalcError("");
-    // eslint-disable-next-line react-useEffhooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doorSelectedCity?.code]);
 
   // ✅ если корзина изменилась — тариф/выбор из виджета устаревает
