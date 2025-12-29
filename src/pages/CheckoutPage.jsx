@@ -108,6 +108,7 @@ export default function CheckoutPage() {
   const [doorCityQuery, setDoorCityQuery] = useState("");
   const [doorCityLoading, setDoorCityLoading] = useState(false);
   const [doorCityList, setDoorCityList] = useState([]);
+  const [doorCityError, setDoorCityError] = useState("");
   const [doorSelectedCity, setDoorSelectedCity] = useState(null);
 
   const [doorMode, setDoorMode] = useState("manual"); // "manual" | "map"
@@ -315,43 +316,68 @@ export default function CheckoutPage() {
   }, []);
 
   // ================= города: автодополнение (для ПВЗ) =================
-  useEffect(() => {
-    if (deliveryType !== DELIVERY_TYPES.CDEK_PVZ) return;
+useEffect(() => {
+  if (deliveryType !== DELIVERY_TYPES.CDEK_DOOR) return;
 
-    const q = cdekCityQuery.trim();
-    if (q.length < 2) {
-      setCdekCityList([]);
-      return;
+  const q = doorCityQuery.trim();
+  if (q.length < 2) {
+    setDoorCityList([]);
+    setDoorCityError("");
+    return;
+  }
+
+  let aborted = false;
+  setDoorCityLoading(true);
+  setDoorCityError("");
+
+  const load = async (url) => {
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      const t = await resp.text().catch(() => "");
+      throw new Error(`HTTP ${resp.status} ${t}`);
     }
+    const data = await resp.json();
+    return Array.isArray(data.cities) ? data.cities : [];
+  };
 
-    let aborted = false;
-    setCdekCityLoading(true);
-
-    (async () => {
+  (async () => {
+    try {
+      // 1) пробуем fuzzy (если бэк уже поддерживает)
+      let cities = [];
       try {
-        const resp = await fetch(
+        cities = await load(
+          `${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(q)}&fuzzy=1&threshold=0.9`
+        );
+      } catch {
+        // если бэк старый — это нормально, идём на fallback
+      }
+
+      if (!cities.length) {
+        cities = await load(
           `${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(q)}`
         );
-        if (!resp.ok) throw new Error("HTTP " + resp.status);
-        const data = await resp.json();
-        if (!aborted) setCdekCityList(Array.isArray(data.cities) ? data.cities : []);
-      } catch (e) {
-        if (!aborted) {
-          console.error("cities load failed", e);
-          setCdekCityList([]);
-        }
-      } finally {
-        if (!aborted) setCdekCityLoading(false);
       }
-    })();
 
-    return () => {
-      aborted = true;
-    };
-  }, [cdekCityQuery, deliveryType]);
+      if (!aborted) setDoorCityList(cities);
+    } catch (e) {
+      if (!aborted) {
+        console.error("door cities load failed", e);
+        setDoorCityList([]);
+        setDoorCityError("Не удалось загрузить города (проверь бэк /api/delivery/cdek/cities)");
+      }
+    } finally {
+      if (!aborted) setDoorCityLoading(false);
+    }
+  })();
+
+  return () => {
+    aborted = true;
+  };
+}, [doorCityQuery, deliveryType]);
+
 
   // ================= города: автодополнение (для ДВЕРИ, fuzzy) =================
-  useEffect(() => {
+  ect(() => {
     if (deliveryType !== DELIVERY_TYPES.CDEK_DOOR) return;
 
     const q = doorCityQuery.trim();
@@ -405,7 +431,7 @@ export default function CheckoutPage() {
     setDeliveryPrice(null);
     setDeliveryDays(null);
     setDeliveryCalcError("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-useEffhooks/exhaustive-deps
   }, [doorSelectedCity?.code]);
 
   // ✅ если корзина изменилась — тариф/выбор из виджета устаревает
@@ -1172,6 +1198,7 @@ export default function CheckoutPage() {
             />
 
             {doorCityLoading && <Hint>Ищем города…</Hint>}
+            {doorCityError && <Hint>⚠ {doorCityError}</Hint>}
 
             {!doorCityLoading && doorCityQuery.trim().length >= 2 && !doorSelectedCity && (
               <>
@@ -1455,6 +1482,9 @@ const FieldLabel = styled.div`
 
 const Input = styled.input`
   height: 44px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border-radius: 10px;
   border: 2px solid #222;
   background: #2c2c2c;
@@ -1467,6 +1497,7 @@ const Input = styled.input`
     border-color: #f5b300;
   }
 `;
+
 
 const TextArea = styled.textarea`
   min-height: 100px;
@@ -1697,12 +1728,22 @@ const TabBtn = styled.button`
 
 const Grid2 = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px;
+
+  @media (max-width: 420px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const Grid3 = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px;
+
+  @media (max-width: 420px) {
+    grid-template-columns: 1fr;
+  }
 `;
+
+
