@@ -1019,7 +1019,7 @@ useEffect(() => {
                 onChange={() => setDeliveryType(DELIVERY_TYPES.PICKUP)}
               />
               <FakeRadio />
-              <span>Самовывоз (г. Москва)</span>
+              <span>Самовывоз (г. Москва, Подсосенский переулок, 23с4, м. Чкаловская)</span>
             </DeliveryLabel>
 
             <DeliveryLabel>
