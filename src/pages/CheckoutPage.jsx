@@ -86,13 +86,7 @@ export default function CheckoutPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("+7");
   const [tgHandle, setTgHandle] = useState("");
-
-  // ✅ общий комментарий к заказу (как был)
   const [comment, setComment] = useState("");
-
-  // ✅ вернул отдельные комментарии по доставке
-  const [pvzComment, setPvzComment] = useState("");
-  const [doorComment, setDoorComment] = useState("");
 
   const [deliveryType, setDeliveryType] = useState(DELIVERY_TYPES.PICKUP);
 
@@ -129,6 +123,7 @@ export default function CheckoutPage() {
     entrance: "",
     floor: "",
     intercom: "",
+    comment: "", // ✅ вернули комментарий к адресу (для "до двери")
   });
 
   // калькуляция доставки
@@ -283,20 +278,10 @@ export default function CheckoutPage() {
         if (saved.tgHandle) setTgHandle(saved.tgHandle);
         if (saved.deliveryType) setDeliveryType(saved.deliveryType);
 
-        if (saved.comment) setComment(saved.comment);
-        if (saved.pvzComment) setPvzComment(saved.pvzComment);
-        if (saved.doorComment) setDoorComment(saved.doorComment);
-
         // optional: сохранить введённый адрес двери
         if (saved.doorCityQuery) setDoorCityQuery(saved.doorCityQuery);
         if (saved.doorSelectedCity) setDoorSelectedCity(saved.doorSelectedCity);
         if (saved.doorAddress) setDoorAddress((prev) => ({ ...prev, ...saved.doorAddress }));
-
-        // optional: сохранить ПВЗ город/выбор
-        if (saved.cdekCityQuery) setCdekCityQuery(saved.cdekCityQuery);
-        if (saved.selectedCity) setSelectedCity(saved.selectedCity);
-        if (saved.selectedPvzCode) setSelectedPvzCode(saved.selectedPvzCode);
-        if (saved.selectedPvz) setSelectedPvz(saved.selectedPvz);
       }
     } catch {}
 
@@ -331,13 +316,14 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ================= города: простой поиск (для ПВЗ) =================
+  // ================= города: автодополнение (для ПВЗ) =================
   useEffect(() => {
     if (deliveryType !== DELIVERY_TYPES.CDEK_PVZ) return;
 
     const q = cdekCityQuery.trim();
     if (q.length < 2) {
       setCdekCityList([]);
+      setCdekCityLoading(false);
       return;
     }
 
@@ -346,6 +332,7 @@ export default function CheckoutPage() {
 
     (async () => {
       try {
+        // ✅ без fuzzy — как просил
         const resp = await fetch(
           `${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(q)}`
         );
@@ -367,7 +354,7 @@ export default function CheckoutPage() {
     };
   }, [cdekCityQuery, deliveryType]);
 
-  // ================= города: простой поиск (для ДВЕРИ) =================
+  // ================= города: автодополнение (для ДВЕРИ) =================
   useEffect(() => {
     if (deliveryType !== DELIVERY_TYPES.CDEK_DOOR) return;
 
@@ -375,6 +362,7 @@ export default function CheckoutPage() {
     if (q.length < 2) {
       setDoorCityList([]);
       setDoorCityError("");
+      setDoorCityLoading(false);
       return;
     }
 
@@ -384,6 +372,7 @@ export default function CheckoutPage() {
 
     (async () => {
       try {
+        // ✅ без fuzzy — как просил
         const resp = await fetch(
           `${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(q)}`
         );
@@ -816,18 +805,9 @@ export default function CheckoutPage() {
               phone,
               tgHandle,
               deliveryType,
-              comment,
-              pvzComment,
-              doorComment,
-
               doorCityQuery,
               doorSelectedCity,
               doorAddress,
-
-              cdekCityQuery,
-              selectedCity,
-              selectedPvzCode,
-              selectedPvz,
             })
           );
         } catch {}
@@ -878,9 +858,7 @@ export default function CheckoutPage() {
             entrance: doorAddress.entrance.trim(),
             floor: doorAddress.floor.trim(),
             intercom: doorAddress.intercom.trim(),
-
-            // ✅ вернул комментарий к адресу (пойдёт в address.comment)
-            comment: doorComment.trim() || "",
+            comment: doorAddress.comment.trim(), // ✅ вернули
           },
           calc_price: deliveryPrice,
           calc_days: deliveryDays,
@@ -895,10 +873,6 @@ export default function CheckoutPage() {
           city: selectedCity || null,
           pvz_code: selectedPvzCode,
           pvz: selectedPvz || null,
-
-          // ✅ вернул комментарий для ПВЗ (отдельно)
-          comment: pvzComment.trim() || "",
-
           calc_price: deliveryPrice,
           calc_days: deliveryDays,
           package: {
@@ -910,7 +884,7 @@ export default function CheckoutPage() {
 
       const payload = {
         items,
-        comment: comment.trim() || null, // ✅ общий комментарий к заказу
+        comment: comment.trim() || null,
         contact: {
           tg_user_id: uid,
           tg_username: u?.username ?? null,
@@ -1027,9 +1001,7 @@ export default function CheckoutPage() {
                 onChange={() => setDeliveryType(DELIVERY_TYPES.PICKUP)}
               />
               <FakeRadio />
-              <span>
-                Самовывоз (г. Москва, Подсосенский переулок, 23с4, м. Чкаловская)
-              </span>
+              <span>Самовывоз (г. Москва, Подсосенский переулок, 23с4, м. Чкаловская)</span>
             </DeliveryLabel>
 
             <DeliveryLabel>
@@ -1053,7 +1025,7 @@ export default function CheckoutPage() {
                 onChange={() => setDeliveryType(DELIVERY_TYPES.CDEK_DOOR)}
               />
               <FakeRadio />
-              <span>СДЭК (доставка до двери)</span>
+              <span>СДЭК (доставка на дом)</span>
             </DeliveryLabel>
           </DeliveryRadioRow>
         </Field>
@@ -1064,7 +1036,7 @@ export default function CheckoutPage() {
             <FieldLabel>Город СДЭК:</FieldLabel>
 
             <Input
-              placeholder="Начните вводить город (например: Моск)"
+              placeholder="Введите город"
               value={cdekCityQuery}
               onChange={(e) => {
                 setCdekCityQuery(e.target.value);
@@ -1131,7 +1103,7 @@ export default function CheckoutPage() {
                 {pvzMode === "list" && (
                   <>
                     <Input
-                      placeholder="Поиск ПВЗ: адрес / название / метро"
+                      placeholder="Поиск ПВЗ"
                       value={pvzTerm}
                       onChange={(e) => setPvzTerm(e.target.value)}
                     />
@@ -1187,13 +1159,6 @@ export default function CheckoutPage() {
                     <Hint>Выберите ПВЗ на карте — появится выбранный пункт и расчёт.</Hint>
                   </>
                 )}
-
-                {/* ✅ вернул поле комментария для ПВЗ */}
-                <TextArea
-                  placeholder="Комментарий к доставке (ПВЗ) — например: ориентир/как удобнее получить"
-                  value={pvzComment}
-                  onChange={(e) => setPvzComment(e.target.value)}
-                />
               </>
             )}
           </Field>
@@ -1205,7 +1170,7 @@ export default function CheckoutPage() {
             <FieldLabel>Город доставки:</FieldLabel>
 
             <Input
-              placeholder="Начните вводить город (например: Моск)"
+              placeholder="Введите город"
               value={doorCityQuery}
               onChange={(e) => {
                 setDoorCityQuery(e.target.value);
@@ -1250,7 +1215,7 @@ export default function CheckoutPage() {
               </SelectedCityLine>
             )}
 
-            <FieldLabel style={{ marginTop: 6 }}>Адрес (до двери):</FieldLabel>
+            <FieldLabel style={{ marginTop: 6 }}>Адрес:</FieldLabel>
 
             <PvzTabs>
               <TabBtn
@@ -1282,10 +1247,6 @@ export default function CheckoutPage() {
                     <MapInner id={doorWidgetRootId} />
                   </MapWrap>
                 )}
-                <Hint>
-                  Выберите точку доставки на карте (виджет попробует подставить адрес). После этого
-                  обязательно допишите улицу/дом/квартиру/подъезд/этаж.
-                </Hint>
               </>
             )}
 
@@ -1363,16 +1324,11 @@ export default function CheckoutPage() {
               />
             </Grid3>
 
-            {/* ✅ вернул поле комментария для ДО ДВЕРИ */}
             <TextArea
-              placeholder="Комментарий к адресу/курьеру — например: код домофона, как найти подъезд"
-              value={doorComment}
-              onChange={(e) => setDoorComment(e.target.value)}
+              placeholder="Комментарий курьеру"
+              value={doorAddress.comment}
+              onChange={(e) => setDoorAddress((p) => ({ ...p, comment: e.target.value }))}
             />
-
-            {!doorFieldsOk && (
-              <Hint>Заполните обязательно: город, улица, дом, квартира, подъезд и этаж.</Hint>
-            )}
           </Field>
         )}
 
@@ -1405,11 +1361,6 @@ export default function CheckoutPage() {
               : "будет рассчитана позже"}
           </DeliverySummary>
         )}
-
-        <DeliverySummary>Вес: {totalWeightGrams} г</DeliverySummary>
-        <DeliverySummary>
-          Габариты: {packDims.length}×{packDims.width}×{packDims.height} см
-        </DeliverySummary>
 
         {deliveryCalcError && <Hint>⚠ {deliveryCalcError}</Hint>}
         {error && <ErrorText>{error}</ErrorText>}
@@ -1550,28 +1501,30 @@ const DeliveryRadioRow = styled.div`
   gap: 6px;
 `;
 
-// ✅ фикс: радиокружок больше НЕ сжимается
 const FakeRadio = styled.span`
   width: 14px;
   height: 14px;
   min-width: 14px;
   min-height: 14px;
-  flex: 0 0 14px;
-  flex-shrink: 0;
+  flex: 0 0 14px;        /* ✅ не даём "кружку" растягиваться */
+  flex-shrink: 0;        /* ✅ */
+  display: inline-block; /* ✅ */
   border-radius: 50%;
   border: 1.5px solid #9e9e9e;
   box-sizing: border-box;
   background: transparent;
+  margin-top: 2px;       /* ✅ чтобы красиво при переносе строки */
 `;
 
 const DeliveryLabel = styled.label`
   display: inline-flex;
-  align-items: flex-start;
+  align-items: flex-start; /* ✅ чтобы радио не "плывало" на многострочном тексте */
   gap: 8px;
   cursor: pointer;
   user-select: none;
   font-size: 13px;
   color: #d0d0d0;
+  line-height: 1.25;
 
   input {
     display: none;
@@ -1579,7 +1532,6 @@ const DeliveryLabel = styled.label`
 
   ${FakeRadio} {
     border-color: #888;
-    margin-top: 2px;
   }
 
   input:checked + ${FakeRadio} {
@@ -1590,12 +1542,6 @@ const DeliveryLabel = styled.label`
   input:checked + ${FakeRadio} + span {
     color: #fff;
     font-weight: 500;
-  }
-
-  span {
-    flex: 1;
-    min-width: 0;
-    line-height: 1.25;
   }
 `;
 
