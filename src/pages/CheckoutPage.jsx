@@ -86,7 +86,13 @@ export default function CheckoutPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("+7");
   const [tgHandle, setTgHandle] = useState("");
+
+  // ✅ общий комментарий к заказу (как был)
   const [comment, setComment] = useState("");
+
+  // ✅ вернул отдельные комментарии по доставке
+  const [pvzComment, setPvzComment] = useState("");
+  const [doorComment, setDoorComment] = useState("");
 
   const [deliveryType, setDeliveryType] = useState(DELIVERY_TYPES.PICKUP);
 
@@ -277,10 +283,20 @@ export default function CheckoutPage() {
         if (saved.tgHandle) setTgHandle(saved.tgHandle);
         if (saved.deliveryType) setDeliveryType(saved.deliveryType);
 
+        if (saved.comment) setComment(saved.comment);
+        if (saved.pvzComment) setPvzComment(saved.pvzComment);
+        if (saved.doorComment) setDoorComment(saved.doorComment);
+
         // optional: сохранить введённый адрес двери
         if (saved.doorCityQuery) setDoorCityQuery(saved.doorCityQuery);
         if (saved.doorSelectedCity) setDoorSelectedCity(saved.doorSelectedCity);
         if (saved.doorAddress) setDoorAddress((prev) => ({ ...prev, ...saved.doorAddress }));
+
+        // optional: сохранить ПВЗ город/выбор
+        if (saved.cdekCityQuery) setCdekCityQuery(saved.cdekCityQuery);
+        if (saved.selectedCity) setSelectedCity(saved.selectedCity);
+        if (saved.selectedPvzCode) setSelectedPvzCode(saved.selectedPvzCode);
+        if (saved.selectedPvz) setSelectedPvz(saved.selectedPvz);
       }
     } catch {}
 
@@ -315,94 +331,73 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ================= города: автодополнение (для ПВЗ) =================
-useEffect(() => {
-  if (deliveryType !== DELIVERY_TYPES.CDEK_DOOR) return;
+  // ================= города: простой поиск (для ПВЗ) =================
+  useEffect(() => {
+    if (deliveryType !== DELIVERY_TYPES.CDEK_PVZ) return;
 
-  const q = doorCityQuery.trim();
-  if (q.length < 2) {
-    setDoorCityList([]);
-    setDoorCityError("");
-    return;
-  }
-
-  let aborted = false;
-  setDoorCityLoading(true);
-  setDoorCityError("");
-
-  const load = async (url) => {
-    const resp = await fetch(url);
-    if (!resp.ok) {
-      const t = await resp.text().catch(() => "");
-      throw new Error(`HTTP ${resp.status} ${t}`);
+    const q = cdekCityQuery.trim();
+    if (q.length < 2) {
+      setCdekCityList([]);
+      return;
     }
-    const data = await resp.json();
-    return Array.isArray(data.cities) ? data.cities : [];
-  };
 
-  (async () => {
-    try {
-      // 1) пробуем fuzzy (если бэк уже поддерживает)
-      let cities = [];
+    let aborted = false;
+    setCdekCityLoading(true);
+
+    (async () => {
       try {
-        cities = await load(
-          `${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(q)}&fuzzy=1&threshold=0.9`
-        );
-      } catch {
-        // если бэк старый — это нормально, идём на fallback
-      }
-
-      if (!cities.length) {
-        cities = await load(
+        const resp = await fetch(
           `${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(q)}`
         );
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const data = await resp.json();
+        if (!aborted) setCdekCityList(Array.isArray(data.cities) ? data.cities : []);
+      } catch (e) {
+        if (!aborted) {
+          console.error("pvz cities load failed", e);
+          setCdekCityList([]);
+        }
+      } finally {
+        if (!aborted) setCdekCityLoading(false);
       }
+    })();
 
-      if (!aborted) setDoorCityList(cities);
-    } catch (e) {
-      if (!aborted) {
-        console.error("door cities load failed", e);
-        setDoorCityList([]);
-        setDoorCityError("Не удалось загрузить города (проверь бэк /api/delivery/cdek/cities)");
-      }
-    } finally {
-      if (!aborted) setDoorCityLoading(false);
-    }
-  })();
+    return () => {
+      aborted = true;
+    };
+  }, [cdekCityQuery, deliveryType]);
 
-  return () => {
-    aborted = true;
-  };
-}, [doorCityQuery, deliveryType]);
-
-
-  // ================= города: автодополнение (для ДВЕРИ, fuzzy) =================
+  // ================= города: простой поиск (для ДВЕРИ) =================
   useEffect(() => {
     if (deliveryType !== DELIVERY_TYPES.CDEK_DOOR) return;
 
     const q = doorCityQuery.trim();
     if (q.length < 2) {
       setDoorCityList([]);
+      setDoorCityError("");
       return;
     }
 
     let aborted = false;
     setDoorCityLoading(true);
+    setDoorCityError("");
 
     (async () => {
       try {
         const resp = await fetch(
-          `${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(
-            q
-          )}&fuzzy=1&threshold=0.9`
+          `${API_BASE}/api/delivery/cdek/cities?query=${encodeURIComponent(q)}`
         );
-        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        if (!resp.ok) {
+          const t = await resp.text().catch(() => "");
+          throw new Error(`HTTP ${resp.status} ${t}`);
+        }
         const data = await resp.json();
         if (!aborted) setDoorCityList(Array.isArray(data.cities) ? data.cities : []);
       } catch (e) {
         if (!aborted) {
           console.error("door cities load failed", e);
           setDoorCityList([]);
+          setDoorCityError("Не удалось загрузить города (проверь бэк /api/delivery/cdek/cities)");
         }
       } finally {
         if (!aborted) setDoorCityLoading(false);
@@ -638,8 +633,6 @@ useEffect(() => {
       ],
 
       onChoose: (type, tariff, target) => {
-        // у виджета тип может отличаться между версиями, поэтому делаем мягко:
-        // цель — получить хоть какой-то адрес/строку и дальше дополнять руками.
         if (type !== "door") return;
 
         const t = target || {};
@@ -731,7 +724,6 @@ useEffect(() => {
     } else if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
       if (!doorSelectedCity?.code) return;
       url += `&to_city_code=${doorSelectedCity.code}`;
-      // если захочешь более точный расчёт — можно передавать индекс/адрес отдельным эндпоинтом
     }
 
     let cancelled = false;
@@ -824,9 +816,18 @@ useEffect(() => {
               phone,
               tgHandle,
               deliveryType,
+              comment,
+              pvzComment,
+              doorComment,
+
               doorCityQuery,
               doorSelectedCity,
               doorAddress,
+
+              cdekCityQuery,
+              selectedCity,
+              selectedPvzCode,
+              selectedPvz,
             })
           );
         } catch {}
@@ -877,6 +878,9 @@ useEffect(() => {
             entrance: doorAddress.entrance.trim(),
             floor: doorAddress.floor.trim(),
             intercom: doorAddress.intercom.trim(),
+
+            // ✅ вернул комментарий к адресу (пойдёт в address.comment)
+            comment: doorComment.trim() || "",
           },
           calc_price: deliveryPrice,
           calc_days: deliveryDays,
@@ -891,6 +895,10 @@ useEffect(() => {
           city: selectedCity || null,
           pvz_code: selectedPvzCode,
           pvz: selectedPvz || null,
+
+          // ✅ вернул комментарий для ПВЗ (отдельно)
+          comment: pvzComment.trim() || "",
+
           calc_price: deliveryPrice,
           calc_days: deliveryDays,
           package: {
@@ -902,7 +910,7 @@ useEffect(() => {
 
       const payload = {
         items,
-        comment: comment.trim() || null,
+        comment: comment.trim() || null, // ✅ общий комментарий к заказу
         contact: {
           tg_user_id: uid,
           tg_username: u?.username ?? null,
@@ -1019,7 +1027,9 @@ useEffect(() => {
                 onChange={() => setDeliveryType(DELIVERY_TYPES.PICKUP)}
               />
               <FakeRadio />
-              <span>Самовывоз (г. Москва, Подсосенский переулок, 23с4, м. Чкаловская)</span>
+              <span>
+                Самовывоз (г. Москва, Подсосенский переулок, 23с4, м. Чкаловская)
+              </span>
             </DeliveryLabel>
 
             <DeliveryLabel>
@@ -1177,6 +1187,13 @@ useEffect(() => {
                     <Hint>Выберите ПВЗ на карте — появится выбранный пункт и расчёт.</Hint>
                   </>
                 )}
+
+                {/* ✅ вернул поле комментария для ПВЗ */}
+                <TextArea
+                  placeholder="Комментарий к доставке (ПВЗ) — например: ориентир/как удобнее получить"
+                  value={pvzComment}
+                  onChange={(e) => setPvzComment(e.target.value)}
+                />
               </>
             )}
           </Field>
@@ -1188,7 +1205,7 @@ useEffect(() => {
             <FieldLabel>Город доставки:</FieldLabel>
 
             <Input
-              placeholder="Начните вводить город (например: Моск / масква)"
+              placeholder="Начните вводить город (например: Моск)"
               value={doorCityQuery}
               onChange={(e) => {
                 setDoorCityQuery(e.target.value);
@@ -1346,6 +1363,13 @@ useEffect(() => {
               />
             </Grid3>
 
+            {/* ✅ вернул поле комментария для ДО ДВЕРИ */}
+            <TextArea
+              placeholder="Комментарий к адресу/курьеру — например: код домофона, как найти подъезд"
+              value={doorComment}
+              onChange={(e) => setDoorComment(e.target.value)}
+            />
+
             {!doorFieldsOk && (
               <Hint>Заполните обязательно: город, улица, дом, квартира, подъезд и этаж.</Hint>
             )}
@@ -1498,7 +1522,6 @@ const Input = styled.input`
   }
 `;
 
-
 const TextArea = styled.textarea`
   min-height: 100px;
   border-radius: 10px;
@@ -1527,9 +1550,14 @@ const DeliveryRadioRow = styled.div`
   gap: 6px;
 `;
 
+// ✅ фикс: радиокружок больше НЕ сжимается
 const FakeRadio = styled.span`
   width: 14px;
   height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  flex: 0 0 14px;
+  flex-shrink: 0;
   border-radius: 50%;
   border: 1.5px solid #9e9e9e;
   box-sizing: border-box;
@@ -1538,7 +1566,7 @@ const FakeRadio = styled.span`
 
 const DeliveryLabel = styled.label`
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   cursor: pointer;
   user-select: none;
@@ -1551,6 +1579,7 @@ const DeliveryLabel = styled.label`
 
   ${FakeRadio} {
     border-color: #888;
+    margin-top: 2px;
   }
 
   input:checked + ${FakeRadio} {
@@ -1561,6 +1590,12 @@ const DeliveryLabel = styled.label`
   input:checked + ${FakeRadio} + span {
     color: #fff;
     font-weight: 500;
+  }
+
+  span {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.25;
   }
 `;
 
@@ -1745,5 +1780,3 @@ const Grid3 = styled.div`
     grid-template-columns: 1fr;
   }
 `;
-
-
