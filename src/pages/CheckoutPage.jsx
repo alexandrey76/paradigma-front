@@ -79,6 +79,19 @@ function buildPackageFromCart(cartItems) {
   };
 }
 
+// ===== name helpers (чтобы НЕ подставлять @username в ФИО) =====
+function looksLikeTgHandle(s) {
+  const v = String(s || "").trim();
+  if (!v) return false;
+  if (v.startsWith("@")) return true;
+  return /^[a-zA-Z0-9_]{3,64}$/.test(v);
+}
+
+function normalizeNamePart(s) {
+  const v = String(s || "").trim();
+  return looksLikeTgHandle(v) ? "" : v;
+}
+
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { cart, total, clearCart } = useCart();
@@ -127,7 +140,7 @@ export default function CheckoutPage() {
     entrance: "",
     floor: "",
     intercom: "",
-    comment: "", // ✅ комментарий к адресу (для "до двери")
+    comment: "",
   });
 
   // калькуляция доставки
@@ -290,23 +303,26 @@ export default function CheckoutPage() {
       if (savedRaw) {
         const saved = JSON.parse(savedRaw);
 
-        if (saved.lastName) setLastName(saved.lastName);
-        if (saved.firstName) setFirstName(saved.firstName);
-        if (saved.patronymic) setPatronymic(saved.patronymic);
+        // ✅ читаем новые поля ФИО, но чистим если там @username
+        if (saved.lastName) setLastName(normalizeNamePart(saved.lastName));
+        if (saved.firstName) setFirstName(normalizeNamePart(saved.firstName));
+        if (saved.patronymic) setPatronymic(normalizeNamePart(saved.patronymic));
 
-        // совместимость со старым saved.name
+        // ✅ совместимость со старым saved.name, но НЕ если это tg-ник
         if (!saved.lastName && !saved.firstName && saved.name) {
-          const parts = String(saved.name).trim().split(/\s+/);
-          setLastName(parts[0] || "");
-          setFirstName(parts[1] || "");
-          setPatronymic(parts.slice(2).join(" ") || "");
+          const raw = String(saved.name).trim();
+          if (raw && !looksLikeTgHandle(raw)) {
+            const parts = raw.split(/\s+/);
+            setLastName(normalizeNamePart(parts[0] || ""));
+            setFirstName(normalizeNamePart(parts[1] || ""));
+            setPatronymic(normalizeNamePart(parts.slice(2).join(" ") || ""));
+          }
         }
 
         if (saved.phone) setPhone(saved.phone);
         if (saved.tgHandle) setTgHandle(saved.tgHandle);
         if (saved.deliveryType) setDeliveryType(saved.deliveryType);
 
-        // optional: сохранить введённый адрес двери
         if (saved.doorCityQuery) setDoorCityQuery(saved.doorCityQuery);
         if (saved.doorSelectedCity) setDoorSelectedCity(saved.doorSelectedCity);
         if (saved.doorAddress)
@@ -314,7 +330,7 @@ export default function CheckoutPage() {
       }
     } catch {}
 
-    // ✅ автозаполняем только tg@ (а НЕ имя/фамилию из Telegram)
+    // ✅ автозаполняем только tg@ (а НЕ ФИО из Telegram)
     if (user && !tgHandle) {
       if (user.username) setTgHandle("@" + user.username);
     }
@@ -333,13 +349,24 @@ export default function CheckoutPage() {
         const digits = rawPhone.replace(/\D/g, "");
         if (digits.length === 11) setPhone(formatPhoneFromDigits(digits));
 
-        // пытаемся восстановить ФИО из name_for_orders (если есть), но только если поля пустые
+        // ✅ если бэк уже хранит отдельные поля — пробуем их
+        const pLast = normalizeNamePart(profile.last_name);
+        const pFirst = normalizeNamePart(profile.first_name);
+        const pPatr = normalizeNamePart(profile.patronymic);
+
+        if (pLast && !lastName) setLastName(pLast);
+        if (pFirst && !firstName) setFirstName(pFirst);
+        if (pPatr && !patronymic) setPatronymic(pPatr);
+
+        // ✅ fallback: name_for_orders, но НЕ если там tg-ник
         const savedName = String(profile.name_for_orders || "").trim();
         if (savedName && !lastName && !firstName && !patronymic) {
-          const parts = savedName.split(/\s+/);
-          setLastName(parts[0] || "");
-          setFirstName(parts[1] || "");
-          setPatronymic(parts.slice(2).join(" ") || "");
+          if (!looksLikeTgHandle(savedName)) {
+            const parts = savedName.split(/\s+/);
+            setLastName(normalizeNamePart(parts[0] || ""));
+            setFirstName(normalizeNamePart(parts[1] || ""));
+            setPatronymic(normalizeNamePart(parts.slice(2).join(" ") || ""));
+          }
         }
 
         // tg@ из профиля (если бэк хранит tg_username)
@@ -419,7 +446,9 @@ export default function CheckoutPage() {
         if (!aborted) {
           console.error("door cities load failed", e);
           setDoorCityList([]);
-          setDoorCityError("Не удалось загрузить города (проверь бэк /api/delivery/cdek/cities)");
+          setDoorCityError(
+            "Не удалось загрузить города (проверь бэк /api/delivery/cdek/cities)"
+          );
         }
       } finally {
         if (!aborted) setDoorCityLoading(false);
@@ -530,7 +559,10 @@ export default function CheckoutPage() {
       pvzWidgetRef.current = null;
     }
 
-    const weightKg = Math.max(0.1, Math.round((totalWeightGrams / 1000) * 100) / 100);
+    const weightKg = Math.max(
+      0.1,
+      Math.round((totalWeightGrams / 1000) * 100) / 100
+    );
     const servicePath = `${API_BASE}/api/cdek-widget/service`;
 
     const widget = new CDEKWidget({
@@ -541,7 +573,9 @@ export default function CheckoutPage() {
       currency: "RUB",
       hideDeliveryOptions: { door: true, office: false },
       popup: false,
-      defaultLocation: `${selectedCity.city}${selectedCity.region ? ", " + selectedCity.region : ""}`,
+      defaultLocation: `${selectedCity.city}${
+        selectedCity.region ? ", " + selectedCity.region : ""
+      }`,
 
       goods: [
         {
@@ -631,7 +665,10 @@ export default function CheckoutPage() {
       doorWidgetRef.current = null;
     }
 
-    const weightKg = Math.max(0.1, Math.round((totalWeightGrams / 1000) * 100) / 100);
+    const weightKg = Math.max(
+      0.1,
+      Math.round((totalWeightGrams / 1000) * 100) / 100
+    );
     const servicePath = `${API_BASE}/api/cdek-widget/service`;
 
     const widget = new CDEKWidget({
@@ -640,10 +677,11 @@ export default function CheckoutPage() {
       servicePath,
       lang: "rus",
       currency: "RUB",
-      // показываем только доставку "до двери"
       hideDeliveryOptions: { door: false, office: true },
       popup: false,
-      defaultLocation: `${doorSelectedCity.city}${doorSelectedCity.region ? ", " + doorSelectedCity.region : ""}`,
+      defaultLocation: `${doorSelectedCity.city}${
+        doorSelectedCity.region ? ", " + doorSelectedCity.region : ""
+      }`,
 
       goods: [
         {
@@ -847,6 +885,7 @@ export default function CheckoutPage() {
           );
         } catch {}
 
+        // (профиль можно хранить и одной строкой — если твой бэк так устроен)
         try {
           await fetch(`${API_BASE}/api/profile`, {
             method: "POST",
@@ -858,6 +897,10 @@ export default function CheckoutPage() {
               phone,
               name_for_orders: fullName,
               tg_for_orders: tgHandle,
+              // ✅ на всякий случай — если бэк уже поддерживает отдельные поля
+              last_name: lastName.trim(),
+              first_name: firstName.trim(),
+              patronymic: patronymic.trim() || null,
             }),
           });
         } catch (e) {
@@ -875,7 +918,10 @@ export default function CheckoutPage() {
       let deliveryPayload = { type: deliveryType };
 
       if (deliveryType === DELIVERY_TYPES.PICKUP) {
-        deliveryPayload = { type: DELIVERY_TYPES.PICKUP, title: "Самовывоз (г. Москва)" };
+        deliveryPayload = {
+          type: DELIVERY_TYPES.PICKUP,
+          title: "Самовывоз (г. Москва)",
+        };
       } else if (deliveryType === DELIVERY_TYPES.CDEK_DOOR) {
         deliveryPayload = {
           type: DELIVERY_TYPES.CDEK_DOOR,
@@ -922,11 +968,15 @@ export default function CheckoutPage() {
         comment: comment.trim() || null,
         contact: {
           tg_user_id: uid,
-          tg_username: u?.username ?? null, // ✅ оставляем username, но НЕ отправляем tg_first_name
+          tg_username: u?.username ?? null, // ✅ оставляем username
           init_data: initData,
 
-          // ФИО одной строкой
+          // ✅ ФИО (и одной строкой, и отдельно — чтобы бэку было удобно)
           name: fullName,
+          last_name: lastName.trim(),
+          first_name: firstName.trim(),
+          patronymic: patronymic.trim() || null,
+
           phone,
           tg_handle: tgHandle.trim() || null,
           delivery: deliveryPayload,
@@ -1054,7 +1104,9 @@ export default function CheckoutPage() {
                 onChange={() => setDeliveryType(DELIVERY_TYPES.PICKUP)}
               />
               <FakeRadio />
-              <span>Самовывоз (г. Москва, Подсосенский переулок, 23с4, м. Чкаловская)</span>
+              <span>
+                Самовывоз (г. Москва, Подсосенский переулок, 23с4, м. Чкаловская)
+              </span>
             </DeliveryLabel>
 
             <DeliveryLabel>
@@ -1202,7 +1254,8 @@ export default function CheckoutPage() {
                   <>
                     {!YM_API_KEY ? (
                       <Hint>
-                        ⚠ Нет ключа Яндекса. Добавь <b>REACT_APP_YMAPS_API_KEY</b> в .env
+                        ⚠ Нет ключа Яндекса. Добавь <b>REACT_APP_YMAPS_API_KEY</b> в
+                        .env
                       </Hint>
                     ) : (
                       <MapWrap>
@@ -1339,16 +1392,12 @@ export default function CheckoutPage() {
               <Input
                 placeholder="Корпус"
                 value={doorAddress.building}
-                onChange={(e) =>
-                  setDoorAddress((p) => ({ ...p, building: e.target.value }))
-                }
+                onChange={(e) => setDoorAddress((p) => ({ ...p, building: e.target.value }))}
               />
               <Input
                 placeholder="Строение"
                 value={doorAddress.structure}
-                onChange={(e) =>
-                  setDoorAddress((p) => ({ ...p, structure: e.target.value }))
-                }
+                onChange={(e) => setDoorAddress((p) => ({ ...p, structure: e.target.value }))}
               />
             </Grid3>
 
@@ -1356,17 +1405,13 @@ export default function CheckoutPage() {
               <Input
                 placeholder="Квартира *"
                 value={doorAddress.apartment}
-                onChange={(e) =>
-                  setDoorAddress((p) => ({ ...p, apartment: e.target.value }))
-                }
+                onChange={(e) => setDoorAddress((p) => ({ ...p, apartment: e.target.value }))}
                 required
               />
               <Input
                 placeholder="Подъезд *"
                 value={doorAddress.entrance}
-                onChange={(e) =>
-                  setDoorAddress((p) => ({ ...p, entrance: e.target.value }))
-                }
+                onChange={(e) => setDoorAddress((p) => ({ ...p, entrance: e.target.value }))}
                 required
               />
               <Input
@@ -1559,19 +1604,19 @@ const FakeRadio = styled.span`
   height: 14px;
   min-width: 14px;
   min-height: 14px;
-  flex: 0 0 14px;        /* ✅ не даём "кружку" растягиваться */
-  flex-shrink: 0;        /* ✅ */
-  display: inline-block; /* ✅ */
+  flex: 0 0 14px;
+  flex-shrink: 0;
+  display: inline-block;
   border-radius: 50%;
   border: 1.5px solid #9e9e9e;
   box-sizing: border-box;
   background: transparent;
-  margin-top: 2px;       /* ✅ чтобы красиво при переносе строки */
+  margin-top: 2px;
 `;
 
 const DeliveryLabel = styled.label`
   display: inline-flex;
-  align-items: flex-start; /* ✅ чтобы радио не "плывало" на многострочном тексте */
+  align-items: flex-start;
   gap: 8px;
   cursor: pointer;
   user-select: none;
