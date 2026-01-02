@@ -83,7 +83,11 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { cart, total, clearCart } = useCart();
 
-  const [name, setName] = useState("");
+  // ✅ ФИО отдельными полями
+  const [lastName, setLastName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [patronymic, setPatronymic] = useState("");
+
   const [phone, setPhone] = useState("+7");
   const [tgHandle, setTgHandle] = useState("");
   const [comment, setComment] = useState("");
@@ -123,7 +127,7 @@ export default function CheckoutPage() {
     entrance: "",
     floor: "",
     intercom: "",
-    comment: "", // ✅ вернули комментарий к адресу (для "до двери")
+    comment: "", // ✅ комментарий к адресу (для "до двери")
   });
 
   // калькуляция доставки
@@ -145,6 +149,16 @@ export default function CheckoutPage() {
 
   const doorWidgetRef = useRef(null);
   const doorWidgetRootId = "cdek-door-map";
+
+  // ✅ Собираем ФИО в одну строку
+  const fullName = useMemo(() => {
+    return [lastName, firstName, patronymic]
+      .map((s) => (s || "").trim())
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }, [lastName, firstName, patronymic]);
 
   // ====== inject CDEK widget CSS via CDN ======
   useEffect(() => {
@@ -218,7 +232,8 @@ export default function CheckoutPage() {
   }, [deliveryType, doorSelectedCity?.code, doorAddress]);
 
   const canSubmit = useMemo(() => {
-    if (!name.trim()) return false;
+    if (!lastName.trim()) return false;
+    if (!firstName.trim()) return false;
     if (!phoneOk) return false;
     if (!cart || cart.length === 0) return false;
 
@@ -233,7 +248,8 @@ export default function CheckoutPage() {
 
     return true;
   }, [
-    name,
+    lastName,
+    firstName,
     phoneOk,
     cart,
     deliveryType,
@@ -273,7 +289,19 @@ export default function CheckoutPage() {
       const savedRaw = localStorage.getItem(LOCAL_KEY);
       if (savedRaw) {
         const saved = JSON.parse(savedRaw);
-        if (saved.name) setName(saved.name);
+
+        if (saved.lastName) setLastName(saved.lastName);
+        if (saved.firstName) setFirstName(saved.firstName);
+        if (saved.patronymic) setPatronymic(saved.patronymic);
+
+        // совместимость со старым saved.name
+        if (!saved.lastName && !saved.firstName && saved.name) {
+          const parts = String(saved.name).trim().split(/\s+/);
+          setLastName(parts[0] || "");
+          setFirstName(parts[1] || "");
+          setPatronymic(parts.slice(2).join(" ") || "");
+        }
+
         if (saved.phone) setPhone(saved.phone);
         if (saved.tgHandle) setTgHandle(saved.tgHandle);
         if (saved.deliveryType) setDeliveryType(saved.deliveryType);
@@ -281,16 +309,12 @@ export default function CheckoutPage() {
         // optional: сохранить введённый адрес двери
         if (saved.doorCityQuery) setDoorCityQuery(saved.doorCityQuery);
         if (saved.doorSelectedCity) setDoorSelectedCity(saved.doorSelectedCity);
-        if (saved.doorAddress) setDoorAddress((prev) => ({ ...prev, ...saved.doorAddress }));
+        if (saved.doorAddress)
+          setDoorAddress((prev) => ({ ...prev, ...saved.doorAddress }));
       }
     } catch {}
 
-    if (user && !name) {
-      const fullName = `${user.first_name || ""}${
-        user.last_name ? " " + user.last_name : ""
-      }`.trim();
-      if (fullName) setName(fullName);
-    }
+    // ✅ автозаполняем только tg@ (а НЕ имя/фамилию из Telegram)
     if (user && !tgHandle) {
       if (user.username) setTgHandle("@" + user.username);
     }
@@ -309,7 +333,16 @@ export default function CheckoutPage() {
         const digits = rawPhone.replace(/\D/g, "");
         if (digits.length === 11) setPhone(formatPhoneFromDigits(digits));
 
-        if (profile.tg_first_name && !name) setName(profile.tg_first_name);
+        // пытаемся восстановить ФИО из name_for_orders (если есть), но только если поля пустые
+        const savedName = String(profile.name_for_orders || "").trim();
+        if (savedName && !lastName && !firstName && !patronymic) {
+          const parts = savedName.split(/\s+/);
+          setLastName(parts[0] || "");
+          setFirstName(parts[1] || "");
+          setPatronymic(parts.slice(2).join(" ") || "");
+        }
+
+        // tg@ из профиля (если бэк хранит tg_username)
         if (profile.tg_username && !tgHandle) setTgHandle("@" + profile.tg_username);
       } catch {}
     })();
@@ -801,7 +834,9 @@ export default function CheckoutPage() {
           localStorage.setItem(
             LOCAL_KEY,
             JSON.stringify({
-              name,
+              lastName,
+              firstName,
+              patronymic,
               phone,
               tgHandle,
               deliveryType,
@@ -821,7 +856,7 @@ export default function CheckoutPage() {
             },
             body: JSON.stringify({
               phone,
-              name_for_orders: name,
+              name_for_orders: fullName,
               tg_for_orders: tgHandle,
             }),
           });
@@ -858,7 +893,7 @@ export default function CheckoutPage() {
             entrance: doorAddress.entrance.trim(),
             floor: doorAddress.floor.trim(),
             intercom: doorAddress.intercom.trim(),
-            comment: doorAddress.comment.trim(), // ✅ вернули
+            comment: doorAddress.comment.trim(),
           },
           calc_price: deliveryPrice,
           calc_days: deliveryDays,
@@ -887,10 +922,11 @@ export default function CheckoutPage() {
         comment: comment.trim() || null,
         contact: {
           tg_user_id: uid,
-          tg_username: u?.username ?? null,
-          tg_first_name: u?.first_name ?? null,
+          tg_username: u?.username ?? null, // ✅ оставляем username, но НЕ отправляем tg_first_name
           init_data: initData,
-          name: name.trim(),
+
+          // ФИО одной строкой
+          name: fullName,
           phone,
           tg_handle: tgHandle.trim() || null,
           delivery: deliveryPayload,
@@ -952,10 +988,27 @@ export default function CheckoutPage() {
 
         <Field>
           <Input
-            placeholder="Введите ваше имя"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            placeholder="Фамилия *"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
             required
+          />
+        </Field>
+
+        <Field>
+          <Input
+            placeholder="Имя *"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            required
+          />
+        </Field>
+
+        <Field>
+          <Input
+            placeholder="Отчество (если есть)"
+            value={patronymic}
+            onChange={(e) => setPatronymic(e.target.value)}
           />
         </Field>
 
