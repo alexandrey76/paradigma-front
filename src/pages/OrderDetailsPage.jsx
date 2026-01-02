@@ -6,9 +6,7 @@ import TopBar from "../components/TopBar";
 import products from "../data/products";
 import makePointerPress from "../utils/makePointerPress";
 
-const API_BASE =
-  process.env.REACT_APP_API_BASE ||
-  "https://alexandrey76-paradigma-back-c956.twc1.net";
+const API_BASE = process.env.REACT_APP_API_BASE;
 
 // Человекочитаемые подписи
 const LABEL = {
@@ -48,6 +46,9 @@ export default function OrderDetailsPage() {
   const [error, setError] = useState("");
   const [cancelPressed, setCancelPressed] = useState(false);
 
+  // ✅ для UI “Скопировано”
+  const [trackCopied, setTrackCopied] = useState(false);
+
   useEffect(() => {
     fetchOrder();
     fetchTimeline();
@@ -65,9 +66,7 @@ export default function OrderDetailsPage() {
         headers: { "X-Telegram-Init-Data": initData || "" },
       });
       if (!res.ok) {
-        throw new Error(
-          res.status === 404 ? "Заказ не найден" : `HTTP ${res.status}` // <-- FIX
-        );
+        throw new Error(res.status === 404 ? "Заказ не найден" : `HTTP ${res.status}`);
       }
       const data = await res.json();
       setOrder(data.order);
@@ -84,14 +83,44 @@ export default function OrderDetailsPage() {
       const data = await res.json();
       let rows = Array.isArray(data?.timeline) ? data.timeline : [];
       rows.sort(
-        (a, b) =>
-          new Date(a.changed_at).getTime() -
-          new Date(b.changed_at).getTime()
+        (a, b) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime()
       );
       setTimeline(rows);
     } catch (e) {
       console.warn("timeline fetch error", e);
       setTimeline([]);
+    }
+  }
+
+  // ✅ copy helper
+  async function copyToClipboard(text) {
+    const s = String(text || "").trim();
+    if (!s) return;
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(s);
+      } else {
+        // fallback
+        const ta = document.createElement("textarea");
+        ta.value = s;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand("copy");
+        } finally {
+          document.body.removeChild(ta);
+        }
+      }
+
+      setTrackCopied(true);
+      setTimeout(() => setTrackCopied(false), 1200);
+    } catch {
+      // тихо
     }
   }
 
@@ -133,12 +162,24 @@ export default function OrderDetailsPage() {
     const fallbackTotal = items.reduce((s, it) => s + it.lineTotal, 0);
     const total = Number.isFinite(dbTotal) ? dbTotal : fallbackTotal;
 
+    // ✅ трек-код (поддержка разных названий полей на всякий)
+    const trackingCode = String(
+      order.tracking_code ??
+        order.trackingCode ??
+        order.tracking_number ??
+        order.tracking ??
+        ""
+    )
+      .trim()
+      .replace(/\s+/g, " ");
+
     return {
       id: order.order_uid,
       created_at: order.created_at,
       total,
       status: order.status || "pending",
       items,
+      trackingCode, // ✅ добавили
     };
   }, [order]);
 
@@ -199,13 +240,7 @@ export default function OrderDetailsPage() {
     });
 
     return out;
-  }, [
-    hasRejected,
-    stepsForRender,
-    reachedAt,
-    furthestReachedIndex,
-    transformedOrder,
-  ]);
+  }, [hasRejected, stepsForRender, reachedAt, furthestReachedIndex, transformedOrder]);
 
   // ===== отмена заказа пользователем =====
   const allowCancel = useMemo(() => {
@@ -240,10 +275,7 @@ export default function OrderDetailsPage() {
   };
 
   async function cancelOrder() {
-    const ok = await tgPopup(
-      "Отменить заказ",
-      "Вы уверены, что хотите отменить заказ?"
-    );
+    const ok = await tgPopup("Отменить заказ", "Вы уверены, что хотите отменить заказ?");
     if (!ok) return;
     try {
       const tg = window?.Telegram?.WebApp;
@@ -289,6 +321,8 @@ export default function OrderDetailsPage() {
     );
   }
 
+  const hasTracking = Boolean(transformedOrder.trackingCode);
+
   return (
     <Page>
       <TopBar title="Заказ" />
@@ -301,10 +335,30 @@ export default function OrderDetailsPage() {
         <Divider />
         <Row>
           <LeftMuted>Дата создания:</LeftMuted>
-          <RightStrong>
-            {formatDateLocal(transformedOrder.created_at)}
-          </RightStrong>
+          <RightStrong>{formatDateLocal(transformedOrder.created_at)}</RightStrong>
         </Row>
+
+        {/* ✅ Трек-код сразу после даты создания, только если есть */}
+        {hasTracking && (
+          <>
+            <Divider />
+            <Row>
+              <LeftMuted>Трек-код:</LeftMuted>
+              <RightStrong>
+                <CopyWrap>
+                  <CopyCode
+                    type="button"
+                    onClick={() => copyToClipboard(transformedOrder.trackingCode)}
+                    title="Нажмите, чтобы скопировать"
+                  >
+                    {transformedOrder.trackingCode}
+                  </CopyCode>
+                  {trackCopied && <Copied>Скопировано</Copied>}
+                </CopyWrap>
+              </RightStrong>
+            </Row>
+          </>
+        )}
       </Section>
 
       <SectionHeader>Статус заказа:</SectionHeader>
@@ -321,9 +375,7 @@ export default function OrderDetailsPage() {
               <div className="text">
                 <div className="label">{label}</div>
                 {showTime && (
-                  <div className="time">
-                    {formatDateTimeLocal(displayTimeByStep[key])}
-                  </div>
+                  <div className="time">{formatDateTimeLocal(displayTimeByStep[key])}</div>
                 )}
               </div>
             </li>
@@ -355,9 +407,7 @@ export default function OrderDetailsPage() {
               </ThreeCols>
             </Info>
 
-            {idx !== transformedOrder.items.length - 1 && (
-              <AccentSeparator />
-            )}
+            {idx !== transformedOrder.items.length - 1 && <AccentSeparator />}
           </Item>
         ))}
       </Items>
@@ -448,6 +498,36 @@ const RightStrong = styled.span`
   font-size: 14px;
 `;
 
+/* ✅ трек-код (копирование) */
+const CopyWrap = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const CopyCode = styled.button`
+  appearance: none;
+  border: 1px solid #2a2a2a;
+  background: #121212;
+  color: #f5b300;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+
+  &:active {
+    transform: translateY(1px);
+  }
+`;
+
+const Copied = styled.span`
+  font-size: 12px;
+  color: #ffcb66;
+  font-weight: 700;
+`;
+
 const TimelineUI = styled.ul`
   list-style: none;
   margin: 0 0 8px 0;
@@ -477,11 +557,7 @@ const TimelineUI = styled.ul`
   }
 
   li:last-child::before {
-    background: linear-gradient(
-      to bottom,
-      #2a2a2a 0 50%,
-      transparent 50% 100%
-    );
+    background: linear-gradient(to bottom, #2a2a2a 0 50%, transparent 50% 100%);
   }
 
   /* активные точки и линия */
@@ -493,11 +569,7 @@ const TimelineUI = styled.ul`
     background: #f5b300;
   }
   li.reached:last-child::before {
-    background: linear-gradient(
-      to bottom,
-      #f5b300 0 50%,
-      transparent 50% 100%
-    );
+    background: linear-gradient(to bottom, #f5b300 0 50%, transparent 50% 100%);
   }
 
   /* красная точка для отмены */
@@ -509,11 +581,7 @@ const TimelineUI = styled.ul`
     background: #ff5252;
   }
   li[data-state="rejected"].reached:last-child::before {
-    background: linear-gradient(
-      to bottom,
-      #ff5252 0 50%,
-      transparent 50% 100%
-    );
+    background: linear-gradient(to bottom, #ff5252 0 50%, transparent 50% 100%);
   }
 
   .dot {
@@ -675,12 +743,12 @@ function formatDateTimeLocal(iso) {
       minute: "2-digit",
       hour12: false,
     }).format(d);
-    return `${dd} ${tm}`; // <-- FIX
+    return `${dd} ${tm}`;
   } catch {
     return "";
   }
 }
 
 function formatRUB(v) {
-  return `${Number(v).toLocaleString("ru-RU")} ₽`; // <-- FIX
+  return `${Number(v).toLocaleString("ru-RU")} ₽`;
 }
