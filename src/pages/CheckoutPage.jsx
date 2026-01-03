@@ -19,6 +19,9 @@ const API_BASE =
 const YM_API_KEY = process.env.REACT_APP_YMAPS_API_KEY || "";
 const LOCAL_KEY = "checkout_profile.v1";
 
+// ✅ фикс к СДЭК доставке
+const CDEK_FIXED_FEE = 50;
+
 const DELIVERY_TYPES = {
   PICKUP: "pickup",
   CDEK_PVZ: "cdek_pvz",
@@ -143,7 +146,7 @@ export default function CheckoutPage() {
     comment: "",
   });
 
-  // калькуляция доставки
+  // калькуляция доставки (сырое значение от СДЭКа)
   const [deliveryPrice, setDeliveryPrice] = useState(null);
   const [deliveryDays, setDeliveryDays] = useState(null);
   const [deliveryCalcLoading, setDeliveryCalcLoading] = useState(false);
@@ -172,6 +175,28 @@ export default function CheckoutPage() {
       .replace(/\s+/g, " ")
       .trim();
   }, [lastName, firstName, patronymic]);
+
+  // ✅ это доставка от СДЭКа?
+  const isCdekDelivery = useMemo(
+    () => deliveryType === DELIVERY_TYPES.CDEK_PVZ || deliveryType === DELIVERY_TYPES.CDEK_DOOR,
+    [deliveryType]
+  );
+
+  // ✅ итоговая цена доставки для отображения/сохранения:
+  // сначала +50, потом округление до целого
+  const deliveryPriceFinal = useMemo(() => {
+  if (!isCdekDelivery) return null;
+
+  // ✅ важно: null/undefined => "ещё не рассчитано"
+  if (deliveryPrice == null) return null;
+
+  const p = Number(deliveryPrice);
+  if (!Number.isFinite(p)) return null;
+
+  // ✅ сначала +50, потом округление
+  return Math.round(p + CDEK_FIXED_FEE);
+}, [isCdekDelivery, deliveryPrice]);
+
 
   // ====== inject CDEK widget CSS via CDN ======
   useEffect(() => {
@@ -605,6 +630,7 @@ export default function CheckoutPage() {
         });
 
         if (tariff) {
+          // ✅ сохраняем СЫРУЮ цену от СДЭК, надбавка + округление делаются отдельно (deliveryPriceFinal)
           setDeliveryPrice(Number(tariff.delivery_sum));
           const daysText =
             tariff.period_min && tariff.period_max
@@ -710,6 +736,7 @@ export default function CheckoutPage() {
         }));
 
         if (tariff) {
+          // ✅ сохраняем СЫРУЮ цену от СДЭК, надбавка + округление делаются отдельно (deliveryPriceFinal)
           setDeliveryPrice(Number(tariff.delivery_sum));
           const daysText =
             tariff.period_min && tariff.period_max
@@ -797,7 +824,9 @@ export default function CheckoutPage() {
         if (cancelled) return;
 
         if (data.ok && data.price != null) {
+          // ✅ сохраняем СЫРУЮ цену от СДЭК, надбавка + округление делаются отдельно (deliveryPriceFinal)
           setDeliveryPrice(Number(data.price));
+
           let daysText = null;
           if (data.period_min && data.period_max) {
             daysText =
@@ -941,7 +970,8 @@ export default function CheckoutPage() {
             intercom: doorAddress.intercom.trim(),
             comment: doorAddress.comment.trim(),
           },
-          calc_price: deliveryPrice,
+          // ✅ отправляем уже "финальную" цену (СДЭК + 50, округление)
+          calc_price: deliveryPriceFinal,
           calc_days: deliveryDays,
           package: {
             weight_grams: totalWeightGrams,
@@ -954,7 +984,8 @@ export default function CheckoutPage() {
           city: selectedCity || null,
           pvz_code: selectedPvzCode,
           pvz: selectedPvz || null,
-          calc_price: deliveryPrice,
+          // ✅ отправляем уже "финальную" цену (СДЭК + 50, округление)
+          calc_price: deliveryPriceFinal,
           calc_days: deliveryDays,
           package: {
             weight_grams: totalWeightGrams,
@@ -1378,7 +1409,9 @@ export default function CheckoutPage() {
             <Input
               placeholder="Улица *"
               value={doorAddress.street}
-              onChange={(e) => setDoorAddress((p) => ({ ...p, street: e.target.value }))}
+              onChange={(e) =>
+                setDoorAddress((p) => ({ ...p, street: e.target.value }))
+              }
               required
             />
 
@@ -1386,18 +1419,24 @@ export default function CheckoutPage() {
               <Input
                 placeholder="Дом *"
                 value={doorAddress.house}
-                onChange={(e) => setDoorAddress((p) => ({ ...p, house: e.target.value }))}
+                onChange={(e) =>
+                  setDoorAddress((p) => ({ ...p, house: e.target.value }))
+                }
                 required
               />
               <Input
                 placeholder="Корпус"
                 value={doorAddress.building}
-                onChange={(e) => setDoorAddress((p) => ({ ...p, building: e.target.value }))}
+                onChange={(e) =>
+                  setDoorAddress((p) => ({ ...p, building: e.target.value }))
+                }
               />
               <Input
                 placeholder="Строение"
                 value={doorAddress.structure}
-                onChange={(e) => setDoorAddress((p) => ({ ...p, structure: e.target.value }))}
+                onChange={(e) =>
+                  setDoorAddress((p) => ({ ...p, structure: e.target.value }))
+                }
               />
             </Grid3>
 
@@ -1405,19 +1444,25 @@ export default function CheckoutPage() {
               <Input
                 placeholder="Квартира *"
                 value={doorAddress.apartment}
-                onChange={(e) => setDoorAddress((p) => ({ ...p, apartment: e.target.value }))}
+                onChange={(e) =>
+                  setDoorAddress((p) => ({ ...p, apartment: e.target.value }))
+                }
                 required
               />
               <Input
                 placeholder="Подъезд *"
                 value={doorAddress.entrance}
-                onChange={(e) => setDoorAddress((p) => ({ ...p, entrance: e.target.value }))}
+                onChange={(e) =>
+                  setDoorAddress((p) => ({ ...p, entrance: e.target.value }))
+                }
                 required
               />
               <Input
                 placeholder="Этаж *"
                 value={doorAddress.floor}
-                onChange={(e) => setDoorAddress((p) => ({ ...p, floor: e.target.value }))}
+                onChange={(e) =>
+                  setDoorAddress((p) => ({ ...p, floor: e.target.value }))
+                }
                 required
               />
             </Grid3>
@@ -1425,7 +1470,9 @@ export default function CheckoutPage() {
             <TextArea
               placeholder="Комментарий курьеру"
               value={doorAddress.comment}
-              onChange={(e) => setDoorAddress((p) => ({ ...p, comment: e.target.value }))}
+              onChange={(e) =>
+                setDoorAddress((p) => ({ ...p, comment: e.target.value }))
+              }
             />
           </Field>
         )}
@@ -1452,8 +1499,8 @@ export default function CheckoutPage() {
             Доставка СДЭК:&nbsp;
             {deliveryCalcLoading
               ? "рассчитываем…"
-              : deliveryPrice != null
-              ? `${deliveryPrice.toLocaleString("ru-RU")} ₽${
+              : deliveryPriceFinal != null
+              ? `${deliveryPriceFinal.toLocaleString("ru-RU")} ₽${
                   deliveryDays ? ` • ${deliveryDays}` : ""
                 }`
               : "будет рассчитана позже"}
@@ -1467,7 +1514,9 @@ export default function CheckoutPage() {
           <SubmitBtn
             type="submit"
             disabled={!canSubmit || sending}
-            {...makePointerPress((isPressed) => setPressedId(isPressed ? "submit" : null))}
+            {...makePointerPress((isPressed) =>
+              setPressedId(isPressed ? "submit" : null)
+            )}
             $pressed={pressedId === "submit"}
           >
             {sending ? "Отправляем…" : "Отправить"}
