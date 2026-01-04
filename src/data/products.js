@@ -20,8 +20,7 @@ const products = [
     oldPrice: 21890,
     inStock: true,
     color: { name: "Черный", hex: "#000000" },
-    status: "preorder",
-    variantIds: [1, 5],
+    variantIds: [1, 2],
     images: [
       `${P}/paradigmaone.jpg`,
       `${P}/paradigmaone2.jpg`,
@@ -33,9 +32,38 @@ const products = [
     weightGrams: 4000,
     dimensionsCm: { length: 40, width: 35, height: 28 },
   },
+    {
+    id: 2,
+    name: "Paradigma ONE White",
+    description:
+      "Paradigma One — инновационный электронный кальян без угля и пепла. Удобен в использовании, безопасен для помещений и техники, стильно впишется в любую обстановку.",
+    configuration: `
+• Электронный кальян Paradigma One
+• Прочный кейс
+• Щипцы
+• 2 чаши
+• Набор для очистки
+• Зарядное устройство
+• Инструкция
+`,
+    price: 19900,
+    oldPrice: 21890,
+    inStock: true,
+    color: { name: "Белый", hex: "#ffffffff" },
+    variantIds: [1, 2],
+    images: [
+      `${P}/paradigmaonewhite.jpg`,
+      `${P}/paradigmaonewhite2.jpg`,
+      `${P}/paradigmaonewhite3.jpg`
+    ],
+
+    // ✅ доставка
+    weightGrams: 4000,
+    dimensionsCm: { length: 40, width: 35, height: 28 },
+  },
 
   {
-    id: 2,
+    id: 5,
     name: "Paradigma X Lukah",
     description:
       "Paradigma X Lukah — стильная премиальная модель с технологичным управлением и особым дизайном. Съёмный аккумулятор и удобная комплектация обеспечат свободу использования где угодно.",
@@ -52,6 +80,7 @@ const products = [
     price: 46500,
     oldPrice: null,
     inStock: true,
+    status: "preorder",
     images: [
       `${P}/paradigmalukah.jpg`,
       `${P}/paradigmalukah2.jpg`,
@@ -81,6 +110,7 @@ const products = [
     price: 26900,
     oldPrice: 29590,
     inStock: true,
+    status: "preorder",
     images: [
       `${P}/paradigmaneo.jpg`,
       `${P}/paradigmaneo2.jpg`,
@@ -118,34 +148,7 @@ const products = [
     dimensionsCm: { length: 32, width: 16, height: 12 },
   },
 
-  {
-    id: 5,
-    name: "Paradigma ONE White",
-    description:
-      "Paradigma One — инновационный электронный кальян без угля и пепла. Удобен в использовании, безопасен для помещений и техники, стильно впишется в любую обстановку.",
-    configuration: `
-• Электронный кальян Paradigma One
-• Прочный кейс
-• Щипцы
-• 2 чаши
-• Набор для очистки
-• Зарядное устройство
-• Инструкция
-`,
-    price: 19900,
-    oldPrice: 21890,
-    inStock: true,
-    color: { name: "Белый", hex: "#ffffffff" },
-    variantIds: [1, 5],
-    images: [
-      `${P}/paradigmaonewhite.jpg`,
-      `${P}/paradigmaonewhite2.jpg`,
-    ],
 
-    // ✅ доставка
-    weightGrams: 4000,
-    dimensionsCm: { length: 40, width: 35, height: 28 },
-  },
 ];
 
 export default products;

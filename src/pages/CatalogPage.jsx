@@ -1,5 +1,5 @@
 // src/pages/CatalogPage.jsx
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import styled from "styled-components";
 
@@ -11,9 +11,16 @@ import makePointerPress from "../utils/makePointerPress";
 const PUB = process.env.PUBLIC_URL || "";
 const PREORDER_BADGE_SRC = `${PUB}/assets/images/preorderBadge.svg`;
 
+function isOutOfStock(p) {
+  return (
+    p?.inStock === false ||
+    (typeof p?.stock === "number" && p.stock <= 0)
+  );
+}
+
 export default function CatalogPage() {
   const { addItem, getItemQuantity } = useCart();
-  const [pressedId, setPressedId] = useState(null); // <-- добавили
+  const [pressedId, setPressedId] = useState(null);
 
   const getQty = useCallback((id) => getItemQuantity(id), [getItemQuantity]);
 
@@ -31,21 +38,27 @@ export default function CatalogPage() {
     }
   };
 
+  // ✅ сначала в наличии, потом нет в наличии (сохраняем исходный порядок внутри групп)
+  const sortedProducts = useMemo(() => {
+    return [...products].sort((a, b) => {
+      const ao = isOutOfStock(a) ? 1 : 0; // 0 = в наличии, 1 = нет
+      const bo = isOutOfStock(b) ? 1 : 0;
+      return ao - bo;
+    });
+  }, []);
+
   return (
     <PageWrapper>
       <TopBar title="Каталог товаров" hideBack />
 
       <Grid>
-        {products.map((p) => {
+        {sortedProducts.map((p) => {
           const qty = getQty(p.id);
           const icon = getIcon(qty);
 
           const hasOld = typeof p.oldPrice === "number" && p.oldPrice > 0;
 
-          const outOfStock =
-            p?.inStock === false ||
-            (typeof p?.stock === "number" && p.stock <= 0);
-
+          const outOfStock = isOutOfStock(p);
           const isPreorder = p.status === "preorder";
 
           return (
@@ -53,10 +66,7 @@ export default function CatalogPage() {
               <Link to={`/product/${p.id}`}>
                 <ImageWrap>
                   <ProductImage
-                    src={
-                      p.images?.[0] ||
-                      `${PUB}/assets/images/placeholder.png`
-                    }
+                    src={p.images?.[0] || `${PUB}/assets/images/placeholder.png`}
                     alt={p.name}
                     loading="lazy"
                   />
@@ -93,7 +103,8 @@ export default function CatalogPage() {
                 {!outOfStock && (
                   <CartBtnWrap
                     {...makePointerPress(
-                      (isPressed) => setPressedId(isPressed ? p.id : null),
+                      (isPressed) =>
+                        setPressedId(isPressed ? p.id : null),
                       () => onAdd(p)
                     )}
                     $pressed={pressedId === p.id}
@@ -113,7 +124,6 @@ export default function CatalogPage() {
     </PageWrapper>
   );
 }
-
 
 /* ===================== styled ===================== */
 
@@ -173,7 +183,7 @@ const InfoRow = styled.div`
   align-items: flex-start;
   margin-top: 8px;
   gap: 8px;
-  padding: 0 2px 0 4px; /* чтобы текст визуально не «уезжал» влево за рамку фото */
+  padding: 0 2px 0 4px;
 `;
 
 const PriceBlock = styled.div`
@@ -188,7 +198,7 @@ const PriceRow = styled.div`
   display: flex;
   align-items: baseline;
   gap: 4px;
-  min-height: 18px; /* чтобы высота строки не прыгала при разных состояниях */
+  min-height: 18px;
 `;
 
 const PriceNow = styled.span`
@@ -237,6 +247,7 @@ const CartBtnWrap = styled.button`
   -webkit-tap-highlight-color: transparent;
   transition: transform 120ms ease-out, box-shadow 120ms ease-out;
   transform: ${(p) => (p.$pressed ? "scale(.965)" : "scale(1)")};
+
   img {
     width: var(--icon-size);
     height: var(--icon-size);
