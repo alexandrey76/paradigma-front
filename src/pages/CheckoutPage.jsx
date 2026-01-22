@@ -6,20 +6,19 @@ import TopBar from "../components/TopBar";
 import { useCart } from "../context/CartContext";
 import makePointerPress from "../utils/makePointerPress";
 
-// ✅ CDEK widget (npm i @cdek-it/widget)
+// CDEK widget (npm i @cdek-it/widget)
 import CDEKWidget from "@cdek-it/widget";
 
-// ✅ PRODUCTS (weight + dimensions)
-import products from "../data/products"; // <-- проверь путь!
+// PRODUCTS (weight + dimensions)
+import products from "../data/products";
 
 const API_BASE =
-  process.env.REACT_APP_API_BASE ||
-  "https://alexandrey76-paradigma-back-c956.twc1.net";
+  process.env.REACT_APP_API_BASE;
 
 const YM_API_KEY = process.env.REACT_APP_YMAPS_API_KEY || "";
 const LOCAL_KEY = "checkout_profile.v1";
 
-// ✅ фикс к СДЭК доставке
+// фикс к СДЭК доставке
 const CDEK_FIXED_FEE = 50;
 
 const DELIVERY_TYPES = {
@@ -146,7 +145,6 @@ export default function CheckoutPage() {
     comment: "",
   });
 
-  // калькуляция доставки (сырое значение от СДЭКа)
   const [deliveryPrice, setDeliveryPrice] = useState(null);
   const [deliveryDays, setDeliveryDays] = useState(null);
   const [deliveryCalcLoading, setDeliveryCalcLoading] = useState(false);
@@ -166,7 +164,6 @@ export default function CheckoutPage() {
   const doorWidgetRef = useRef(null);
   const doorWidgetRootId = "cdek-door-map";
 
-  // ✅ Собираем ФИО в одну строку
   const fullName = useMemo(() => {
     return [lastName, firstName, patronymic]
       .map((s) => (s || "").trim())
@@ -176,24 +173,19 @@ export default function CheckoutPage() {
       .trim();
   }, [lastName, firstName, patronymic]);
 
-  // ✅ это доставка от СДЭКа?
   const isCdekDelivery = useMemo(
     () => deliveryType === DELIVERY_TYPES.CDEK_PVZ || deliveryType === DELIVERY_TYPES.CDEK_DOOR,
     [deliveryType]
   );
 
-  // ✅ итоговая цена доставки для отображения/сохранения:
-  // сначала +50, потом округление до целого
   const deliveryPriceFinal = useMemo(() => {
   if (!isCdekDelivery) return null;
 
-  // ✅ важно: null/undefined => "ещё не рассчитано"
   if (deliveryPrice == null) return null;
 
   const p = Number(deliveryPrice);
   if (!Number.isFinite(p)) return null;
 
-  // ✅ сначала +50, потом округление
   return Math.round(p + CDEK_FIXED_FEE);
 }, [isCdekDelivery, deliveryPrice]);
 
@@ -246,7 +238,6 @@ export default function CheckoutPage() {
     [total]
   );
 
-  // ✅ Реальный вес/габариты из products.js
   const pack = useMemo(() => buildPackageFromCart(cart), [cart]);
   const totalWeightGrams = pack.weightGrams;
   const packDims = pack.dimensionsCm; // {length,width,height}
@@ -355,7 +346,6 @@ export default function CheckoutPage() {
       }
     } catch {}
 
-    // ✅ автозаполняем только tg@ (а НЕ ФИО из Telegram)
     if (user && !tgHandle) {
       if (user.username) setTgHandle("@" + user.username);
     }
@@ -630,7 +620,6 @@ export default function CheckoutPage() {
         });
 
         if (tariff) {
-          // ✅ сохраняем СЫРУЮ цену от СДЭК, надбавка + округление делаются отдельно (deliveryPriceFinal)
           setDeliveryPrice(Number(tariff.delivery_sum));
           const daysText =
             tariff.period_min && tariff.period_max
@@ -683,7 +672,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    // destroy previous
     if (doorWidgetRef.current) {
       try {
         doorWidgetRef.current.destroy();
@@ -736,7 +724,6 @@ export default function CheckoutPage() {
         }));
 
         if (tariff) {
-          // ✅ сохраняем СЫРУЮ цену от СДЭК, надбавка + округление делаются отдельно (deliveryPriceFinal)
           setDeliveryPrice(Number(tariff.delivery_sum));
           const daysText =
             tariff.period_min && tariff.period_max
@@ -778,8 +765,7 @@ export default function CheckoutPage() {
     packDims.height,
   ]);
 
-  // ================= расчет доставки (бэком) =================
-  // если ПВЗ выбрали через виджет и он прислал тариф — не перетираем
+
   useEffect(() => {
     setDeliveryCalcError("");
 
@@ -799,7 +785,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    // ✅ передаём и вес, и габариты
     let url =
       `${API_BASE}/api/delivery/cdek/calc?delivery_type=${deliveryType}` +
       `&weight_grams=${totalWeightGrams}` +
@@ -824,7 +809,6 @@ export default function CheckoutPage() {
         if (cancelled) return;
 
         if (data.ok && data.price != null) {
-          // ✅ сохраняем СЫРУЮ цену от СДЭК, надбавка + округление делаются отдельно (deliveryPriceFinal)
           setDeliveryPrice(Number(data.price));
 
           let daysText = null;
@@ -914,7 +898,7 @@ export default function CheckoutPage() {
           );
         } catch {}
 
-        // (профиль можно хранить и одной строкой — если твой бэк так устроен)
+
         try {
           await fetch(`${API_BASE}/api/profile`, {
             method: "POST",
@@ -926,7 +910,7 @@ export default function CheckoutPage() {
               phone,
               name_for_orders: fullName,
               tg_for_orders: tgHandle,
-              // ✅ на всякий случай — если бэк уже поддерживает отдельные поля
+
               last_name: lastName.trim(),
               first_name: firstName.trim(),
               patronymic: patronymic.trim() || null,
@@ -970,7 +954,7 @@ export default function CheckoutPage() {
             intercom: doorAddress.intercom.trim(),
             comment: doorAddress.comment.trim(),
           },
-          // ✅ отправляем уже "финальную" цену (СДЭК + 50, округление)
+
           calc_price: deliveryPriceFinal,
           calc_days: deliveryDays,
           package: {

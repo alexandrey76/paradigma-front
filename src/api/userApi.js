@@ -1,8 +1,6 @@
 // src/api/userApi.js
 const API_BASE =
-  process.env.REACT_APP_API_BASE ||
-  "https://alexandrey76-paradigma-back-c956.twc1.net" ||
-  "http://localhost:8000";
+  process.env.REACT_APP_API_BASE;
 
 export async function ensureUserOnServer() {
   const tg = window?.Telegram?.WebApp;

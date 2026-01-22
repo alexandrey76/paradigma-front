@@ -1,7 +1,6 @@
 // src/api/cartApi.js
 const API_BASE =
-  process.env.REACT_APP_API_BASE ||
-  "https://alexandrey76-paradigma-back-c956.twc1.net";
+  process.env.REACT_APP_API_BASE;
 
 // ---- Telegram context (user + initData) ----
 export function getTgContext() {
