@@ -96,11 +96,10 @@ export default function OrdersPage() {
           name: item.name,
           price,
           qty,
-          image: getProductImage(item.id), // <-- берём картинку по products.js
+          image: getProductImage(item.id),
         };
       });
 
-      // итоговая сумма – ТОЛЬКО из БД, если она есть
       const dbTotal = Number(
         order.total_from_db ?? order.total ?? NaN
       );

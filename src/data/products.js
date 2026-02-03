@@ -46,8 +46,7 @@ const products = [
 • Зарядное устройство
 • Инструкция
 `,
-    price: 19900,
-    oldPrice: 21890,
+    price: 21900,
     inStock: true,
     color: { name: "Белый", hex: "#ffffffff" },
     variantIds: [1, 2],

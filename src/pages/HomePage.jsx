@@ -72,7 +72,7 @@ export default function HomePage() {
       {/* Герой */}
       <HeroWrap>
         <HeroImg
-          src={`${PUB}/assets/images/backgroundNewYear.jpg`}
+          src={`${PUB}/assets/images/background_homepage.jpg`}
           alt="Paradigma hookah"
         />
       </HeroWrap>
