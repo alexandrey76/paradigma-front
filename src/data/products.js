@@ -17,7 +17,8 @@ const products = [
 • Инструкция
 `,
     price: 21900,
-    inStock: false,
+    status: "preorder",
+    inStock: true,
     color: { name: "Черный", hex: "#000000" },
     variantIds: [1, 2],
     images: [
