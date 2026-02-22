@@ -1,70 +1,197 @@
-# Getting Started with Create React App
+# Paradigma Front — Telegram Mini App (Frontend)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A React (CRA) frontend for the **Paradigma** Telegram Mini App: product catalog, product pages, cart, checkout (pickup / CDEK pickup points / CDEK courier), profile, support, and order tracking.
 
-## Available Scripts
+> Router: **HashRouter** (`/#/route`) — works well for Telegram WebView and static hosting.
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## Features
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- **Catalog & product pages** (data sourced from `src/data/products.js`)
+- **Cart**
+  - Local state + persistence
+  - Server sync by Telegram user id (when available)
+- **Checkout**
+  - Pickup
+  - **CDEK Pickup Point (PVZ)**: list / map modes
+  - **CDEK Courier (Door)**: manual address / map mode
+  - Delivery price calculation via backend
+- **Orders**
+  - My orders list
+  - Order details
+  - Status timeline
+  - Cancel order
+- **Profile**
+  - Phone / gender (loaded & saved via backend)
+- **Support**
+  - Submit a request to the backend
+- **Age Gate (18+)**
+  - Shown on first run, then once a week (configurable)
+- **Preloader**
+  - Fullscreen video overlay (`/public/assets/video/Preloader.mp4`)
+- **Auto-reload on new version**
+  - Compares `public/version.json` with `BUILD_VERSION` in `src/App.jsx`
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+---
 
-### `npm test`
+## Tech Stack
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- React 18 + Create React App
+- `react-router-dom` (HashRouter)
+- `styled-components`
+- Telegram WebApp JS (`telegram-web-app.js`) + header `X-Telegram-Init-Data`
+- CDEK widget: `@cdek-it/widget`
+- Embla Carousel: `embla-carousel-react`
+- Icons: `lucide-react`
 
-### `npm run build`
+---
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Requirements
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- Node.js **16+** (recommended 18+)
+- npm (or yarn)
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+---
 
-### `npm run eject`
+## Getting Started
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```bash
+npm install
+npm start
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+App will run at `http://localhost:3000`.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+> Many flows work only inside Telegram (because user id + `initData` come from `window.Telegram.WebApp`).
+> For testing in Telegram you usually need an **HTTPS** URL (ngrok / Cloudflare Tunnel, etc.).
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+---
 
-## Learn More
+## Environment Variables
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Create a `.env` file in the project root:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```env
+REACT_APP_API_BASE=https://your-backend.example.com
+REACT_APP_YMAPS_API_KEY=your_yandex_maps_api_key
+```
 
-### Code Splitting
+### Notes
+- CRA exposes only vars prefixed with `REACT_APP_`.
+- `REACT_APP_YMAPS_API_KEY` is injected into `public/index.html` at **build time**.
+  After changing `.env`, restart the dev server.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+---
 
-### Analyzing the Bundle Size
+## Backend Expectations (API)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+The frontend talks to the backend defined by `REACT_APP_API_BASE`.
+Most Telegram-authenticated requests include the header:
 
-### Making a Progressive Web App
+- `X-Telegram-Init-Data: <Telegram initData>`
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+Endpoints used in the codebase include:
 
-### Advanced Configuration
+### Users
+- `POST /api/users/ensure` — ensure/create user on backend (called once on app start)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+### Cart
+- `POST /api/cart/update` — delta or set quantity
+- `GET  /api/cart/sync?tg_user_id=...` — fetch cart
+- `DELETE /api/cart` — clear cart (used in some flows)
 
-### Deployment
+### Orders
+- `POST /api/orders` — create order
+- `GET  /api/orders/my-orders?tg_user_id=...` — list user orders
+- `GET  /api/orders/:id` — order details
+- `GET  /api/orders/:id/timeline` — status timeline
+- `POST /api/orders/:id/cancel` — cancel
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+### Profile & Support
+- `GET  /api/profile`
+- `POST /api/profile`
+- `POST /api/support`
 
-### `npm run build` fails to minify
+### Delivery (CDEK)
+- `GET /api/delivery/cdek/cities?query=...`
+- `GET /api/delivery/cdek/pvz?...`
+- `GET /api/delivery/cdek/calc?delivery_type=...`
+- `GET /api/cdek-widget/service` — service path for the CDEK widget
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+> Some pages contain a hardcoded fallback `API_BASE`. For production, set `REACT_APP_API_BASE` and consider removing fallbacks.
+
+---
+
+## Project Structure
+
+- `public/`
+  - `assets/` — images, videos, icons
+  - `privacy.html`, `consent.html` — static documents
+  - `version.json` — frontend version for auto-update
+  - `index.html` — Telegram WebApp script + Yandex Maps script
+- `src/`
+  - `pages/` — routes (catalog/cart/checkout/orders/profile/support/etc.)
+  - `components/` — UI components (TopBar, NavBar, AgeGate, etc.)
+  - `context/CartContext.jsx` — cart state + server sync
+  - `api/` — API helpers (cart/user)
+  - `data/products.js` — product catalog + weight/dimensions for shipping calculations
+  - `utils/`, `styles/`
+
+---
+
+## Build
+
+```bash
+npm run build
+```
+
+Outputs production files to `build/`.
+
+---
+
+## Deployment
+
+### Static hosting
+Serve the `build/` folder with any static server.
+
+### Nginx (Timeweb Apps example)
+This repo includes `nginx.conf` that:
+- listens on **8080**
+- serves `/app/build`
+- sets headers to allow rendering inside Telegram WebView:
+  - clears `X-Frame-Options`
+  - adds `Content-Security-Policy: frame-ancestors ...telegram...`
+
+If deploying elsewhere, copy the same headers into your server config.
+
+---
+
+## Versioning / Auto Update
+
+The app periodically fetches `public/version.json` and reloads if the version differs from `BUILD_VERSION`.
+
+Release checklist:
+1. Update `BUILD_VERSION` in `src/App.jsx`
+2. Update `public/version.json` to the same value
+3. Build and deploy
+
+---
+
+## Troubleshooting
+
+- **Blank screen inside Telegram**
+  - Ensure the app is reachable via **HTTPS**
+  - Ensure your server allows embedding (CSP `frame-ancestors` / no restrictive `X-Frame-Options`)
+- **Yandex Maps / CDEK map not loading**
+  - Check `REACT_APP_YMAPS_API_KEY` and its domain/referrer restrictions
+  - Rebuild or restart dev server after changing `.env`
+- **API errors**
+  - Verify `REACT_APP_API_BASE`
+  - Ensure backend accepts `X-Telegram-Init-Data` and correct CORS settings
+
+---
+
+## License
+
+No license file is included in this repository yet. Add a `LICENSE` file if you plan to open-source it.
